@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 
 const NAV_ITEMS = [
@@ -15,9 +15,9 @@ function HamburgerIcon({ isOpen }: { isOpen: boolean }) {
     display: "block",
     width: "20px",
     height: "2px",
-    background: "#141414",
+    background: "#1a1a1a",
     borderRadius: "1px",
-    transition: "all 0.3s cubic-bezier(0.16, 1, 0.3, 1)",
+    transition: "transform 0.3s cubic-bezier(0.25, 1, 0.5, 1), opacity 0.2s ease",
     transformOrigin: "center",
   };
 
@@ -58,33 +58,43 @@ function HamburgerIcon({ isOpen }: { isOpen: boolean }) {
 export default function BlobNav() {
   const [isOpen, setIsOpen] = useState(false);
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
-  const [burgerHovered, setBurgerHovered] = useState(false);
 
+  const handleKeyDown = useCallback(
+    (e: KeyboardEvent) => {
+      if (e.key === "Escape" && isOpen) setIsOpen(false);
+    },
+    [isOpen],
+  );
+
+  useEffect(() => {
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [handleKeyDown]);
+
+  // The blob is always full-size in the DOM. We use clip-path to
+  // reveal/hide content — the top bar (40px) is always visible,
+  // and the rest clips in/out. No scaling = no blurry text.
   const blobStyle: React.CSSProperties = {
     position: "fixed",
     zIndex: 100,
     pointerEvents: "all",
-    transition: "all 0.6s cubic-bezier(0.16, 1, 0.3, 1)",
-    overflow: "hidden",
-    top: "1.25rem", // ~top-5
+    top: "16px",
     left: "50%",
     transform: "translateX(-50%)",
-    width: isOpen ? "min(400px, calc(100vw - 50px))" : "min(320px, calc(100vw - 50px))",
+    width: "min(400px, calc(100vw - 48px))",
     maxWidth: "100%",
     userSelect: "none",
     borderRadius: "8px",
-    border: "1px solid #e8e8e8",
-    background: "rgba(255,255,255,0.7)",
-    backdropFilter: "blur(30px)",
+    background: "rgba(255,255,255,0.45)",
+    backdropFilter: "blur(40px)",
+    WebkitBackdropFilter: "blur(40px)",
     display: "flex",
     flexDirection: "column",
-    ...(isOpen
-      ? {
-        height: "600px",
-      }
-      : {
-        height: "40px",
-      }),
+    // clip-path animates on GPU (composited), no layout reflow
+    clipPath: isOpen
+      ? "inset(0 0 0 0 round 8px)"
+      : "inset(0 0 calc(100% - 40px) 0 round 8px)",
+    transition: "clip-path 0.45s cubic-bezier(0.25, 1, 0.5, 1)",
   };
 
   const barStyle: React.CSSProperties = {
@@ -92,7 +102,7 @@ export default function BlobNav() {
     alignItems: "center",
     justifyContent: "center",
     position: "relative",
-    padding: isOpen ? "0 1.25rem" : "0 0.75rem",
+    padding: "0 16px",
     height: "40px",
     flexShrink: 0,
   };
@@ -100,13 +110,10 @@ export default function BlobNav() {
   const gridStyle: React.CSSProperties = {
     display: "grid",
     gridTemplateColumns: "1fr 1fr",
-    gridTemplateRows: "1fr 1fr",
-    gap: "6px",
-    flex: 1,
-    minHeight: 0,
-    padding: "0 1rem 1rem 1rem",
+    gap: "8px",
+    padding: "0 16px 16px 16px",
     opacity: isOpen ? 1 : 0,
-    transition: "opacity 0.3s ease 0.2s",
+    transition: "opacity 0.3s ease 0.15s",
     pointerEvents: isOpen ? "all" : "none",
   };
 
@@ -122,34 +129,35 @@ export default function BlobNav() {
   };
 
   return (
-    <nav style={{ pointerEvents: "none", position: "fixed", inset: 0, zIndex: 100 }}>
+    <nav
+      style={{ pointerEvents: "none", position: "fixed", inset: 0, zIndex: 100 }}
+      aria-label="Main navigation"
+    >
       {/* Backdrop */}
       <div style={backdropStyle} onClick={() => setIsOpen(false)} />
 
       {/* Blob */}
-      <div
-        style={blobStyle}
-      >
-        {/* Top bar: hamburger + "comte" */}
+      <div style={blobStyle}>
+        {/* Top bar: hamburger + "comte" — never transforms */}
         <div style={barStyle}>
           <button
             onClick={() => setIsOpen(!isOpen)}
-            onMouseEnter={() => setBurgerHovered(true)}
-            onMouseLeave={() => setBurgerHovered(false)}
             aria-label={isOpen ? "Close navigation" : "Open navigation"}
+            aria-expanded={isOpen}
             style={{
               background: "none",
               border: "none",
               cursor: "pointer",
-              padding: "6px",
+              padding: "12px",
               borderRadius: "8px",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
-              transition: "background 0.2s ease",
-              position: "absolute" as const,
-              left: isOpen ? "1.25rem" : "0.75rem",
-              ...(burgerHovered ? { background: "rgba(0,0,0,0.06)" } : {}),
+              transition: "background 0.15s ease",
+              position: "absolute",
+              left: "16px",
+              minWidth: "44px",
+              minHeight: "44px",
             }}
           >
             <HamburgerIcon isOpen={isOpen} />
@@ -162,9 +170,8 @@ export default function BlobNav() {
               fontSize: "1rem",
               fontWeight: 300,
               letterSpacing: "0.08em",
-              color: "#141414",
+              color: "#1a1a1a",
               textDecoration: "none",
-              // textTransform: "uppercase",
               pointerEvents: "all",
             }}
           >
@@ -176,7 +183,7 @@ export default function BlobNav() {
         <div
           style={{
             flexShrink: 0,
-            padding: "0 1.25rem 0.25rem 1.25rem",
+            padding: "0 24px 4px 24px",
             opacity: isOpen ? 1 : 0,
             transform: isOpen ? "translateY(0)" : "translateY(-4px)",
             transition: "opacity 0.3s ease 0.18s, transform 0.3s ease 0.18s",
@@ -184,14 +191,21 @@ export default function BlobNav() {
           }}
         >
           <p
-            className="my-12 mx-auto text-center italic font-sans text-2xl leading-[1.4] text-[#4a4a4a]"
+            style={{
+              margin: "48px auto",
+              textAlign: "center",
+              fontStyle: "italic",
+              fontFamily: "var(--font-neue-haas)",
+              fontSize: "clamp(1.25rem, 2vw, 1.5rem)",
+              lineHeight: 1.4,
+              color: "#4a4a4a",
+            }}
           >
-
             We help teams design, build, and ship thoughtful digital products.
           </p>
         </div>
 
-        {/* Grid: fills remaining space */}
+        {/* Grid */}
         <div style={gridStyle}>
           {NAV_ITEMS.map((item, i) => (
             <Link
@@ -204,17 +218,17 @@ export default function BlobNav() {
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
-                minHeight: 0,
-                borderRadius: "0.75rem",
+                aspectRatio: "1 / 1",
+                borderRadius: "12px",
                 background:
                   hoveredIndex === i
                     ? "rgba(0,0,0,0.08)"
                     : "rgba(0,0,0,0.04)",
-                transition: "background 0.2s ease",
+                transition: "background 0.15s ease",
                 fontFamily: "var(--font-neue-haas)",
-                fontSize: "1.25rem",
+                fontSize: "clamp(1rem, 1.5vw, 1.25rem)",
                 fontWeight: 500,
-                color: "#141414",
+                color: "#1a1a1a",
                 textDecoration: "none",
               }}
             >

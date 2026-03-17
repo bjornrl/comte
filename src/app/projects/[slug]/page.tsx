@@ -49,7 +49,7 @@ function FittingHeadline({ children }: { children: React.ReactNode }) {
     );
 }
 
-export default function ArticlePage({
+export default function ProjectPage({
     params,
 }: {
     params: Promise<{ slug: string }>;
@@ -60,9 +60,8 @@ export default function ArticlePage({
         <div style={{ minHeight: "100svh", overflowY: "auto", height: "100vh" }}>
             <BlobNav />
             <div className="w-full h-[80vh] flex flex-col items-center justify-start pt-12 bg-white">
-                <FittingHeadline>{slug || "Article"}</FittingHeadline>
-                <p className="text-xl text-gray-500">Author</p>
-               
+                <FittingHeadline>{slug || "Project"}</FittingHeadline>
+                <p className="text-xl text-gray-500">Client</p>
             </div>
             <div className="w-full bg-white px-6 py-12 md:px-12 lg:px-24 max-w-3xl mx-auto">
                 <div className="text-[#1a1a1a] font-light space-y-6 text-lg leading-relaxed">

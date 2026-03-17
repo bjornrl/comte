@@ -8,8 +8,8 @@ const PLACEHOLDER_IMAGE =
 
 function PageOne() {
   return (
-    <section className="flex h-screen w-screen flex-shrink-0 items-center justify-center bg-white">
-      <h1 className="font-sans text-5xl font-thin text-black">"INNOVATION FOR SOCIETAL IMPACT"</h1>
+    <section className="flex h-screen w-screen flex-shrink-0 items-center justify-center bg-[#fafafa]">
+      <h1 className="font-sans text-5xl font-thin text-[#1a1a1a]">"INNOVATION FOR SOCIETAL IMPACT"</h1>
     </section>
   );
 }
@@ -17,7 +17,7 @@ function PageOne() {
 function PageTwo() {
   return (
     <section
-      className="h-screen w-screen flex-shrink-0 bg-white"
+      className="h-screen w-screen flex-shrink-0 bg-[#fafafa]"
       style={{
         display: "grid",
         gridTemplateColumns: ".1fr repeat(2, 1fr) .1fr",
@@ -30,7 +30,7 @@ function PageTwo() {
         className="relative overflow-hidden flex items-end justify-start"
         style={{ gridArea: "2 / 2 / 3 / 3" }}
       >
-        <h1 className="text-5xl font-light text-black">Section 1</h1>
+        <h2 className="text-5xl font-light text-[#1a1a1a]">Section 1</h2>
       </div>
       <div
         className="h-full min-h-0"
@@ -50,7 +50,7 @@ function PageTwo() {
       <div
         className="relative overflow-hidden flex items-end justify-start"
         style={{ gridArea: "2 / 3 / 3 / 4" }}
-      ><h1 className="text-2xl font-light text-black">Section 3</h1>
+      ><h2 className="text-2xl font-light text-[#1a1a1a]">Section 3</h2>
         {/* <Image
           src={PLACEHOLDER_IMAGE}
           alt=""
@@ -62,7 +62,7 @@ function PageTwo() {
       <div
         className="relative overflow-hidden"
         style={{ gridArea: "3 / 3 / 4 / 4" }}
-      ><h1 className="text-5xl font-light text-black">Section 4</h1>
+      ><h2 className="text-5xl font-light text-[#1a1a1a]">Section 4</h2>
         <Image
           src={PLACEHOLDER_IMAGE}
           alt=""
@@ -78,7 +78,7 @@ function PageTwo() {
 function PageThree() {
   return (
     <section
-      className="h-screen w-screen flex-shrink-0 bg-white"
+      className="h-screen w-screen flex-shrink-0 bg-[#fafafa]"
       style={{
         display: "grid",
         gridTemplateColumns: ".1fr repeat(2, 1fr) .1fr",
@@ -91,7 +91,7 @@ function PageThree() {
         className="relative overflow-hidden flex items-end justify-start"
         style={{ gridArea: "2 / 2 / 3 / 3" }}
       >
-        <h1 className="text-5xl font-light text-black">Why "Comte"?</h1>
+        <h2 className="text-5xl font-light text-[#1a1a1a]">Why &ldquo;Comte&rdquo;?</h2>
       </div>
       <div
         className="grid grid-cols-2 gap-1 h-full min-h-0"
@@ -130,7 +130,7 @@ function PageThree() {
 function PageFour() {
   return (
     <section
-      className="h-screen w-screen flex-shrink-0 bg-white"
+      className="h-screen w-screen flex-shrink-0 bg-[#fafafa]"
       style={{
         display: "grid",
         gridTemplateColumns: ".1fr repeat(2, 1fr) .1fr",
@@ -143,7 +143,7 @@ function PageFour() {
         className="relative overflow-hidden flex items-end justify-start"
         style={{ gridArea: "2 / 2 / 3 / 3" }}
       >
-        <h1 className="text-5xl font-light text-black">Section 1</h1>
+        <h2 className="text-5xl font-light text-[#1a1a1a]">Section 1</h2>
       </div>
       <div
         className="grid grid-cols-2 gap-1 h-full min-h-0"
@@ -203,9 +203,9 @@ const PLACEHOLDER_PROJECTS = [
 
 function PageFive() {
   return (
-    <section className="flex h-screen w-screen flex-shrink-0 items-center justify-center bg-white p-24">
+    <section className="flex h-screen w-screen flex-shrink-0 items-center justify-center bg-[#fafafa] p-24">
       <div className="rounded-xl border border-black/30 bg-[#EEEEEE] w-full h-full overflow-y-auto">
-        <div className="sticky top-0 z-10 grid grid-cols-3 gap-x-4 border-b border-black/30 bg-[#EEEEEE] px-4 py-3 text-left text-sm font-medium text-black/70">
+        <div className="sticky top-0 z-10 grid grid-cols-3 gap-x-4 border-b border-black/30 bg-[#EEEEEE] px-4 py-3 text-left text-sm font-medium text-[#1a1a1a]/70">
           <span>Year</span>
           <span>Customer</span>
           <span>Achievement</span>
