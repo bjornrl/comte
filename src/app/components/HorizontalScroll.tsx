@@ -1,6 +1,10 @@
 "use client";
 
 import { useRef, useEffect, useCallback } from "react";
+import Image from "next/image";
+
+const PLACEHOLDER_IMAGE =
+  "https://images.unsplash.com/photo-1773558058134-9ff1a3212ef0?q=80&w=1572&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D";
 
 function PageOne() {
   return (
@@ -18,33 +22,100 @@ function PageTwo() {
         display: "grid",
         gridTemplateColumns: ".05fr repeat(2, 1fr) .05fr",
         gridTemplateRows: ".1fr repeat(2, 1fr) .1fr",
-        columnGap: 0,
-        rowGap: 0,
+        columnGap: 2,
+        rowGap: 2,
       }}
     >
       <div
-        className="p-2 flex items-end justify-start"
+        className="flex items-end justify-start"
         style={{ gridArea: "2 / 2 / 3 / 3", background: "#f3f4f6" }} // lightest gray
       >
         <h1 className="text-5xl font-light text-black">Section 1</h1>
       </div>
-      <div
+      <div className="flex flex-row justify-end items-end gap-x-4"
         style={{ gridArea: "2 / 3 / 3 / 4", background: "#e5e7eb" }} // light gray
-      />
+      ><p className="w-full">aowidubaowdba</p><p className="w-full">adwadwdawdawdawd</p></div>
       <div
-        style={{ gridArea: "3 / 2 / 4 / 3", background: "#d1d5db" }} // medium gray
-      />
+        className="relative overflow-hidden"
+        style={{ gridArea: "3 / 2 / 4 / 3" }}
+      >
+        <Image
+          src={PLACEHOLDER_IMAGE}
+          alt=""
+          fill
+          className="object-cover"
+          sizes="50vw"
+        />
+      </div>
       <div
-        style={{ gridArea: "3 / 3 / 4 / 4", background: "#9ca3af" }} // darker gray
-      />
+        className="relative overflow-hidden"
+        style={{ gridArea: "3 / 3 / 4 / 4" }}
+      >
+        <Image
+          src={PLACEHOLDER_IMAGE}
+          alt=""
+          fill
+          className="object-cover"
+          sizes="50vw"
+        />
+      </div>
     </section>
   );
 }
 
 function PageThree() {
   return (
-    <section className="flex h-screen w-screen flex-shrink-0 items-center justify-center bg-white">
-      <h1 className="text-5xl font-bold text-black">Section 3</h1>
+    <section
+      className="h-screen w-screen flex-shrink-0 bg-white"
+      style={{
+        display: "grid",
+        gridTemplateColumns: ".1fr repeat(2, 1fr) .1fr",
+        gridTemplateRows: ".2fr repeat(2, 1fr) .2fr",
+        columnGap: 2,
+        rowGap: 2,
+      }}
+    >
+      <div
+        className="relative overflow-hidden flex items-end justify-start"
+        style={{ gridArea: "2 / 2 / 3 / 3" }}
+      >
+        <h1 className="text-5xl font-light text-black">Section 1</h1>
+      </div>
+      <div
+        className="grid grid-cols-2 gap-1 h-full min-h-0"
+        style={{ gridArea: "3 / 2 / 4 / 3" }}
+      >
+        <div className="relative overflow-hidden min-h-0">
+          <Image
+            src={PLACEHOLDER_IMAGE}
+            alt=""
+            fill
+            className="object-cover"
+            sizes="50vw"
+          />
+        </div>
+        <div className="relative overflow-hidden min-h-0">
+          <Image
+            src={PLACEHOLDER_IMAGE}
+            alt=""
+            fill
+            className="object-cover"
+            sizes="50vw"
+          />
+        </div>
+      </div>
+      <div
+        className="relative overflow-hidden"
+        style={{ gridArea: "2 / 3 / 4 / 4" }}
+      >
+        <Image
+          src={PLACEHOLDER_IMAGE}
+          alt=""
+          fill
+          className="object-cover"
+          sizes="50vw"
+        />
+      </div>
     </section>
   );
 }
@@ -57,10 +128,43 @@ function PageFour() {
   );
 }
 
+const PLACEHOLDER_PROJECTS = [
+  { year: "2024", customer: "Acme Corp", achievement: "Brand identity & web" },
+  { year: "2024", customer: "Nordic Design", achievement: "Campaign concept" },
+  { year: "2023", customer: "Studio Oslo", achievement: "Editorial design" },
+  { year: "2023", customer: "TechStart", achievement: "Product launch site" },
+  { year: "2023", customer: "Museum Nord", achievement: "Exhibition identity" },
+  { year: "2022", customer: "Green Energy Co", achievement: "Annual report" },
+  { year: "2022", customer: "Fashion House", achievement: "Lookbook & campaign" },
+  { year: "2022", customer: "Food & Wine", achievement: "Magazine redesign" },
+  { year: "2021", customer: "Architects AS", achievement: "Portfolio site" },
+  { year: "2021", customer: "City Council", achievement: "Public campaign" },
+  { year: "2021", customer: "Startup Lab", achievement: "Pitch deck & brand" },
+  { year: "2020", customer: "Gallery One", achievement: "Exhibition catalogue" },
+  { year: "2020", customer: "Health First", achievement: "App UI & branding" },
+  { year: "2020", customer: "Local Brewery", achievement: "Packaging & identity" },
+];
+
 function PageFive() {
   return (
-    <section className="flex h-screen w-screen flex-shrink-0 items-center justify-center bg-white">
-      <h1 className="text-5xl font-bold text-black">Section 5</h1>
+    <section className="flex h-screen w-screen flex-shrink-0 items-center justify-center bg-white p-24">
+      <div className="rounded-xl border border-black/30 bg-[#EEEEEE] w-full h-full overflow-y-auto">
+        <div className="sticky top-0 z-10 grid grid-cols-3 gap-x-4 border-b border-black/30 bg-[#EEEEEE] px-4 py-3 text-left text-sm font-medium text-black/70">
+          <span>Year</span>
+          <span>Customer</span>
+          <span>Achievement</span>
+        </div>
+        {PLACEHOLDER_PROJECTS.map((p, i) => (
+          <div
+            key={i}
+            className="grid grid-cols-3 gap-x-4 border-b border-black/20 px-4 py-4 text-left"
+          >
+            <p className="text-lg font-light">{p.year}</p>
+            <p className="text-lg font-light">{p.customer}</p>
+            <p className="text-lg font-light">{p.achievement}</p>
+          </div>
+        ))}
+      </div>
     </section>
   );
 }
