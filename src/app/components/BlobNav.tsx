@@ -6,7 +6,7 @@ import Link from "next/link";
 const NAV_ITEMS = [
   { label: "About", href: "/about" },
   { label: "Projects", href: "/projects" },
-  { label: "How we work", href: "/how-we-work" },
+  { label: "Insights", href: "/insights" },
   { label: "Contact", href: "/contact" },
 ];
 
@@ -160,15 +160,15 @@ export default function BlobNav() {
             style={{
               fontFamily: "var(--font-neue-haas)",
               fontSize: "1rem",
-              fontWeight: 600,
+              fontWeight: 300,
               letterSpacing: "0.08em",
               color: "#141414",
               textDecoration: "none",
-              textTransform: "uppercase",
+              // textTransform: "uppercase",
               pointerEvents: "all",
             }}
           >
-            Comte
+            comte
           </Link>
         </div>
 

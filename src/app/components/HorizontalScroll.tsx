@@ -9,7 +9,7 @@ const PLACEHOLDER_IMAGE =
 function PageOne() {
   return (
     <section className="flex h-screen w-screen flex-shrink-0 items-center justify-center bg-white">
-      <h1 className="font-sans text-5xl font-thin text-black">comte bureau</h1>
+      <h1 className="font-sans text-5xl font-thin text-black">"INNOVATION FOR SOCIETAL IMPACT"</h1>
     </section>
   );
 }
@@ -20,37 +20,49 @@ function PageTwo() {
       className="h-screen w-screen flex-shrink-0 bg-white"
       style={{
         display: "grid",
-        gridTemplateColumns: ".05fr repeat(2, 1fr) .05fr",
-        gridTemplateRows: ".1fr repeat(2, 1fr) .1fr",
+        gridTemplateColumns: ".1fr repeat(2, 1fr) .1fr",
+        gridTemplateRows: ".2fr repeat(2, 1fr) .2fr",
         columnGap: 2,
         rowGap: 2,
       }}
     >
       <div
-        className="flex items-end justify-start"
-        style={{ gridArea: "2 / 2 / 3 / 3", background: "#f3f4f6" }} // lightest gray
+        className="relative overflow-hidden flex items-end justify-start"
+        style={{ gridArea: "2 / 2 / 3 / 3" }}
       >
         <h1 className="text-5xl font-light text-black">Section 1</h1>
       </div>
-      <div className="flex flex-row justify-end items-end gap-x-4"
-        style={{ gridArea: "2 / 3 / 3 / 4", background: "#e5e7eb" }} // light gray
-      ><p className="w-full">aowidubaowdba</p><p className="w-full">adwadwdawdawdawd</p></div>
       <div
-        className="relative overflow-hidden"
+        className="h-full min-h-0"
         style={{ gridArea: "3 / 2 / 4 / 3" }}
       >
-        <Image
+        <div className="relative overflow-hidden h-full w-full">
+          <Image
+            src={PLACEHOLDER_IMAGE}
+            alt=""
+            fill
+            className="object-cover"
+            sizes="50vw"
+          />
+        </div>
+
+      </div>
+      <div
+        className="relative overflow-hidden flex items-end justify-start"
+        style={{ gridArea: "2 / 3 / 3 / 4" }}
+      ><h1 className="text-2xl font-light text-black">Section 3</h1>
+        {/* <Image
           src={PLACEHOLDER_IMAGE}
           alt=""
           fill
           className="object-cover"
           sizes="50vw"
-        />
+        /> */}
       </div>
       <div
         className="relative overflow-hidden"
         style={{ gridArea: "3 / 3 / 4 / 4" }}
-      >
+      ><h1 className="text-5xl font-light text-black">Section 4</h1>
         <Image
           src={PLACEHOLDER_IMAGE}
           alt=""
@@ -64,6 +76,58 @@ function PageTwo() {
 }
 
 function PageThree() {
+  return (
+    <section
+      className="h-screen w-screen flex-shrink-0 bg-white"
+      style={{
+        display: "grid",
+        gridTemplateColumns: ".1fr repeat(2, 1fr) .1fr",
+        gridTemplateRows: ".2fr repeat(2, 1fr) .2fr",
+        columnGap: 2,
+        rowGap: 2,
+      }}
+    >
+      <div
+        className="relative overflow-hidden flex items-end justify-start"
+        style={{ gridArea: "2 / 2 / 3 / 3" }}
+      >
+        <h1 className="text-5xl font-light text-black">Why "Comte"?</h1>
+      </div>
+      <div
+        className="grid grid-cols-2 gap-1 h-full min-h-0"
+        style={{ gridArea: "3 / 2 / 4 / 3" }}
+      >
+        <div className="relative overflow-hidden min-h-0">
+          <Image
+            src={PLACEHOLDER_IMAGE}
+            alt=""
+            fill
+            className="object-cover"
+            sizes="50vw"
+          />
+        </div>
+        <div className="relative overflow-hidden min-h-0">
+          <Image
+            src={PLACEHOLDER_IMAGE}
+            alt=""
+            fill
+            className="object-cover"
+            sizes="50vw"
+          />
+        </div>
+      </div>
+      <div
+        className="relative overflow-hidden grid grid-cols-2"
+        style={{ gridArea: "2 / 3 / 4 / 4" }}
+      >
+        <p>aijwdbaodw</p>
+        <p>aijwdbaodw</p>
+      </div>
+    </section>
+  );
+}
+
+function PageFour() {
   return (
     <section
       className="h-screen w-screen flex-shrink-0 bg-white"
@@ -116,14 +180,6 @@ function PageThree() {
           sizes="50vw"
         />
       </div>
-    </section>
-  );
-}
-
-function PageFour() {
-  return (
-    <section className="flex h-screen w-screen flex-shrink-0 items-center justify-center bg-white">
-      <h1 className="text-5xl font-bold text-black">Section 4</h1>
     </section>
   );
 }
