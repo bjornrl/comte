@@ -79,7 +79,7 @@ export default function BlobNav() {
         borderRadius: "1.5rem",
       }
       : {
-        width: "min(90vw, 500px)",
+          width: "min(90vw, 320px)",
         height: "52px",
         borderRadius: "26px",
       }),
@@ -90,7 +90,7 @@ export default function BlobNav() {
     alignItems: "center",
     justifyContent: "center",
     position: "relative",
-    padding: "0 1.25rem",
+    padding: isOpen ? "0 1.25rem" : "0 0.75rem",
     height: "52px",
     flexShrink: 0,
   };
@@ -145,7 +145,7 @@ export default function BlobNav() {
               justifyContent: "center",
               transition: "background 0.2s ease",
               position: "absolute" as const,
-              left: "1.25rem",
+              left: isOpen ? "1.25rem" : "0.75rem",
               ...(burgerHovered ? { background: "rgba(0,0,0,0.06)" } : {}),
             }}
           >
