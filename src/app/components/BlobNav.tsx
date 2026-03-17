@@ -70,6 +70,8 @@ export default function BlobNav() {
     left: "50%",
     transform: "translateX(-50%)",
     top: "1.5rem",
+    display: "flex",
+    flexDirection: "column",
     ...(isOpen
       ? {
         width: "min(90vw, 500px)",
@@ -96,8 +98,10 @@ export default function BlobNav() {
   const gridStyle: React.CSSProperties = {
     display: "grid",
     gridTemplateColumns: "1fr 1fr",
+    gridTemplateRows: "1fr 1fr",
     gap: "6px",
     flex: 1,
+    minHeight: 0,
     padding: "0 1rem 1rem 1rem",
     opacity: isOpen ? 1 : 0,
     transition: "opacity 0.3s ease 0.2s",
@@ -165,44 +169,55 @@ export default function BlobNav() {
           </Link>
         </div>
 
-        {/* Grid */}
+        {/* Intro text */}
         <div
           style={{
-            display: "flex",
-            flexDirection: "column",
-            height: "calc(100% - 52px)",
+            flexShrink: 0,
+            padding: "0 1.25rem 0.25rem 1.25rem",
+            opacity: isOpen ? 1 : 0,
+            transform: isOpen ? "translateY(0)" : "translateY(-4px)",
+            transition: "opacity 0.3s ease 0.18s, transform 0.3s ease 0.18s",
+            pointerEvents: isOpen ? "all" : "none",
           }}
         >
-          <div style={gridStyle}>
-            {NAV_ITEMS.map((item, i) => (
-              <Link
-                key={item.href}
-                href={item.href}
-                onClick={() => setIsOpen(false)}
-                onMouseEnter={() => setHoveredIndex(i)}
-                onMouseLeave={() => setHoveredIndex(null)}
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  padding: "2rem",
-                  borderRadius: "0.75rem",
-                  background:
-                    hoveredIndex === i
-                      ? "rgba(0,0,0,0.08)"
-                      : "rgba(0,0,0,0.04)",
-                  transition: "background 0.2s ease",
-                  fontFamily: "var(--font-geist-sans)",
-                  fontSize: "1.25rem",
-                  fontWeight: 500,
-                  color: "#141414",
-                  textDecoration: "none",
-                }}
-              >
-                {item.label}
-              </Link>
-            ))}
-          </div>
+          <p
+            className="my-3 mx-auto text-center italic font-geist-sans text-2xl leading-[1.4] text-[#4a4a4a]"
+          >
+
+            We help teams design, build, and ship thoughtful digital products.
+          </p>
+        </div>
+
+        {/* Grid: fills remaining space */}
+        <div style={gridStyle}>
+          {NAV_ITEMS.map((item, i) => (
+            <Link
+              key={item.href}
+              href={item.href}
+              onClick={() => setIsOpen(false)}
+              onMouseEnter={() => setHoveredIndex(i)}
+              onMouseLeave={() => setHoveredIndex(null)}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                minHeight: 0,
+                borderRadius: "0.75rem",
+                background:
+                  hoveredIndex === i
+                    ? "rgba(0,0,0,0.08)"
+                    : "rgba(0,0,0,0.04)",
+                transition: "background 0.2s ease",
+                fontFamily: "var(--font-geist-sans)",
+                fontSize: "1.25rem",
+                fontWeight: 500,
+                color: "#141414",
+                textDecoration: "none",
+              }}
+            >
+              {item.label}
+            </Link>
+          ))}
         </div>
       </div>
     </nav>
