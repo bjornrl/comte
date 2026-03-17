@@ -63,25 +63,27 @@ export default function BlobNav() {
   const blobStyle: React.CSSProperties = {
     position: "fixed",
     zIndex: 100,
-    background: "#ffffff",
     pointerEvents: "all",
     transition: "all 0.6s cubic-bezier(0.16, 1, 0.3, 1)",
     overflow: "hidden",
+    top: "1.25rem", // ~top-5
     left: "50%",
     transform: "translateX(-50%)",
-    top: "1.5rem",
+    width: isOpen ? "min(400px, calc(100vw - 50px))" : "min(320px, calc(100vw - 50px))",
+    maxWidth: "100%",
+    userSelect: "none",
+    borderRadius: "8px",
+    border: "1px solid #e8e8e8",
+    background: "rgba(255,255,255,0.7)",
+    backdropFilter: "blur(30px)",
     display: "flex",
     flexDirection: "column",
     ...(isOpen
       ? {
-        width: "min(90vw, 500px)",
-        height: "440px",
-        borderRadius: "1.5rem",
+        height: "600px",
       }
       : {
-          width: "min(90vw, 320px)",
-        height: "52px",
-        borderRadius: "26px",
+        height: "40px",
       }),
   };
 
@@ -91,7 +93,7 @@ export default function BlobNav() {
     justifyContent: "center",
     position: "relative",
     padding: isOpen ? "0 1.25rem" : "0 0.75rem",
-    height: "52px",
+    height: "40px",
     flexShrink: 0,
   };
 
@@ -112,7 +114,8 @@ export default function BlobNav() {
     position: "fixed",
     inset: 0,
     zIndex: 99,
-    background: "rgba(0,0,0,0.4)",
+    background: "rgba(0,0,0,0.35)",
+    backdropFilter: isOpen ? "blur(24px)" : "none",
     opacity: isOpen ? 1 : 0,
     pointerEvents: isOpen ? "all" : "none",
     transition: "opacity 0.4s ease",
@@ -155,7 +158,7 @@ export default function BlobNav() {
           <Link
             href="/"
             style={{
-              fontFamily: "var(--font-geist-sans)",
+              fontFamily: "var(--font-neue-haas)",
               fontSize: "1rem",
               fontWeight: 600,
               letterSpacing: "0.08em",
@@ -181,7 +184,7 @@ export default function BlobNav() {
           }}
         >
           <p
-            className="my-3 mx-auto text-center italic font-geist-sans text-2xl leading-[1.4] text-[#4a4a4a]"
+            className="my-12 mx-auto text-center italic font-sans text-2xl leading-[1.4] text-[#4a4a4a]"
           >
 
             We help teams design, build, and ship thoughtful digital products.
@@ -208,7 +211,7 @@ export default function BlobNav() {
                     ? "rgba(0,0,0,0.08)"
                     : "rgba(0,0,0,0.04)",
                 transition: "background 0.2s ease",
-                fontFamily: "var(--font-geist-sans)",
+                fontFamily: "var(--font-neue-haas)",
                 fontSize: "1.25rem",
                 fontWeight: 500,
                 color: "#141414",

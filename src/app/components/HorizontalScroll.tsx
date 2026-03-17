@@ -2,13 +2,70 @@
 
 import { useRef, useEffect, useCallback } from "react";
 
-const SECTIONS = [
-  { id: 1, label: "Section 1", color: "#0f0f0f" },
-  { id: 2, label: "Section 2", color: "#1a1a2e" },
-  { id: 3, label: "Section 3", color: "#16213e" },
-  { id: 4, label: "Section 4", color: "#0f3460" },
-  { id: 5, label: "Section 5", color: "#533483" },
-];
+function PageOne() {
+  return (
+    <section className="flex h-screen w-screen flex-shrink-0 items-center justify-center bg-white">
+      <h1 className="font-sans text-5xl font-thin text-black">comte bureau</h1>
+    </section>
+  );
+}
+
+function PageTwo() {
+  return (
+    <section
+      className="h-screen w-screen flex-shrink-0 bg-white"
+      style={{
+        display: "grid",
+        gridTemplateColumns: ".05fr repeat(2, 1fr) .05fr",
+        gridTemplateRows: ".1fr repeat(2, 1fr) .1fr",
+        columnGap: 0,
+        rowGap: 0,
+      }}
+    >
+      <div
+        className="p-2 flex items-end justify-start"
+        style={{ gridArea: "2 / 2 / 3 / 3", background: "#f3f4f6" }} // lightest gray
+      >
+        <h1 className="text-5xl font-light text-black">Section 1</h1>
+      </div>
+      <div
+        style={{ gridArea: "2 / 3 / 3 / 4", background: "#e5e7eb" }} // light gray
+      />
+      <div
+        style={{ gridArea: "3 / 2 / 4 / 3", background: "#d1d5db" }} // medium gray
+      />
+      <div
+        style={{ gridArea: "3 / 3 / 4 / 4", background: "#9ca3af" }} // darker gray
+      />
+    </section>
+  );
+}
+
+function PageThree() {
+  return (
+    <section className="flex h-screen w-screen flex-shrink-0 items-center justify-center bg-white">
+      <h1 className="text-5xl font-bold text-black">Section 3</h1>
+    </section>
+  );
+}
+
+function PageFour() {
+  return (
+    <section className="flex h-screen w-screen flex-shrink-0 items-center justify-center bg-white">
+      <h1 className="text-5xl font-bold text-black">Section 4</h1>
+    </section>
+  );
+}
+
+function PageFive() {
+  return (
+    <section className="flex h-screen w-screen flex-shrink-0 items-center justify-center bg-white">
+      <h1 className="text-5xl font-bold text-black">Section 5</h1>
+    </section>
+  );
+}
+
+const PAGES = [PageOne, PageTwo, PageThree, PageFour, PageFive];
 
 export default function HorizontalScroll() {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -17,9 +74,9 @@ export default function HorizontalScroll() {
   // We render: [clone of last] [1] [2] [3] [4] [5] [clone of first]
   // Total = 7 panels. The "real" pages are at indices 1–5.
   const panels = [
-    { ...SECTIONS[SECTIONS.length - 1], key: "clone-last" },
-    ...SECTIONS.map((s) => ({ ...s, key: `real-${s.id}` })),
-    { ...SECTIONS[0], key: "clone-first" },
+    { type: "clone-last", pageIndex: PAGES.length - 1, key: "clone-last" },
+    ...PAGES.map((_, idx) => ({ type: "real", pageIndex: idx, key: `real-${idx}` })),
+    { type: "clone-first", pageIndex: 0, key: "clone-first" },
   ];
 
   const scrollToIndex = useCallback((index: number, smooth = false) => {
@@ -53,7 +110,7 @@ export default function HorizontalScroll() {
       // jump to the real last section (index 5)
       if (currentIndex === 0) {
         isAdjusting.current = true;
-        scrollToIndex(SECTIONS.length);
+        scrollToIndex(PAGES.length);
         requestAnimationFrame(() => {
           isAdjusting.current = false;
         });
@@ -91,19 +148,21 @@ export default function HorizontalScroll() {
         WebkitOverflowScrolling: "touch",
       }}
     >
-      {panels.map((panel) => (
-        <section
-          key={panel.key}
-          className="flex h-screen w-screen flex-shrink-0 items-center justify-center"
-          style={{
-            scrollSnapAlign: "start",
-            scrollSnapStop: "always",
-            backgroundColor: panel.color,
-          }}
-        >
-          <h1 className="text-5xl font-bold text-white">{panel.label}</h1>
-        </section>
-      ))}
+      {panels.map((panel) => {
+        const PageComponent = PAGES[panel.pageIndex];
+        return (
+          <div
+            key={panel.key}
+            className="flex h-screen w-screen flex-shrink-0"
+            style={{
+              scrollSnapAlign: "start",
+              scrollSnapStop: "always",
+            }}
+          >
+            <PageComponent />
+          </div>
+        );
+      })}
     </div>
   );
 }
