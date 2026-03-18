@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import BlobNav from "../../components/BlobNav";
 import Footer from "../../components/Footer";
+import ProjectCard from "@/app/components/projectcard";
 
 const PLACEHOLDER_IMAGE =
     "https://images.unsplash.com/photo-1773558058134-9ff1a3212ef0?q=80&w=1572&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D";
@@ -31,9 +32,9 @@ export default function InsightsPage() {
     return (
         <div style={{ minHeight: "100svh", overflowY: "auto", height: "100vh" }}>
             <BlobNav />
-            <div className="w-full h-[50vh] flex flex-col md:flex-row items-start md:items-end justify-start gap-4 pt-12 px-6 md:px-12 lg:px-0">
+            <div className="w-full h-[50vh] flex flex-col md:flex-row items-end justify-end gap-4 pt-12 px-6 md:px-12 lg:px-0">
                 <h1 className="text-5xl font-light text-black w-full">Insights</h1>
-                <p className="text-lg font-light text-black/50 w-full md:max-w-2xl">Denne siden oppdateres jevnlig med innsikt vi kommer over i prosjekter, artikler vi skriver og andre ting vi synes er interessante.</p>
+                <p className="text-lg font-light text-black/50 w-full">Denne siden oppdateres jevnlig med innsikt vi kommer over i prosjekter, artikler vi skriver og andre ting vi synes er interessante.</p>
             </div>
             <div
                 className="w-full grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-2 bg-white pt-2 pb-2"
@@ -70,11 +71,14 @@ export default function InsightsPage() {
                         Les om prosjektet
                     </button>
                 </div>
-                <div className="relative overflow-hidden min-h-0 rounded-lg bg-gray-100">
-                    <span className="absolute inset-0 flex items-center justify-center text-2xl font-light text-black/50">
-                        2
-                    </span>
-                </div>
+                <ProjectCard
+                    title="3 av 10 studenter starter i relevant jobb"
+                    description=""
+                    clients="Kun tre av ti studenter som fullfører barnehageutdenningen, starter i en relevant jobb etter studiene."
+                    imageUrl={PLACEHOLDER_IMAGE}
+                    href="/projects/mann-om-bord"
+                    ctaLabel="Les mer"
+                />
                 <div className="relative overflow-hidden min-h-0 rounded-lg bg-gray-100">
                     <span className="absolute inset-0 flex items-center justify-center text-2xl font-light text-black/50">
                         3
@@ -89,7 +93,7 @@ export default function InsightsPage() {
 
 
 
-            <section className="flex flex-col h-fit w-screen flex-shrink-0 items-center justify-center bg-[#fafafa] p-24">
+            <section className="flex flex-col h-fit w-screen flex-shrink-0 items-center justify-center bg-[#fafafa] p-2 md:p-12 lg:p-24">
                 <p className="text-2xl font-light text-black/50 pb-24">Vi både skriver ting og blir noen ganger skrevet om. Vi prøver å samle det meste her.</p>
                 <div className="rounded-xl overflow-hidden border border-black/30 bg-[#EEEEEE] w-full h-full">
                     <div className="grid grid-cols-3 gap-x-4 border-b border-black/30 px-4 py-3 text-left text-sm font-medium text-black/70 bg-[#EEEEEE] sticky top-0 z-10">

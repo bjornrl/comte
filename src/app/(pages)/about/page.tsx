@@ -3,6 +3,7 @@
 import Image from "next/image";
 import BlobNav from "../../components/BlobNav";
 import Footer from "../../components/Footer";
+import PersonCard from "../../components/PersonCard";
 
 const PLACEHOLDER_IMAGE =
   "https://images.unsplash.com/photo-1773558058134-9ff1a3212ef0?q=80&w=1572&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D";
@@ -18,11 +19,21 @@ export default function AboutPage() {
         className="w-full grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-2 bg-white pt-2 pb-2"
         style={{ height: "calc(100vh - 5rem)" }}
       >
-        <div className="relative overflow-hidden min-h-0 rounded-lg bg-gray-100">
-          <span className="absolute inset-0 flex items-center justify-center text-2xl font-light text-black/50">
-            1
-          </span>
-        </div>
+        <PersonCard
+          title="Design & Innovation"
+          name="Comte Bureau"
+          description="We design human-centered services and experiences—connecting strategy, design, and delivery to create innovation with societal impact."
+          imageUrl={PLACEHOLDER_IMAGE}
+          email="hello@comtebureau.com"
+          hoverTextColor="#FF00FF"
+          hoverMetaTextColor="rgba(77, 8, 226, 0.65)"
+          hoverOverlayColor="rgba(204, 31, 31, 0.65)"
+          cursor={
+            <div className="h-20 w-20 rounded-full border border-white/40 bg-white/90 text-[#1a1a1a] flex items-center justify-center text-sm font-medium tracking-wide shadow-lg">
+              Les mer
+            </div>
+          }
+        />
         <div className="relative overflow-hidden min-h-0 rounded-lg bg-gray-100">
           <span className="absolute inset-0 flex items-center justify-center text-2xl font-light text-black/50">
             2
@@ -39,7 +50,7 @@ export default function AboutPage() {
           </span>
         </div>
       </div>
-      <section className="w-full min-h-screen bg-[#fafafa]">
+      <section className="w-full min-h-screen">
         <div className="grid grid-cols-1 lg:grid-cols-2 min-h-screen">
           <div className="relative aspect-[4/3] lg:aspect-auto lg:min-h-screen">
             <Image

@@ -28,12 +28,9 @@ export default function ContactPage() {
             <div className="w-full h-[50vh] flex flex-col items-start justify-end pt-12 bg-white">
                 <h1 className="text-5xl font-light text-black">Contact</h1>
             </div>
-            <div
-                className="w-full grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-2 bg-white pt-2 pb-2"
-                style={{ height: "calc(100vh - 5rem)" }}
-            >
+            <div className="relative z-0 grid h-auto w-full grid-cols-1 gap-2 pt-2 pb-2 md:h-[calc(100vh-5rem)] md:grid-cols-2 lg:grid-cols-4">
 
-                <div className="relative overflow-hidden min-h-0 rounded-lg">
+                <div className="relative min-h-[45vh] overflow-hidden rounded-lg md:min-h-0">
                     <Image
                         src={PLACEHOLDER_IMAGE}
                         alt=""
@@ -42,7 +39,7 @@ export default function ContactPage() {
                         sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 25vw"
                     />
                 </div>
-                <div className="relative overflow-hidden min-h-0 rounded-lg bg-gray-100">
+                <div className="relative min-h-[45vh] overflow-hidden rounded-lg bg-gray-100 md:min-h-0">
                     <span className="p-6 flex items-start justify-start text-2xl font-light text-black/50">
                         Comte Bureau <br />
                         Org. nr. 917 584 678 <br />
@@ -52,7 +49,7 @@ export default function ContactPage() {
                         Mon–Fri 09:00–17:00 <br />
                     </span>
                 </div>
-                <div className="relative overflow-hidden min-h-0 rounded-lg">
+                <div className="relative min-h-[45vh] overflow-hidden rounded-lg md:min-h-0">
                     <Image
                         src={PLACEHOLDER_IMAGE}
                         alt=""
@@ -61,7 +58,7 @@ export default function ContactPage() {
                         sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 25vw"
                     />
                 </div>
-                <div className="relative overflow-hidden min-h-0 rounded-lg h-full w-full">
+                <div className="relative isolate z-0 min-h-[45vh] w-full overflow-hidden rounded-lg md:min-h-0 md:h-full">
                     <Map center={[10.736009, 59.9201993]} zoom={12} className="rounded-lg">
                         <MapControls />
                         <MapMarker longitude={10.736009} latitude={59.9201993}>
@@ -82,19 +79,17 @@ export default function ContactPage() {
                 </div>
             </div>
 
-            <section className="w-full bg-white">
-                <div className="w-full h-[30vh] flex flex-col items-start justify-end pt-12 bg-white">
+            <section className="relative z-20 w-full bg-white">
+                <div className="flex h-[30vh] w-full flex-col items-start justify-end bg-white pt-12">
                     <h1 className="text-5xl font-light text-black">Si hei!</h1>
                 </div>
-                <div
-                    className="w-full border-y border-[#1a1a1a]/10"
-                    style={{ height: "90vh" }}
-                >
+
+                <div className="relative z-20 h-[65vh] min-h-[320px] w-full border-y border-[#1a1a1a]/10 bg-white md:h-[85vh] md:max-h-[800px]">
                     <FittingTextarea
                         value={message}
                         onChange={(e) => setMessage(e.target.value)}
                         placeholder="Type your message…"
-                        containerClassName="flex-1 min-h-0"
+                        containerClassName="h-full min-h-0"
                     />
                 </div>
 
