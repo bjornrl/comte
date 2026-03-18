@@ -8,8 +8,10 @@ const PLACEHOLDER_IMAGE =
 
 function PageOne() {
   return (
-    <section className="flex h-screen w-screen flex-shrink-0 items-center justify-center bg-[#fafafa]">
-      <h1 className="font-sans text-5xl font-thin text-[#1a1a1a]">"INNOVATION FOR SOCIETAL IMPACT"</h1>
+    <section className="flex h-screen w-screen flex-shrink-0 items-center justify-center bg-[#fafafa] px-6 md:px-12 lg:px-24">
+      <h1 className="font-sans font-thin text-[#1a1a1a] text-center leading-tight tracking-tight text-3xl sm:text-4xl md:text-5xl lg:text-6xl max-w-[18ch]">
+        “INNOVATION FOR SOCIETAL IMPACT”
+      </h1>
     </section>
   );
 }
@@ -203,7 +205,7 @@ const PLACEHOLDER_PROJECTS = [
 
 function PageFive() {
   return (
-    <section className="flex h-screen w-screen flex-shrink-0 items-center justify-center bg-[#fafafa] p-24">
+    <section className="flex h-screen w-screen flex-shrink-0 items-center justify-center bg-[#fafafa] min-pt:18 p-6 md:p-12 lg:p-24">
       <div className="rounded-xl border border-black/30 bg-[#EEEEEE] w-full h-full overflow-y-auto">
         <div className="sticky top-0 z-10 grid grid-cols-3 gap-x-4 border-b border-black/30 bg-[#EEEEEE] px-4 py-3 text-left text-sm font-medium text-[#1a1a1a]/70">
           <span>Year</span>

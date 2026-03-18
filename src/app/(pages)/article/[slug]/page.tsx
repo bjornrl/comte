@@ -2,6 +2,7 @@
 
 import { use, useRef, useEffect, useState } from "react";
 import BlobNav from "@/app/components/BlobNav";
+import Footer from "@/app/components/Footer";
 
 function FittingHeadline({ children }: { children: React.ReactNode }) {
     const containerRef = useRef<HTMLDivElement>(null);
@@ -105,6 +106,7 @@ export default function ArticlePage({
                     </span>
                 </div>
             </div>
+            <Footer />
         </div>
     );
 }
