@@ -12,8 +12,8 @@ export default function Footer() {
     <footer className="mt-18"
       style={{
         width: "100%",
-        backgroundColor: "#1a1a1a",
-        color: "#fafafa",
+        backgroundColor: "var(--comte-near-black)",
+        color: "var(--comte-light-base)",
         fontFamily: "var(--font-neue-haas)",
       }}
     >
@@ -37,7 +37,7 @@ export default function Footer() {
               fontSize: "1.25rem",
               fontWeight: 300,
               letterSpacing: "0.08em",
-              color: "#fafafa",
+              color: "var(--comte-light-base)",
               textDecoration: "none",
             }}
           >
@@ -47,7 +47,7 @@ export default function Footer() {
             style={{
               fontSize: "clamp(0.875rem, 1.2vw, 1rem)",
               fontWeight: 300,
-              color: "rgba(255,255,255,0.5)",
+              color: "color-mix(in srgb, var(--comte-light-base) 50%, transparent)",
               lineHeight: 1.5,
               maxWidth: "320px",
             }}
@@ -65,7 +65,7 @@ export default function Footer() {
             style={{
               fontSize: "clamp(0.7rem, 1vw, 0.8rem)",
               fontWeight: 400,
-              color: "rgba(255,255,255,0.35)",
+              color: "color-mix(in srgb, var(--comte-light-base) 35%, transparent)",
               textTransform: "uppercase",
               letterSpacing: "0.1em",
               marginBottom: "4px",
@@ -80,7 +80,7 @@ export default function Footer() {
               style={{
                 fontSize: "clamp(0.875rem, 1.2vw, 1rem)",
                 fontWeight: 300,
-                color: "rgba(255,255,255,0.7)",
+                color: "color-mix(in srgb, var(--comte-light-base) 70%, transparent)",
                 textDecoration: "none",
               }}
             >
@@ -95,7 +95,7 @@ export default function Footer() {
             style={{
               fontSize: "clamp(0.7rem, 1vw, 0.8rem)",
               fontWeight: 400,
-              color: "rgba(255,255,255,0.35)",
+              color: "color-mix(in srgb, var(--comte-light-base) 35%, transparent)",
               textTransform: "uppercase",
               letterSpacing: "0.1em",
               marginBottom: "4px",
@@ -108,7 +108,7 @@ export default function Footer() {
             style={{
               fontSize: "clamp(0.875rem, 1.2vw, 1rem)",
               fontWeight: 300,
-              color: "rgba(255,255,255,0.7)",
+              color: "color-mix(in srgb, var(--comte-light-base) 70%, transparent)",
               textDecoration: "none",
             }}
           >
@@ -119,7 +119,7 @@ export default function Footer() {
             style={{
               fontSize: "clamp(0.875rem, 1.2vw, 1rem)",
               fontWeight: 300,
-              color: "rgba(255,255,255,0.7)",
+              color: "color-mix(in srgb, var(--comte-light-base) 70%, transparent)",
               textDecoration: "none",
             }}
           >
@@ -129,7 +129,7 @@ export default function Footer() {
             style={{
               fontSize: "clamp(0.875rem, 1.2vw, 1rem)",
               fontWeight: 300,
-              color: "rgba(255,255,255,0.5)",
+              color: "color-mix(in srgb, var(--comte-light-base) 50%, transparent)",
             }}
           >
             Oslo, Norway
@@ -140,7 +140,8 @@ export default function Footer() {
       {/* Bottom bar */}
       <div
         style={{
-          borderTop: "1px solid rgba(255,255,255,0.1)",
+          borderTop:
+            "1px solid color-mix(in srgb, var(--comte-light-base) 10%, transparent)",
           padding: "24px clamp(1.5rem, 4vw, 3rem)",
           maxWidth: "1280px",
           margin: "0 auto",
@@ -155,7 +156,7 @@ export default function Footer() {
           style={{
             fontSize: "clamp(0.75rem, 1vw, 0.8rem)",
             fontWeight: 300,
-            color: "rgba(255,255,255,0.35)",
+            color: "color-mix(in srgb, var(--comte-light-base) 35%, transparent)",
           }}
         >
           &copy; {new Date().getFullYear()} Comte Bureau. All rights reserved.
@@ -164,7 +165,7 @@ export default function Footer() {
           style={{
             fontSize: "clamp(0.75rem, 1vw, 0.8rem)",
             fontWeight: 300,
-            color: "rgba(255,255,255,0.35)",
+            color: "color-mix(in srgb, var(--comte-light-base) 35%, transparent)",
           }}
         >
           Org. nr. 917 584 678

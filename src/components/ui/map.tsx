@@ -514,7 +514,7 @@ function MarkerContent({ children, className }: MarkerContentProps) {
 
 function DefaultMarkerIcon() {
   return (
-    <div className="relative h-4 w-4 rounded-full border-2 border-white bg-blue-500 shadow-lg" />
+    <div className="relative h-4 w-4 rounded-full border-2 border-background bg-blue-500 shadow-lg" />
   );
 }
 
@@ -1260,7 +1260,7 @@ function MapClusterLayer<
           40,
         ],
         "circle-stroke-width": 1,
-        "circle-stroke-color": "#fff",
+        "circle-stroke-color": "#F9F9ED",
         "circle-opacity": 0.85,
       },
     });
@@ -1277,7 +1277,7 @@ function MapClusterLayer<
         "text-size": 12,
       },
       paint: {
-        "text-color": "#fff",
+        "text-color": "#F9F9ED",
       },
     });
 
@@ -1291,7 +1291,7 @@ function MapClusterLayer<
         "circle-color": pointColor,
         "circle-radius": 5,
         "circle-stroke-width": 2,
-        "circle-stroke-color": "#fff",
+        "circle-stroke-color": "#F9F9ED",
       },
     });
 

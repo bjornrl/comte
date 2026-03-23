@@ -48,21 +48,21 @@ export default function ProjectCard({
             {/* gradients for text legibility */}
             {imageUrl && (
                 <>
-                    <div className="pointer-events-none absolute inset-x-0 top-0 h-28 bg-gradient-to-b from-black/60 to-transparent transition-opacity duration-500 ease-out group-hover:opacity-0" />
-                    <div className="pointer-events-none absolute inset-x-0 bottom-0 h-36 bg-gradient-to-t from-black/70 to-transparent transition-opacity duration-500 ease-out group-hover:opacity-0" />
+                    <div className="pointer-events-none absolute inset-x-0 top-0 h-28 bg-gradient-to-b from-foreground/60 to-transparent transition-opacity duration-500 ease-out group-hover:opacity-0" />
+                    <div className="pointer-events-none absolute inset-x-0 bottom-0 h-36 bg-gradient-to-t from-foreground/70 to-transparent transition-opacity duration-500 ease-out group-hover:opacity-0" />
                 </>
             )}
 
             <div className="relative z-10 flex flex-col gap-2 transition-opacity duration-500 ease-out group-hover:opacity-50">
                 <span
-                    className={`text-6xl font-light ${imageUrl ? "text-white/90" : "text-black/70"
+                    className={`text-6xl font-light ${imageUrl ? "text-background/90" : "text-foreground/70"
                         }`}
                 >
                     {title}
                 </span>
                 {description && (
                     <p
-                        className={`text-lg font-light tracking-tight ${imageUrl ? "text-white/80" : "text-black/60"
+                        className={`text-lg font-light tracking-tight ${imageUrl ? "text-background/80" : "text-foreground/60"
                             }`}
                     >
                         {description}
@@ -72,7 +72,7 @@ export default function ProjectCard({
 
             {clients && (
                 <p
-                    className={`relative z-10 text-lg font-light transition-opacity duration-500 ease-out group-hover:opacity-50 ${imageUrl ? "text-white/80" : "text-black/60"
+                    className={`relative z-10 text-lg font-light transition-opacity duration-500 ease-out group-hover:opacity-50 ${imageUrl ? "text-background/80" : "text-foreground/60"
                         }`}
                 >
                     {clients}
@@ -87,7 +87,7 @@ export default function ProjectCard({
                     transform: `translate(${cursorPos.x}px, ${cursorPos.y}px) translate(-50%, -50%)`,
                 }}
             >
-                <div className="h-20 w-20 rounded-full bg-white/90 text-[#1a1a1a] flex items-center justify-center text-sm font-medium tracking-wide shadow-lg">
+                <div className="h-20 w-20 rounded-full bg-background/90 text-foreground flex items-center justify-center text-sm font-medium tracking-wide shadow-lg">
                     {ctaLabel}
                 </div>
             </div>

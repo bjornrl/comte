@@ -46,7 +46,7 @@ function FittingHeadline({ children }: { children: React.ReactNode }) {
             <h1
                 ref={textRef}
                 style={{ fontSize: `${fontSize}px` }}
-                className="font-light text-black text-center leading-tight"
+                className="font-light text-foreground text-center leading-tight"
             >
                 {children}
             </h1>
@@ -64,12 +64,12 @@ export default function ProjectPage({
     return (
         <div style={{ minHeight: "100svh", overflowY: "auto", height: "100vh" }}>
             <BlobNav />
-            <div className="w-full h-[80vh] flex flex-col items-center justify-start pt-12 bg-white">
+            <div className="w-full h-[80vh] flex flex-col items-center justify-start pt-12 bg-background">
                 <FittingHeadline>{slug || "Project"}</FittingHeadline>
                 <p className="italic text-xl text-gray-500">Prosjektbeskrivelse</p>
                 <p className="text-xl text-gray-500">Client</p>
             </div>
-            <div className="w-full bg-white px-6 md:px-12 lg:px-24 py-8">
+            <div className="w-full bg-background px-6 md:px-12 lg:px-24 py-8">
                 <div className="relative w-full aspect-[16/9] overflow-hidden rounded-lg bg-gray-100">
                     <Image
                         src={PLACEHOLDER_IMAGE}
@@ -81,8 +81,8 @@ export default function ProjectPage({
                     />
                 </div>
             </div>
-            <div className="w-full bg-white px-6 py-12 md:px-12 lg:px-24 max-w-3xl mx-auto">
-                <div className="text-[#1a1a1a] font-light space-y-6 text-lg leading-relaxed">
+            <div className="w-full bg-background px-6 py-12 md:px-12 lg:px-24 max-w-3xl mx-auto">
+                <div className="text-foreground font-light space-y-6 text-lg leading-relaxed">
                     <p>
                         Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.
                     </p>
@@ -98,38 +98,38 @@ export default function ProjectPage({
                 </div>
             </div>
             <div
-                className="w-full grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 max-w-3xl mx-auto gap-2 bg-white pt-2 pb-2 h-[50vh]"
+                className="w-full grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 max-w-3xl mx-auto gap-2 bg-background pt-2 pb-2 h-[50vh]"
 
             >
                 <div className="relative overflow-hidden min-h-0 rounded-lg bg-gray-100">
-                    <span className="absolute inset-0 flex items-start justify-start p-6 text-8xl font-light text-black/50">
+                    <span className="absolute inset-0 flex items-start justify-start p-6 text-8xl font-light text-foreground/50">
                         30%
                     </span>
-                    <p className="absolute bottom-0 left-0 p-6 text-lg font-light text-black/50">
+                    <p className="absolute bottom-0 left-0 p-6 text-lg font-light text-foreground/50">
                         Redusert klimagassutslipp
                     </p>
                 </div>
                 <div className="relative overflow-hidden min-h-0 rounded-lg bg-gray-100">
-                    <span className="absolute inset-0 flex items-start justify-start p-6 text-8xl font-light text-black/50">
+                    <span className="absolute inset-0 flex items-start justify-start p-6 text-8xl font-light text-foreground/50">
                         47
                     </span>
-                    <p className="absolute bottom-0 left-0 p-6 text-lg font-light text-black/50">
+                    <p className="absolute bottom-0 left-0 p-6 text-lg font-light text-foreground/50">
                         Menn inkludert i prøveordning
                     </p>
                 </div>
                 <div className="relative overflow-hidden min-h-0 rounded-lg bg-gray-100">
-                    <span className="absolute inset-0 flex items-start justify-start p-6 text-8xl font-light text-black/50">
+                    <span className="absolute inset-0 flex items-start justify-start p-6 text-8xl font-light text-foreground/50">
                         25%
                     </span>
-                    <p className="absolute bottom-0 left-0 p-6 text-lg font-light text-black/50">
+                    <p className="absolute bottom-0 left-0 p-6 text-lg font-light text-foreground/50">
                         Voksenandel i styre
                     </p>
                 </div>
 
             </div>
-            <div className="w-full bg-white px-6 py-12 md:px-12 lg:px-24 max-w-3xl mx-auto"> <h2>Fortsettelse</h2></div>
-            <div className="w-full bg-white px-6 py-12 md:px-12 lg:px-24 max-w-3xl mx-auto">
-                <div className="text-[#1a1a1a] font-light space-y-6 text-lg leading-relaxed">
+            <div className="w-full bg-background px-6 py-12 md:px-12 lg:px-24 max-w-3xl mx-auto"> <h2>Fortsettelse</h2></div>
+            <div className="w-full bg-background px-6 py-12 md:px-12 lg:px-24 max-w-3xl mx-auto">
+                <div className="text-foreground font-light space-y-6 text-lg leading-relaxed">
                     <p>
                         Mann om bord kan vi se tilbake på som både et vellykket prosjekt og som en viktig bidragsyter for selskapets del, til å kunne oppnå vårt mandat som samfunnsbyggende organisasjon. Les mer om vårt mandat her.                    </p>
                     <p>
@@ -144,37 +144,37 @@ export default function ProjectPage({
                 </div>
             </div>
             <div
-                className="w-full grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-2 bg-white pt-2 pb-2 h-[80vh]"
+                className="w-full grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-2 bg-background pt-2 pb-2 h-[80vh]"
             >
                 <div className="relative overflow-hidden min-h-0 rounded-lg bg-gray-100">
-                    <span className="absolute inset-0 flex items-start justify-start p-6 text-6xl font-light text-black/50">
+                    <span className="absolute inset-0 flex items-start justify-start p-6 text-6xl font-light text-foreground/50">
                         30%
                     </span>
-                    <p className="absolute bottom-0 left-0 p-6 text-lg font-light text-black/50">
+                    <p className="absolute bottom-0 left-0 p-6 text-lg font-light text-foreground/50">
                         Redusert klimagassutslipp
                     </p>
                 </div>
                 <div className="relative overflow-hidden min-h-0 rounded-lg bg-gray-100">
-                    <span className="absolute inset-0 flex items-start justify-start p-6 text-6xl font-light text-black/50">
+                    <span className="absolute inset-0 flex items-start justify-start p-6 text-6xl font-light text-foreground/50">
                         30%
                     </span>
-                    <p className="absolute bottom-0 left-0 p-6 text-lg font-light text-black/50">
+                    <p className="absolute bottom-0 left-0 p-6 text-lg font-light text-foreground/50">
                         Redusert klimagassutslipp
                     </p>
                 </div>
                 <div className="relative overflow-hidden min-h-0 rounded-lg bg-gray-100">
-                    <span className="absolute inset-0 flex items-start justify-start p-6 text-6xl font-light text-black/50">
+                    <span className="absolute inset-0 flex items-start justify-start p-6 text-6xl font-light text-foreground/50">
                         30%
                     </span>
-                    <p className="absolute bottom-0 left-0 p-6 text-lg font-light text-black/50">
+                    <p className="absolute bottom-0 left-0 p-6 text-lg font-light text-foreground/50">
                         Redusert klimagassutslipp
                     </p>
                 </div>
                 <div className="relative overflow-hidden min-h-0 rounded-lg bg-gray-100">
-                    <span className="absolute inset-0 flex items-start justify-start p-6 text-6xl font-light text-black/50">
+                    <span className="absolute inset-0 flex items-start justify-start p-6 text-6xl font-light text-foreground/50">
                         30%
                     </span>
-                    <div className="absolute bottom-0 left-0 p-6 text-lg font-light text-black/50 flex flex-col gap-2">
+                    <div className="absolute bottom-0 left-0 p-6 text-lg font-light text-foreground/50 flex flex-col gap-2">
                         <p>
                             Kunde
                         </p>
@@ -184,9 +184,7 @@ export default function ProjectPage({
                     </div>
                 </div>
             </div>
-            <section className="w-full bg-white px-6 py-12 md:px-12 lg:px-24 max-w-3xl mx-auto">
-                <h2>Tilknyttede prosjekter</h2>
-            </section>
+            
             <Footer />
         </div>
     );

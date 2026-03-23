@@ -60,7 +60,7 @@ export default function FittingTextarea({
         onChange={onChange}
         placeholder={placeholder}
         style={{ fontSize: `${fontSize}px` }}
-        className={`w-full h-full min-h-0 resize-none border-none bg-transparent font-light text-[#1a1a1a] placeholder:text-[#1a1a1a]/40 outline-none p-6 md:p-8 lg:p-12 ${className}`}
+        className={`w-full h-full min-h-0 resize-none border-none bg-transparent font-light text-foreground placeholder:text-foreground/40 outline-none p-6 md:p-8 lg:p-12 ${className}`}
         aria-label="Message"
       />
     </div>

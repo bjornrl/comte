@@ -33,11 +33,11 @@ export default function InsightsPage() {
         <div style={{ minHeight: "100svh", overflowY: "auto", height: "100vh" }}>
             <BlobNav />
             <div className="w-full h-[50vh] flex flex-col md:flex-row items-end justify-end gap-4 pt-12 px-6 md:px-12 lg:px-0">
-                <h1 className="text-5xl font-light text-black w-full">Insights</h1>
-                <p className="text-lg font-light text-black/50 w-full">Denne siden oppdateres jevnlig med innsikt vi kommer over i prosjekter, artikler vi skriver og andre ting vi synes er interessante.</p>
+                <h1 className="text-5xl font-light text-foreground w-full">Insights</h1>
+                <p className="text-lg font-light text-foreground/50 w-full">Denne siden oppdateres jevnlig med innsikt vi kommer over i prosjekter, artikler vi skriver og andre ting vi synes er interessante.</p>
             </div>
             <div
-                className="w-full grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-2 bg-white pt-2 pb-2"
+                className="w-full grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-2 bg-background pt-2 pb-2"
                 style={{ height: "calc(100vh - 5rem)" }}
             >
                 <div
@@ -45,18 +45,18 @@ export default function InsightsPage() {
                     style={{ backgroundImage: `url(${PLACEHOLDER_IMAGE})` }}
                 >
                     <div
-                        className={`pointer-events-none absolute inset-x-0 top-0 h-28 bg-gradient-to-b from-black/60 to-transparent transition-opacity duration-500 ease-out ${heroCtaHover ? "opacity-0" : "opacity-100"}`}
+                        className={`pointer-events-none absolute inset-x-0 top-0 h-28 bg-gradient-to-b from-foreground/60 to-transparent transition-opacity duration-500 ease-out ${heroCtaHover ? "opacity-0" : "opacity-100"}`}
                     />
                     <div
-                        className={`pointer-events-none absolute inset-x-0 bottom-0 h-36 bg-gradient-to-t from-black/70 to-transparent transition-opacity duration-500 ease-out ${heroCtaHover ? "opacity-0" : "opacity-100"}`}
+                        className={`pointer-events-none absolute inset-x-0 bottom-0 h-36 bg-gradient-to-t from-foreground/70 to-transparent transition-opacity duration-500 ease-out ${heroCtaHover ? "opacity-0" : "opacity-100"}`}
                     />
                     <div
                         className={`relative z-10 flex flex-col gap-2 transition-opacity duration-500 ease-out ${heroCtaHover ? "opacity-0 pointer-events-none" : "opacity-100"}`}
                     >
-                        <span className="text-7xl font-light text-white/90">
+                        <span className="text-7xl font-light text-background/90">
                             3 av 10 starter i relevant jobb
                         </span>
-                        <p className="text-lg font-light text-white/80">
+                        <p className="text-lg font-light text-background/80">
                             Kun tre av ti studenter som fullfører barnehageutdenningen, starter i en relevant jobb etter studiene.
                         </p>
                     </div>
@@ -66,7 +66,7 @@ export default function InsightsPage() {
                         onMouseLeave={() => setHeroCtaHover(false)}
                         onFocus={() => setHeroCtaHover(true)}
                         onBlur={() => setHeroCtaHover(false)}
-                        className="relative z-10 w-full h-12 cursor-pointer rounded-full bg-black font-light text-lg text-white transition-all duration-300 hover:bg-white hover:text-[#1a1a1a] hover:shadow-lg active:scale-[0.98] focus:outline-none focus:ring-2 focus:ring-white/50 focus:ring-offset-2 focus:ring-offset-transparent"
+                        className="relative z-10 w-full h-12 cursor-pointer rounded-full bg-foreground font-light text-lg text-background transition-all duration-300 hover:bg-background hover:text-foreground hover:shadow-lg active:scale-[0.98] focus:outline-none focus:ring-2 focus:ring-background/50 focus:ring-offset-2 focus:ring-offset-transparent"
                     >
                         Les om prosjektet
                     </button>
@@ -80,12 +80,12 @@ export default function InsightsPage() {
                     ctaLabel="Les mer"
                 />
                 <div className="relative overflow-hidden min-h-0 rounded-lg bg-gray-100">
-                    <span className="absolute inset-0 flex items-center justify-center text-2xl font-light text-black/50">
+                    <span className="absolute inset-0 flex items-center justify-center text-2xl font-light text-foreground/50">
                         3
                     </span>
                 </div>
                 <div className="relative overflow-hidden min-h-0 rounded-lg bg-gray-100">
-                    <span className="absolute inset-0 flex items-center justify-center text-2xl font-light text-black/50">
+                    <span className="absolute inset-0 flex items-center justify-center text-2xl font-light text-foreground/50">
                         4
                     </span>
                 </div>
@@ -93,10 +93,10 @@ export default function InsightsPage() {
 
 
 
-            <section className="flex flex-col h-fit w-screen flex-shrink-0 items-center justify-center bg-[#fafafa] p-2 md:p-12 lg:p-24">
-                <p className="text-2xl font-light text-black/50 pb-24">Vi både skriver ting og blir noen ganger skrevet om. Vi prøver å samle det meste her.</p>
-                <div className="rounded-xl overflow-hidden border border-black/30 bg-[#EEEEEE] w-full h-full">
-                    <div className="grid grid-cols-3 gap-x-4 border-b border-black/30 px-4 py-3 text-left text-sm font-medium text-black/70 bg-[#EEEEEE] sticky top-0 z-10">
+            <section className="flex flex-col h-fit w-screen flex-shrink-0 items-center justify-center bg-background p-2 md:p-12 lg:p-24">
+                <p className="text-2xl font-light text-foreground/50 pb-24">Vi både skriver ting og blir noen ganger skrevet om. Vi prøver å samle det meste her.</p>
+                <div className="rounded-xl overflow-hidden border border-foreground/30 bg-[#EEEEEE] w-full h-full">
+                    <div className="grid grid-cols-3 gap-x-4 border-b border-foreground/30 px-4 py-3 text-left text-sm font-medium text-foreground/70 bg-[#EEEEEE] sticky top-0 z-10">
                         <span>Year</span>
                         <span>Title</span>
                         <span>Forum</span>
@@ -105,7 +105,7 @@ export default function InsightsPage() {
                         <Link
                             key={i}
                             href={p.link}
-                            className="grid grid-cols-3 gap-x-4 border-b border-black/20 px-4 py-4 text-left hover:bg-black/5 transition-colors"
+                            className="grid grid-cols-3 gap-x-4 border-b border-foreground/20 px-4 py-4 text-left hover:bg-foreground/5 transition-colors"
                         >
                             <p className="text-lg font-light">{p.year}</p>
                             <p className="text-lg font-light">{p.title}</p>

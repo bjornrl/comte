@@ -15,7 +15,7 @@ export type PersonCardProps = {
   email: string;
   /** Custom cursor shape/content (per card) */
   cursor?: React.ReactNode;
-  /** Text color on hover (CSS color), e.g. "#1a1a1a" */
+  /** Text color on hover (CSS color), e.g. var(--comte-near-black) */
   hoverTextColor?: string;
   /** Meta text color on hover (CSS color), e.g. "rgba(26,26,26,0.6)" */
   hoverMetaTextColor?: string;
@@ -35,12 +35,12 @@ export default function PersonCard({
   imageUrl,
   email,
   cursor,
-  hoverTextColor = "#1a1a1a",
-  hoverMetaTextColor = "rgba(26,26,26,0.6)",
-  hoverOverlayColor = "rgba(255,255,255,0.75)",
+  hoverTextColor = "var(--comte-near-black)",
+  hoverMetaTextColor = "color-mix(in srgb, var(--comte-near-black) 60%, transparent)",
+  hoverOverlayColor = "color-mix(in srgb, var(--comte-light-base) 75%, transparent)",
   className = "",
 }: PersonCardProps) {
-  const cardRef = useRef<HTMLDivElement>(null);
+  const cardRef = useRef<HTMLAnchorElement | null>(null);
   const [isHovering, setIsHovering] = useState(false);
   const [cursorPos, setCursorPos] = useState({ x: 0, y: 0 });
 
@@ -55,7 +55,7 @@ export default function PersonCard({
   };
 
   const defaultCursor = (
-    <div className="h-20 w-20 rounded-full bg-white/90 text-[#1a1a1a] flex items-center justify-center text-sm font-medium tracking-wide shadow-lg">
+    <div className="h-20 w-20 rounded-full bg-background/90 text-foreground flex items-center justify-center text-sm font-medium tracking-wide shadow-lg">
       Les mer
     </div>
   );

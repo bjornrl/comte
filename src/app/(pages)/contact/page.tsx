@@ -25,8 +25,8 @@ export default function ContactPage() {
     return (
         <div style={{ minHeight: "100svh", overflowY: "auto", height: "100vh" }}>
             <BlobNav />
-            <div className="w-full h-[50vh] flex flex-col items-start justify-end pt-12 bg-white">
-                <h1 className="text-5xl font-light text-black">Contact</h1>
+            <div className="w-full h-[50vh] flex flex-col items-start justify-end pt-12 bg-background">
+                <h1 className="text-5xl font-light text-foreground">Contact</h1>
             </div>
             <div className="relative z-0 grid h-auto w-full grid-cols-1 gap-2 pt-2 pb-2 md:h-[calc(100vh-5rem)] md:grid-cols-2 lg:grid-cols-4">
 
@@ -40,7 +40,7 @@ export default function ContactPage() {
                     />
                 </div>
                 <div className="relative min-h-[45vh] overflow-hidden rounded-lg bg-gray-100 md:min-h-0">
-                    <span className="p-6 flex items-start justify-start text-2xl font-light text-black/50">
+                    <span className="p-6 flex items-start justify-start text-2xl font-light text-foreground/50">
                         Comte Bureau <br />
                         Org. nr. 917 584 678 <br />
                         hello@comtebureau.com <br />
@@ -63,7 +63,7 @@ export default function ContactPage() {
                         <MapControls />
                         <MapMarker longitude={10.736009} latitude={59.9201993}>
                             <MarkerContent>
-                                <div className="size-4 rounded-full bg-[#1a1a1a] border-2 border-white shadow-lg" />
+                                <div className="size-4 rounded-full bg-foreground border-2 border-background shadow-lg" />
                             </MarkerContent>
                             <MarkerTooltip>Comte Bureau</MarkerTooltip>
                             <MarkerPopup>
@@ -79,12 +79,12 @@ export default function ContactPage() {
                 </div>
             </div>
 
-            <section className="relative z-20 w-full bg-white">
-                <div className="flex h-[30vh] w-full flex-col items-start justify-end bg-white pt-12">
-                    <h1 className="text-5xl font-light text-black">Si hei!</h1>
+            <section className="relative z-20 w-full bg-background">
+                <div className="flex h-[30vh] w-full flex-col items-start justify-end bg-background pt-12">
+                    <h1 className="text-5xl font-light text-foreground">Si hei!</h1>
                 </div>
 
-                <div className="relative z-20 h-[65vh] min-h-[320px] w-full border-y border-[#1a1a1a]/10 bg-white md:h-[85vh] md:max-h-[800px]">
+                <div className="relative z-20 h-[65vh] min-h-[320px] w-full border-y border-foreground/10 bg-background md:h-[85vh] md:max-h-[800px]">
                     <FittingTextarea
                         value={message}
                         onChange={(e) => setMessage(e.target.value)}
@@ -103,7 +103,7 @@ export default function ContactPage() {
                             value={name}
                             onChange={(e) => setName(e.target.value)}
                             placeholder="Name"
-                            className="w-full h-fit rounded-full border border-[#1a1a1a]/15 bg-white px-6 py-5 text-lg font-light text-[#1a1a1a] placeholder:text-[#1a1a1a]/40 focus:outline-none focus:ring-2 focus:ring-[#1a1a1a]/20"
+                            className="w-full h-fit rounded-full border border-foreground/15 bg-background px-6 py-5 text-lg font-light text-foreground placeholder:text-foreground/40 focus:outline-none focus:ring-2 focus:ring-foreground/20"
                             autoComplete="name"
                         />
                     </div>
@@ -117,21 +117,21 @@ export default function ContactPage() {
                             value={email}
                             onChange={(e) => setEmail(e.target.value)}
                             placeholder="Email"
-                            className="w-full h-fit rounded-full border border-[#1a1a1a]/15 bg-white px-6 py-5 text-lg font-light text-[#1a1a1a] placeholder:text-[#1a1a1a]/40 focus:outline-none focus:ring-2 focus:ring-[#1a1a1a]/20"
+                            className="w-full h-fit rounded-full border border-foreground/15 bg-background px-6 py-5 text-lg font-light text-foreground placeholder:text-foreground/40 focus:outline-none focus:ring-2 focus:ring-foreground/20"
                             autoComplete="email"
                         />
                     </div>
                 </div>
 
-                <div className="w-full flex flex-col md:flex-row md:items-stretch gap-2 py-2 p-0 border-b border-[#1a1a1a]/10">
+                <div className="w-full flex flex-col md:flex-row md:items-stretch gap-2 py-2 p-0 border-b border-foreground/10">
                     <button
                         type="button"
-                        className="w-full rounded-full md:w-1/2 h-[30vh] md:h-[50vh] flex items-center justify-center bg-[#1a1a1a] text-white font-light hover:cursor-pointer text-2xl md:text-3xl tracking-wide hover:bg-[#1a1a1a]/90 transition-colors focus:outline-none focus:ring-2 focus:ring-inset focus:ring-white/30 shrink-0"
+                        className="w-full rounded-full md:w-1/2 h-[30vh] md:h-[50vh] flex items-center justify-center bg-foreground text-background font-light hover:cursor-pointer text-2xl md:text-3xl tracking-wide hover:bg-foreground/90 transition-colors focus:outline-none focus:ring-2 focus:ring-inset focus:ring-background/30 shrink-0"
                         aria-label="Send message"
                     >
                         Send
                     </button>
-                    <div className="flex flex-col gap-1 justify-center text-[#1a1a1a]/70 font-light text-lg px-6 py-8 md:px-0 md:py-0 md:w-1/2">
+                    <div className="flex flex-col gap-1 justify-center text-foreground/70 font-light text-lg px-6 py-8 md:px-0 md:py-0 md:w-1/2">
                         <div className="relative overflow-hidden rounded-lg h-full w-full">
                             <Image
                                 src={PLACEHOLDER_IMAGE}

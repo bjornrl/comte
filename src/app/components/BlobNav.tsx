@@ -11,47 +11,56 @@ const NAV_ITEMS = [
 ];
 
 function HamburgerIcon({ isOpen }: { isOpen: boolean }) {
-  const lineStyle: React.CSSProperties = {
-    display: "block",
-    width: "20px",
+  const baseLine: React.CSSProperties = {
+    position: "absolute",
+    left: 0,
+    width: "22px",
     height: "2px",
-    background: "#1a1a1a",
-    borderRadius: "1px",
-    transition: "transform 0.3s cubic-bezier(0.25, 1, 0.5, 1), opacity 0.2s ease",
-    transformOrigin: "center",
+    borderRadius: "999px",
+    backgroundColor: "var(--comte-near-black)",
+    transitionProperty: "margin, transform, background-color",
+    transitionDuration: "0.2s",
+    transitionTimingFunction: "ease",
+  };
+
+  const middleStyle: React.CSSProperties = {
+    ...baseLine,
+    top: "50%",
+    marginTop: "-1px",
+    backgroundColor: isOpen ? "transparent" : "var(--comte-near-black)",
+    transitionDuration: "0s",
+    transitionDelay: "0.2s",
+  };
+
+  const beforeStyle: React.CSSProperties = {
+    ...baseLine,
+    top: "50%",
+    marginTop: isOpen ? "0px" : "-6px",
+    transform: isOpen ? "rotate(45deg)" : "none",
+    transitionDelay: isOpen ? "0s, 0.2s" : "0.2s, 0s",
+  };
+
+  const afterStyle: React.CSSProperties = {
+    ...baseLine,
+    top: "50%",
+    marginTop: isOpen ? "0px" : "6px",
+    transform: isOpen ? "rotate(-45deg)" : "none",
+    transitionDelay: isOpen ? "0s, 0.2s" : "0.2s, 0s",
   };
 
   return (
-    <div
+    <span
       style={{
-        display: "flex",
-        flexDirection: "column",
-        gap: isOpen ? "0px" : "5px",
-        width: "20px",
-        height: "20px",
-        justifyContent: "center",
-        alignItems: "center",
+        position: "relative",
+        display: "inline-block",
+        width: "22px",
+        height: "14px",
       }}
     >
-      <span
-        style={{
-          ...lineStyle,
-          transform: isOpen ? "translateY(1px) rotate(45deg)" : "none",
-        }}
-      />
-      <span
-        style={{
-          ...lineStyle,
-          opacity: isOpen ? 0 : 1,
-        }}
-      />
-      <span
-        style={{
-          ...lineStyle,
-          transform: isOpen ? "translateY(-1px) rotate(-45deg)" : "none",
-        }}
-      />
-    </div>
+      {/* <span style={middleStyle} /> */}
+      <span style={beforeStyle} />
+      <span style={afterStyle} />
+    </span>
   );
 }
 
@@ -121,16 +130,16 @@ export default function BlobNav() {
     position: "fixed",
     inset: 0,
     zIndex: 99,
-    background: "rgba(0,0,0,0.35)",
-    backdropFilter: isOpen ? "blur(24px)" : "none",
+    background: "rgba(255, 255, 255, 0.1)",
+    backdropFilter: isOpen ? "blur(48px)" : "none",
     opacity: isOpen ? 1 : 0,
     pointerEvents: isOpen ? "all" : "none",
     transition: "opacity 0.4s ease",
   };
 
   return (
-    <nav
-      style={{ pointerEvents: "none", position: "fixed", inset: 0, zIndex: 100 }}
+    <nav className="pointer-events-none fixed inset-0 z-100"
+      // style={{ pointerEvents: "none", position: "fixed", inset: 0, zIndex: 100 }}
       aria-label="Main navigation"
     >
       {/* Backdrop */}
@@ -144,21 +153,7 @@ export default function BlobNav() {
             onClick={() => setIsOpen(!isOpen)}
             aria-label={isOpen ? "Close navigation" : "Open navigation"}
             aria-expanded={isOpen}
-            style={{
-              background: "none",
-              border: "none",
-              cursor: "pointer",
-              padding: "12px",
-              borderRadius: "8px",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              transition: "background 0.15s ease",
-              position: "absolute",
-              left: "16px",
-              minWidth: "44px",
-              minHeight: "44px",
-            }}
+            className="pointer-events-auto absolute left-4 inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg bg-transparent p-3 transition-colors hover:cursor-pointer"
           >
             <HamburgerIcon isOpen={isOpen} />
           </button>
@@ -170,7 +165,7 @@ export default function BlobNav() {
               fontSize: "1rem",
               fontWeight: 300,
               letterSpacing: "0.08em",
-              color: "#1a1a1a",
+              color: "var(--comte-near-black)",
               textDecoration: "none",
               pointerEvents: "all",
             }}
@@ -228,7 +223,7 @@ export default function BlobNav() {
                 fontFamily: "var(--font-neue-haas)",
                 fontSize: "clamp(1rem, 1.5vw, 1.25rem)",
                 fontWeight: 500,
-                color: "#1a1a1a",
+                color: "var(--comte-near-black)",
                 textDecoration: "none",
               }}
             >

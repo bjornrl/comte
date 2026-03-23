@@ -1,6 +1,11 @@
 "use client";
 
-import { useRef, useEffect, useCallback } from "react";
+import {
+  useRef,
+  useEffect,
+  useCallback,
+  type MutableRefObject,
+} from "react";
 import Image from "next/image";
 
 const PLACEHOLDER_IMAGE =
@@ -8,9 +13,9 @@ const PLACEHOLDER_IMAGE =
 
 function PageOne() {
   return (
-    <section className="flex h-screen w-screen flex-shrink-0 items-center justify-center bg-[#fafafa] px-6 md:px-12 lg:px-24">
-      <h1 className="font-sans font-thin text-[#1a1a1a] text-center leading-tight tracking-tight text-3xl sm:text-4xl md:text-5xl lg:text-6xl max-w-[18ch]">
-        “INNOVATION FOR SOCIETAL IMPACT”
+    <section className="flex h-screen w-screen flex-shrink-0 items-center justify-center bg-background px-6 md:px-12 lg:px-24">
+      <h1 className="font-sans font-light text-foreground text-center leading-tight tracking-tight text-3xl sm:text-4xl md:text-5xl lg:text-6xl max-w-[18ch]">
+        INNOVATION FOR SOCIETAL IMPACT
       </h1>
     </section>
   );
@@ -19,7 +24,7 @@ function PageOne() {
 function PageTwo() {
   return (
     <section
-      className="h-screen w-screen flex-shrink-0 bg-[#fafafa]"
+      className="h-screen w-screen flex-shrink-0 bg-background"
       style={{
         display: "grid",
         gridTemplateColumns: ".1fr repeat(2, 1fr) .1fr",
@@ -32,7 +37,7 @@ function PageTwo() {
         className="relative overflow-hidden flex items-end justify-start"
         style={{ gridArea: "2 / 2 / 3 / 3" }}
       >
-        <h2 className="text-5xl font-light text-[#1a1a1a]">Section 1</h2>
+        <h2 className="text-5xl font-light text-foreground">Section 1</h2>
       </div>
       <div
         className="h-full min-h-0"
@@ -52,7 +57,7 @@ function PageTwo() {
       <div
         className="relative overflow-hidden flex items-end justify-start"
         style={{ gridArea: "2 / 3 / 3 / 4" }}
-      ><h2 className="text-2xl font-light text-[#1a1a1a]">Section 3</h2>
+      ><h2 className="text-2xl font-light text-foreground">Section 3</h2>
         {/* <Image
           src={PLACEHOLDER_IMAGE}
           alt=""
@@ -64,7 +69,7 @@ function PageTwo() {
       <div
         className="relative overflow-hidden"
         style={{ gridArea: "3 / 3 / 4 / 4" }}
-      ><h2 className="text-5xl font-light text-[#1a1a1a]">Section 4</h2>
+      ><h2 className="text-5xl font-light text-foreground">Section 4</h2>
         <Image
           src={PLACEHOLDER_IMAGE}
           alt=""
@@ -80,7 +85,7 @@ function PageTwo() {
 function PageThree() {
   return (
     <section
-      className="h-screen w-screen flex-shrink-0 bg-[#fafafa]"
+      className="h-screen w-screen flex-shrink-0 bg-background"
       style={{
         display: "grid",
         gridTemplateColumns: ".1fr repeat(2, 1fr) .1fr",
@@ -93,7 +98,7 @@ function PageThree() {
         className="relative overflow-hidden flex items-end justify-start"
         style={{ gridArea: "2 / 2 / 3 / 3" }}
       >
-        <h2 className="text-5xl font-light text-[#1a1a1a]">Why &ldquo;Comte&rdquo;?</h2>
+        <h2 className="text-5xl font-light text-foreground">Why &ldquo;Comte&rdquo;?</h2>
       </div>
       <div
         className="grid grid-cols-2 gap-1 h-full min-h-0"
@@ -132,7 +137,7 @@ function PageThree() {
 function PageFour() {
   return (
     <section
-      className="h-screen w-screen flex-shrink-0 bg-[#fafafa]"
+      className="h-screen w-screen flex-shrink-0 bg-background"
       style={{
         display: "grid",
         gridTemplateColumns: ".1fr repeat(2, 1fr) .1fr",
@@ -145,7 +150,7 @@ function PageFour() {
         className="relative overflow-hidden flex items-end justify-start"
         style={{ gridArea: "2 / 2 / 3 / 3" }}
       >
-        <h2 className="text-5xl font-light text-[#1a1a1a]">Section 1</h2>
+        <h2 className="text-5xl font-light text-foreground">Section 1</h2>
       </div>
       <div
         className="grid grid-cols-2 gap-1 h-full min-h-0"
@@ -205,9 +210,9 @@ const PLACEHOLDER_PROJECTS = [
 
 function PageFive() {
   return (
-    <section className="flex h-screen w-screen flex-shrink-0 items-center justify-center bg-[#fafafa] min-pt:18 p-6 md:p-12 lg:p-24">
-      <div className="rounded-xl border border-black/30 bg-[#EEEEEE] w-full h-full overflow-y-auto">
-        <div className="sticky top-0 z-10 grid grid-cols-3 gap-x-4 border-b border-black/30 bg-[#EEEEEE] px-4 py-3 text-left text-sm font-medium text-[#1a1a1a]/70">
+    <section className="flex h-screen w-screen flex-shrink-0 items-center justify-center bg-background min-pt:18 p-6 md:p-12 lg:p-24">
+      <div className="rounded-xl border border-foreground/30 bg-[#EEEEEE] w-full h-full overflow-y-auto">
+        <div className="sticky top-0 z-10 grid grid-cols-3 gap-x-4 border-b border-foreground/30 bg-[#EEEEEE] px-4 py-3 text-left text-sm font-medium text-foreground/70">
           <span>Year</span>
           <span>Customer</span>
           <span>Achievement</span>
@@ -215,7 +220,7 @@ function PageFive() {
         {PLACEHOLDER_PROJECTS.map((p, i) => (
           <div
             key={i}
-            className="grid grid-cols-3 gap-x-4 border-b border-black/20 px-4 py-4 text-left"
+            className="grid grid-cols-3 gap-x-4 border-b border-foreground/20 px-4 py-4 text-left"
           >
             <p className="text-lg font-light">{p.year}</p>
             <p className="text-lg font-light">{p.customer}</p>
@@ -229,7 +234,16 @@ function PageFive() {
 
 const PAGES = [PageOne, PageTwo, PageThree, PageFour, PageFive];
 
-export default function HorizontalScroll() {
+export type HorizontalScrollNavApi = {
+  goNext: () => void;
+  goPrev: () => void;
+};
+
+type HorizontalScrollProps = {
+  navRef?: MutableRefObject<HorizontalScrollNavApi | null>;
+};
+
+export default function HorizontalScroll({ navRef }: HorizontalScrollProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const isAdjusting = useRef(false);
 
@@ -247,9 +261,35 @@ export default function HorizontalScroll() {
     const panelWidth = el.clientWidth;
     el.scrollTo({
       left: panelWidth * index,
-      behavior: smooth ? "smooth" : "instant",
+      behavior: smooth ? "smooth" : "auto",
     });
   }, []);
+
+  const goNext = useCallback(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    const panelWidth = el.clientWidth;
+    const currentIndex = Math.round(el.scrollLeft / panelWidth);
+    const next = Math.min(currentIndex + 1, panels.length - 1);
+    if (next !== currentIndex) scrollToIndex(next, true);
+  }, [scrollToIndex, panels.length]);
+
+  const goPrev = useCallback(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    const panelWidth = el.clientWidth;
+    const currentIndex = Math.round(el.scrollLeft / panelWidth);
+    const prev = Math.max(currentIndex - 1, 0);
+    if (prev !== currentIndex) scrollToIndex(prev, true);
+  }, [scrollToIndex]);
+
+  useEffect(() => {
+    if (!navRef) return;
+    navRef.current = { goNext, goPrev };
+    return () => {
+      navRef.current = null;
+    };
+  }, [navRef, goNext, goPrev]);
 
   // On mount, jump to index 1 (the real first section)
   useEffect(() => {

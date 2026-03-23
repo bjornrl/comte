@@ -12,11 +12,11 @@ export default function AboutPage() {
   return (
     <div style={{ minHeight: "100svh", overflowY: "auto", height: "100vh" }}>
       <BlobNav />
-      <div className="w-full h-[50vh] flex flex-col items-start justify-end pt-12 bg-white">
-        <h1 className="text-5xl font-light text-black">We are a multidisciplinary innovation agency that designs the human-centered services, products, organizations, physical environments and experiences of the future. </h1>
+      <div className="w-full h-[50vh] flex flex-col items-start justify-end pt-12 bg-background">
+        <h1 className="text-5xl font-light text-foreground">We are a multidisciplinary innovation agency that designs the human-centered services, products, organizations, physical environments and experiences of the future. </h1>
       </div>
       <div
-        className="w-full grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-2 bg-white pt-2 pb-2"
+        className="w-full grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-2 bg-background pt-2 pb-2"
         style={{ height: "calc(100vh - 5rem)" }}
       >
         <PersonCard
@@ -29,7 +29,7 @@ export default function AboutPage() {
           hoverMetaTextColor="rgba(77, 8, 226, 0.65)"
           hoverOverlayColor="rgba(204, 31, 31, 0.65)"
           cursor={
-            <div className="h-20 w-20 rounded-full border border-white/40 bg-white/90 text-[#1a1a1a] flex items-center justify-center text-sm font-medium tracking-wide shadow-lg">
+            <div className="h-20 w-20 rounded-full border border-background/40 bg-background/90 text-foreground flex items-center justify-center text-sm font-medium tracking-wide shadow-lg">
               Les mer
             </div>
           }
@@ -44,7 +44,7 @@ export default function AboutPage() {
           hoverMetaTextColor="rgba(77, 8, 226, 0.65)"
           hoverOverlayColor="rgba(204, 31, 31, 0.65)"
           cursor={
-            <div className="h-20 w-20 rounded-full border border-white/40 bg-white/90 text-[#1a1a1a] flex items-center justify-center text-sm font-medium tracking-wide shadow-lg">
+            <div className="h-20 w-20 rounded-full border border-background/40 bg-background/90 text-foreground flex items-center justify-center text-sm font-medium tracking-wide shadow-lg">
               Les mer
             </div>
           }
@@ -59,7 +59,7 @@ export default function AboutPage() {
           hoverMetaTextColor="rgba(77, 8, 226, 0.65)"
           hoverOverlayColor="rgba(204, 31, 31, 0.65)"
           cursor={
-            <div className="h-20 w-20 rounded-full border border-white/40 bg-white/90 text-[#1a1a1a] flex items-center justify-center text-sm font-medium tracking-wide shadow-lg">
+            <div className="h-20 w-20 rounded-full border border-background/40 bg-background/90 text-foreground flex items-center justify-center text-sm font-medium tracking-wide shadow-lg">
               Les mer
             </div>
           }
@@ -74,7 +74,7 @@ export default function AboutPage() {
           hoverMetaTextColor="rgba(77, 8, 226, 0.65)"
           hoverOverlayColor="rgba(204, 31, 31, 0.65)"
           cursor={
-            <div className="h-20 w-20 rounded-full border border-white/40 bg-white/90 text-[#1a1a1a] flex items-center justify-center text-sm font-medium tracking-wide shadow-lg">
+            <div className="h-20 w-20 rounded-full border border-background/40 bg-background/90 text-foreground flex items-center justify-center text-sm font-medium tracking-wide shadow-lg">
               Les mer
             </div>
           }
@@ -95,18 +95,18 @@ export default function AboutPage() {
           </div>
           <div className="flex flex-col justify-center px-6 py-16 lg:px-16 lg:py-24 xl:px-24">
             <h2
-              className="text-3xl md:text-4xl font-light text-[#1a1a1a] tracking-tight mb-6"
+              className="text-3xl md:text-4xl font-light text-foreground tracking-tight mb-6"
               style={{ fontFamily: "var(--font-neue-haas)" }}
             >
               Auguste Comte
             </h2>
-            <p className="text-[#1a1a1a]/80 font-light text-lg leading-relaxed mb-6">
+            <p className="text-foreground/80 font-light text-lg leading-relaxed mb-6">
               Auguste Comte (1798–1857) was a French philosopher and writer who founded the discipline of sociology and the doctrine of positivism. He believed that society, like the physical world, operates according to general laws that can be studied scientifically.
             </p>
-            <p className="text-[#1a1a1a]/80 font-light text-lg leading-relaxed mb-6">
+            <p className="text-foreground/80 font-light text-lg leading-relaxed mb-6">
               Comte introduced the idea of the “law of three stages”—theological, metaphysical, and positive—to describe how human thought and society evolve. In the positive stage, explanation is based on observation and scientific method rather than speculation or superstition.
             </p>
-            <p className="text-[#1a1a1a]/80 font-light text-lg leading-relaxed">
+            <p className="text-foreground/80 font-light text-lg leading-relaxed">
               His work influenced later thinkers across sociology, philosophy, and political theory, and his emphasis on order, progress, and scientific knowledge still shapes how we think about modern society.
             </p>
           </div>

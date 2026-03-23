@@ -24,7 +24,7 @@ export default function ProjectPage() {
         <div style={{ minHeight: "100svh", overflowY: "auto", height: "100vh" }}>
             <BlobNav />
             <div className="w-full h-[50vh] flex flex-col items-start justify-end py-12">
-                <h1 className="text-5xl font-light text-black">Projects</h1>
+                <h1 className="text-5xl font-light text-foreground">Projects</h1>
             </div>
             <div
                 className="w-full grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-2 pt-2 pb-2"
@@ -69,17 +69,17 @@ export default function ProjectPage() {
 
             </div>
             <section className="w-full flex flex-col gap-6 justify-center items-center px-6 py-12 md:px-12 lg:px-24 max-w-3xl mx-auto">
-                <h2 className="text-6xl font-light text-black">Hva har prosjektene våre til felles?</h2>
-                <p className="text-lg font-light text-black/50">Vi har arbeidet med mange prosjekter, og vi er stolte av å ha arbeidet med mange prosjekter.</p>
+                <h2 className="text-6xl font-light text-foreground">Hva har prosjektene våre til felles?</h2>
+                <p className="text-lg font-light text-foreground/50">Vi har arbeidet med mange prosjekter, og vi er stolte av å ha arbeidet med mange prosjekter.</p>
 
             </section>
 
             <section className="w-full flex flex-col gap-6 justify-center items-center px-6 py-12 md:px-12 lg:px-24 max-w-3xl mx-auto">
-                <h2 className="text-6xl font-light text-black">Flere prosjekter</h2>
-                <p className="text-lg font-light text-black/50">Vi har arbeidet med mange prosjekter, og vi er stolte av å ha arbeidet med mange prosjekter.</p>
+                <h2 className="text-6xl font-light text-foreground">Flere prosjekter</h2>
+                <p className="text-lg font-light text-foreground/50">Vi har arbeidet med mange prosjekter, og vi er stolte av å ha arbeidet med mange prosjekter.</p>
                 <Link
                     href="/contact"
-                    className="w-screen h-[50vh] rounded-full bg-[#1a1a1a] text-white flex items-center justify-center text-4xl md:text-6xl font-light tracking-wide hover:bg-[#1a1a1a]/90 transition-colors focus:outline-none focus:ring-2 focus:ring-[#1a1a1a] focus:ring-offset-4"
+                    className="w-screen h-[50vh] rounded-full bg-foreground text-background flex items-center justify-center text-4xl md:text-6xl font-light tracking-wide hover:bg-foreground/90 transition-colors focus:outline-none focus:ring-2 focus:ring-foreground focus:ring-offset-4 focus:ring-offset-background"
                     aria-label="Contact us"
                 >
                     Contact us

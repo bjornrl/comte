@@ -64,41 +64,76 @@
 
 :root {
   --font-neue-haas: "Neue Haas Grotesk", system-ui, sans-serif;
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0 0);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
+
+  /* Comte brand palette */
+  --comte-dark-green: #1f3a32;
+  --comte-near-black: #212121;
+  --comte-coral: #f27887;
+  --comte-red: #ff5252;
+  --comte-gold: #d6b84c;
+  --comte-muted-green: #4f7c6c;
+  --comte-cool-blue: #5f7c8a;
+  --comte-light-base: #f9f9ed;
+  --comte-warm-grey: #676160;
+  --comte-light-grey: #c2b7b6;
+  --comte-cream: #fbf6ef;
+  --comte-yellow: #ffff00;
+  --comte-yellow-light: #ffff5a;
+  --comte-yellow-green: #c7cc00;
+  --comte-deep-red: #c50e29;
+
+  /* Semantic UI (light) — base + ink */
+  --background: var(--comte-light-base);
+  --foreground: var(--comte-near-black);
+  --card: var(--comte-light-base);
+  --card-foreground: var(--comte-near-black);
+  --popover: var(--comte-light-base);
+  --popover-foreground: var(--comte-near-black);
+  --primary: var(--comte-near-black);
+  --primary-foreground: var(--comte-light-base);
+  --secondary: var(--comte-cream);
+  --secondary-foreground: var(--comte-near-black);
+  --muted: color-mix(in srgb, var(--comte-near-black) 6%, var(--comte-light-base));
+  --muted-foreground: color-mix(in srgb, var(--comte-near-black) 55%, transparent);
+  --accent: var(--comte-cream);
+  --accent-foreground: var(--comte-near-black);
   --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
+  --border: color-mix(in srgb, var(--comte-near-black) 12%, var(--comte-light-base));
+  --input: color-mix(in srgb, var(--comte-near-black) 12%, var(--comte-light-base));
+  --ring: color-mix(in srgb, var(--comte-near-black) 35%, transparent);
   --chart-1: oklch(0.809 0.105 251.813);
   --chart-2: oklch(0.623 0.214 259.815);
   --chart-3: oklch(0.546 0.245 262.881);
   --chart-4: oklch(0.488 0.243 264.376);
   --chart-5: oklch(0.424 0.199 265.638);
   --radius: 0.625rem;
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.205 0 0);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
+  --sidebar: var(--comte-light-base);
+  --sidebar-foreground: var(--comte-near-black);
+  --sidebar-primary: var(--comte-near-black);
+  --sidebar-primary-foreground: var(--comte-light-base);
+  --sidebar-accent: var(--comte-cream);
+  --sidebar-accent-foreground: var(--comte-near-black);
+  --sidebar-border: color-mix(in srgb, var(--comte-near-black) 12%, var(--comte-light-base));
+  --sidebar-ring: color-mix(in srgb, var(--comte-near-black) 35%, transparent);
 }
 
 @theme inline {
+  --color-comte-dark-green: var(--comte-dark-green);
+  --color-comte-near-black: var(--comte-near-black);
+  --color-comte-coral: var(--comte-coral);
+  --color-comte-red: var(--comte-red);
+  --color-comte-gold: var(--comte-gold);
+  --color-comte-muted-green: var(--comte-muted-green);
+  --color-comte-cool-blue: var(--comte-cool-blue);
+  --color-comte-light-base: var(--comte-light-base);
+  --color-comte-warm-grey: var(--comte-warm-grey);
+  --color-comte-light-grey: var(--comte-light-grey);
+  --color-comte-cream: var(--comte-cream);
+  --color-comte-yellow: var(--comte-yellow);
+  --color-comte-yellow-light: var(--comte-yellow-light);
+  --color-comte-yellow-green: var(--comte-yellow-green);
+  --color-comte-deep-red: var(--comte-deep-red);
+
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --font-sans: var(--font-sans);
@@ -165,37 +200,37 @@ body {
 }
 
 .dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.205 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.205 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.922 0 0);
-  --primary-foreground: oklch(0.205 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
+  --background: var(--comte-near-black);
+  --foreground: var(--comte-light-base);
+  --card: var(--comte-dark-green);
+  --card-foreground: var(--comte-light-base);
+  --popover: var(--comte-dark-green);
+  --popover-foreground: var(--comte-light-base);
+  --primary: var(--comte-light-base);
+  --primary-foreground: var(--comte-near-black);
+  --secondary: color-mix(in srgb, var(--comte-light-base) 12%, var(--comte-near-black));
+  --secondary-foreground: var(--comte-light-base);
+  --muted: color-mix(in srgb, var(--comte-light-base) 10%, var(--comte-near-black));
+  --muted-foreground: color-mix(in srgb, var(--comte-light-base) 65%, transparent);
+  --accent: color-mix(in srgb, var(--comte-light-base) 12%, var(--comte-near-black));
+  --accent-foreground: var(--comte-light-base);
   --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.556 0 0);
+  --border: color-mix(in srgb, var(--comte-light-base) 14%, transparent);
+  --input: color-mix(in srgb, var(--comte-light-base) 18%, transparent);
+  --ring: color-mix(in srgb, var(--comte-light-base) 45%, transparent);
   --chart-1: oklch(0.809 0.105 251.813);
   --chart-2: oklch(0.623 0.214 259.815);
   --chart-3: oklch(0.546 0.245 262.881);
   --chart-4: oklch(0.488 0.243 264.376);
   --chart-5: oklch(0.424 0.199 265.638);
-  --sidebar: oklch(0.205 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.269 0 0);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.556 0 0);
+  --sidebar: var(--comte-dark-green);
+  --sidebar-foreground: var(--comte-light-base);
+  --sidebar-primary: var(--comte-light-base);
+  --sidebar-primary-foreground: var(--comte-near-black);
+  --sidebar-accent: color-mix(in srgb, var(--comte-light-base) 12%, var(--comte-near-black));
+  --sidebar-accent-foreground: var(--comte-light-base);
+  --sidebar-border: color-mix(in srgb, var(--comte-light-base) 14%, transparent);
+  --sidebar-ring: color-mix(in srgb, var(--comte-light-base) 45%, transparent);
 }
 
 @layer base {
