@@ -5,10 +5,34 @@ import {
   type FilterState, PROJECTS, projectMatchesFilters, hasActiveFilters,
 } from "./projectNetworkData";
 import PersonCard from "./PersonCard";
+import { comteColors } from "@/lib/comte-colors";
 
 interface ProjectGridProps {
   filters: FilterState;
 }
+
+const HOVER_PALETTE = [
+  {
+    overlay: comteColors.nearBlack,
+    text: comteColors.cream,
+    meta: "rgba(251, 246, 239, 0.82)",
+  },
+  {
+    overlay: comteColors.darkGreen,
+    text: comteColors.lightBase,
+    meta: "rgba(249, 249, 237, 0.78)",
+  },
+  {
+    overlay: comteColors.deepRed,
+    text: comteColors.cream,
+    meta: "rgba(251, 246, 239, 0.84)",
+  },
+  {
+    overlay: comteColors.coolBlue,
+    text: comteColors.cream,
+    meta: "rgba(251, 246, 239, 0.8)",
+  },
+] as const;
 
 export default function ProjectGrid({ filters }: ProjectGridProps) {
   const active = hasActiveFilters(filters);
@@ -47,6 +71,7 @@ export default function ProjectGrid({ filters }: ProjectGridProps) {
       <div className="w-full grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-2 bg-background pt-2 pb-2 px-2">
         {PROJECTS.map((project) => {
           const matches = !active || projectMatchesFilters(project, filters);
+          const hoverColors = HOVER_PALETTE[project.name.length % HOVER_PALETTE.length];
 
           return (
             <PersonCard
@@ -56,9 +81,9 @@ export default function ProjectGrid({ filters }: ProjectGridProps) {
               description={project.summary}
               imageUrl={PLACEHOLDER_IMAGE}
               href={`/projects/${project.id}`}
-              hoverTextColor="#fafafa"
-              hoverMetaTextColor="#212121"
-              hoverOverlayColor="#212121"
+              hoverTextColor={hoverColors.text}
+              hoverMetaTextColor={hoverColors.meta}
+              hoverOverlayColor={hoverColors.overlay}
               className={`min-h-[45vh] ${matches ? "opacity-100" : "opacity-20 pointer-events-none"}`}
               cursor={
                 <div className="h-20 w-20 rounded-full border border-background/40 bg-background/90 text-foreground flex items-center justify-center text-sm font-medium tracking-wide shadow-lg">

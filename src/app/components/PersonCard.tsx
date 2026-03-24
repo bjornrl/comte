@@ -74,7 +74,7 @@ export default function PersonCard({
       onMouseEnter={() => setIsHovering(true)}
       onMouseLeave={() => setIsHovering(false)}
       onMouseMove={handleMove}
-      className={`group relative h-full min-h-[45vh] overflow-hidden rounded-lg bg-gray-100 cursor-pointer ${className}`}
+      className={`group relative h-[60vh] min-h-[45vh] overflow-hidden rounded-lg bg-gray-100 cursor-pointer ${className}`}
     >
       {/* image */}
       <div
@@ -124,9 +124,8 @@ export default function PersonCard({
 
       {/* custom cursor (follows pointer; cursor stays pointer) */}
       <div
-        className={`pointer-events-none absolute left-0 top-0 z-20 transition-opacity duration-200 ${
-          isHovering ? "opacity-100" : "opacity-0"
-        }`}
+        className={`pointer-events-none absolute left-0 top-0 z-20 transition-opacity duration-200 ${isHovering ? "opacity-100" : "opacity-0"
+          }`}
         style={{
           transform: `translate(${cursorPos.x}px, ${cursorPos.y}px) translate(-50%, -50%)`,
         }}

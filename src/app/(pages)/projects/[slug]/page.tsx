@@ -4,6 +4,8 @@ import { use, useRef, useEffect, useState } from "react";
 import Image from "next/image";
 import BlobNav from "@/app/components/BlobNav";
 import Footer from "@/app/components/Footer";
+import StatCard from "@/app/components/StatCard";
+import { comteColors } from "@/lib/comte-colors";
 
 const PLACEHOLDER_IMAGE =
     "https://images.unsplash.com/photo-1773558058134-9ff1a3212ef0?q=80&w=1572&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D";
@@ -101,33 +103,16 @@ export default function ProjectPage({
                 className="w-full grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 max-w-3xl mx-auto gap-2 bg-background pt-2 pb-2 h-[50vh]"
 
             >
-                <div className="relative overflow-hidden min-h-0 rounded-lg bg-gray-100">
-                    <span className="absolute inset-0 flex items-start justify-start p-6 text-8xl font-light text-foreground/50">
-                        30%
-                    </span>
-                    <p className="absolute bottom-0 left-0 p-6 text-lg font-light text-foreground/50">
-                        Redusert klimagassutslipp
-                    </p>
-                </div>
-                <div className="relative overflow-hidden min-h-0 rounded-lg bg-gray-100">
-                    <span className="absolute inset-0 flex items-start justify-start p-6 text-8xl font-light text-foreground/50">
-                        47
-                    </span>
-                    <p className="absolute bottom-0 left-0 p-6 text-lg font-light text-foreground/50">
-                        Menn inkludert i prøveordning
-                    </p>
-                </div>
-                <div className="relative overflow-hidden min-h-0 rounded-lg bg-gray-100">
-                    <span className="absolute inset-0 flex items-start justify-start p-6 text-8xl font-light text-foreground/50">
-                        25%
-                    </span>
-                    <p className="absolute bottom-0 left-0 p-6 text-lg font-light text-foreground/50">
-                        Voksenandel i styre
-                    </p>
-                </div>
+                <StatCard value="30%" description="Redusert klimagassutslipp" backgroundColor={comteColors.darkGreen}
+                    textColor={comteColors.cream} />
+                <StatCard value="47" description="Menn inkludert i prøveordning" backgroundColor={comteColors.deepRed}
+                    textColor={comteColors.cream} />
+                <StatCard value="25%" description="Voksenandel i styre" backgroundColor={comteColors.coolBlue}
+                    textColor={comteColors.lightBase} />
+
 
             </div>
-            <div className="w-full bg-background px-6 py-12 md:px-12 lg:px-24 max-w-3xl mx-auto"> <h2>Fortsettelse</h2></div>
+
             <div className="w-full bg-background px-6 py-12 md:px-12 lg:px-24 max-w-3xl mx-auto">
                 <div className="text-foreground font-light space-y-6 text-lg leading-relaxed">
                     <p>
@@ -143,48 +128,8 @@ export default function ProjectPage({
                     </p>
                 </div>
             </div>
-            <div
-                className="w-full grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-2 bg-background pt-2 pb-2 h-[80vh]"
-            >
-                <div className="relative overflow-hidden min-h-0 rounded-lg bg-gray-100">
-                    <span className="absolute inset-0 flex items-start justify-start p-6 text-6xl font-light text-foreground/50">
-                        30%
-                    </span>
-                    <p className="absolute bottom-0 left-0 p-6 text-lg font-light text-foreground/50">
-                        Redusert klimagassutslipp
-                    </p>
-                </div>
-                <div className="relative overflow-hidden min-h-0 rounded-lg bg-gray-100">
-                    <span className="absolute inset-0 flex items-start justify-start p-6 text-6xl font-light text-foreground/50">
-                        30%
-                    </span>
-                    <p className="absolute bottom-0 left-0 p-6 text-lg font-light text-foreground/50">
-                        Redusert klimagassutslipp
-                    </p>
-                </div>
-                <div className="relative overflow-hidden min-h-0 rounded-lg bg-gray-100">
-                    <span className="absolute inset-0 flex items-start justify-start p-6 text-6xl font-light text-foreground/50">
-                        30%
-                    </span>
-                    <p className="absolute bottom-0 left-0 p-6 text-lg font-light text-foreground/50">
-                        Redusert klimagassutslipp
-                    </p>
-                </div>
-                <div className="relative overflow-hidden min-h-0 rounded-lg bg-gray-100">
-                    <span className="absolute inset-0 flex items-start justify-start p-6 text-6xl font-light text-foreground/50">
-                        30%
-                    </span>
-                    <div className="absolute bottom-0 left-0 p-6 text-lg font-light text-foreground/50 flex flex-col gap-2">
-                        <p>
-                            Kunde
-                        </p>
-                        <p>
-                            År
-                        </p>
-                    </div>
-                </div>
-            </div>
-            
+
+
             <Footer />
         </div>
     );
