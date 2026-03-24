@@ -7,6 +7,7 @@ import {
   type MutableRefObject,
 } from "react";
 import Image from "next/image";
+import ProjectCluster from "./ProjectCluster";
 
 const PLACEHOLDER_IMAGE =
   "https://images.unsplash.com/photo-1773558058134-9ff1a3212ef0?q=80&w=1572&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D";
@@ -232,7 +233,11 @@ function PageFive() {
   );
 }
 
-const PAGES = [PageOne, PageTwo, PageThree, PageFour, PageFive];
+function PageSix() {
+  return <ProjectCluster />;
+}
+
+const PAGES = [PageOne, PageTwo, PageThree, PageFour, PageFive, PageSix];
 
 export type HorizontalScrollNavApi = {
   goNext: () => void;
