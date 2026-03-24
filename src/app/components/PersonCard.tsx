@@ -12,7 +12,9 @@ export type PersonCardProps = {
   /** Background image */
   imageUrl: string;
   /** Click opens email */
-  email: string;
+  email?: string;
+  /** Optional link target (used for project cards). Falls back to mailto when omitted. */
+  href?: string;
   /** Custom cursor shape/content (per card) */
   cursor?: React.ReactNode;
   /** Text color on hover (CSS color), e.g. var(--comte-near-black) */
@@ -34,6 +36,7 @@ export default function PersonCard({
   description,
   imageUrl,
   email,
+  href,
   cursor,
   hoverTextColor = "var(--comte-near-black)",
   hoverMetaTextColor = "color-mix(in srgb, var(--comte-near-black) 60%, transparent)",
@@ -60,10 +63,13 @@ export default function PersonCard({
     </div>
   );
 
+  const resolvedHref = href ?? (email ? `mailto:${email}` : "#");
+  const ariaLabel = href ? `Open ${name}` : email ? `Email ${name}` : name;
+
   const Inner = (
     <a
-      href={`mailto:${email}`}
-      aria-label={`Email ${name}`}
+      href={resolvedHref}
+      aria-label={ariaLabel}
       ref={cardRef}
       onMouseEnter={() => setIsHovering(true)}
       onMouseLeave={() => setIsHovering(false)}

@@ -276,11 +276,11 @@ function PageFive() {
   );
 }
 
-function PageSix() {
-  return <ProjectCluster />;
-}
+// function PageSix() {
+//   return <ProjectCluster />;
+// }
 
-const PAGES = [PageOne, PageTwo, PageThree, PageFour, PageFive, PageSix];
+const PAGES = [PageOne, PageTwo, PageThree, PageFour, PageFive];
 
 export type HorizontalScrollNavApi = {
   goNext: () => void;

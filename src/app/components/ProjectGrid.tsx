@@ -2,10 +2,9 @@
 
 import React from "react";
 import {
-  type FilterState,
-  PROJECTS, DOMAIN_COLORS, DOMAIN_LABELS,
-  projectMatchesFilters, hasActiveFilters, hexToRgb,
+  type FilterState, PROJECTS, projectMatchesFilters, hasActiveFilters,
 } from "./projectNetworkData";
+import PersonCard from "./PersonCard";
 
 interface ProjectGridProps {
   filters: FilterState;
@@ -16,6 +15,8 @@ export default function ProjectGrid({ filters }: ProjectGridProps) {
   const matchCount = active
     ? PROJECTS.filter((p) => projectMatchesFilters(p, filters)).length
     : PROJECTS.length;
+  const PLACEHOLDER_IMAGE =
+    "https://images.unsplash.com/photo-1773558058134-9ff1a3212ef0?q=80&w=1572&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D";
 
   return (
     <section style={{ background: "#F9F9ED", paddingBottom: "10rem" }}>
@@ -42,111 +43,29 @@ export default function ProjectGrid({ filters }: ProjectGridProps) {
         </div>
       </div>
 
-      {/* Grid */}
-      <div style={{
-        maxWidth: 1200,
-        margin: "2rem auto 0 auto",
-        padding: "0 2rem",
-        display: "grid",
-        gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))",
-        gap: "1rem",
-      }}>
+      {/* Grid styled to match About cards */}
+      <div className="w-full grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-2 bg-background pt-2 pb-2 px-2">
         {PROJECTS.map((project) => {
           const matches = !active || projectMatchesFilters(project, filters);
-          const color = DOMAIN_COLORS[project.domain];
-          const rgb = hexToRgb(color);
 
           return (
-            <a
+            <PersonCard
               key={project.id}
+              title={`${project.client} · ${project.year}`}
+              name={project.name}
+              description={project.summary}
+              imageUrl={PLACEHOLDER_IMAGE}
               href={`/projects/${project.id}`}
-              style={{
-                background: "rgba(255,255,255,0.6)",
-                border: "1px solid rgba(0,0,0,0.06)",
-                borderRadius: 12,
-                padding: 16,
-                cursor: matches ? "pointer" : "default",
-                textDecoration: "none",
-                opacity: matches ? 1 : 0.15,
-                transform: matches ? "scale(1)" : "scale(0.97)",
-                pointerEvents: matches ? "auto" : "none",
-                transition: "opacity 0.4s ease, transform 0.3s ease, box-shadow 0.2s ease",
-                display: "block",
-              }}
-              onMouseEnter={(e) => {
-                if (matches) {
-                  e.currentTarget.style.transform = "translateY(-2px)";
-                  e.currentTarget.style.boxShadow = "0 4px 20px rgba(0,0,0,0.06)";
-                }
-              }}
-              onMouseLeave={(e) => {
-                if (matches) {
-                  e.currentTarget.style.transform = "scale(1)";
-                  e.currentTarget.style.boxShadow = "none";
-                }
-              }}
-            >
-              {/* Image placeholder */}
-              <div style={{
-                width: "100%",
-                aspectRatio: "16 / 10",
-                background: "rgba(0,0,0,0.04)",
-                borderRadius: 8,
-                marginBottom: 12,
-              }} />
-
-              {/* Domain pill */}
-              <div style={{
-                display: "inline-block",
-                background: `rgba(${rgb.r},${rgb.g},${rgb.b},0.15)`,
-                color: color,
-                fontFamily: "var(--font-geist-mono)",
-                fontSize: "0.6rem",
-                letterSpacing: "0.1em",
-                textTransform: "uppercase",
-                padding: "3px 10px",
-                borderRadius: 10,
-                marginBottom: 8,
-              }}>
-                {DOMAIN_LABELS[project.domain]}
-              </div>
-
-              {/* Name */}
-              <div style={{
-                fontFamily: "var(--font-geist-sans)",
-                fontSize: "1.1rem",
-                fontWeight: 600,
-                color: "#212121",
-                lineHeight: 1.3,
-              }}>
-                {project.name}
-              </div>
-
-              {/* Client + year */}
-              <div style={{
-                fontFamily: "var(--font-geist-sans)",
-                fontSize: "0.8rem",
-                color: "rgba(0,0,0,0.45)",
-                marginTop: 4,
-              }}>
-                {project.client} · {project.year}
-              </div>
-
-              {/* Summary */}
-              <div style={{
-                fontFamily: "var(--font-geist-sans)",
-                fontSize: "0.85rem",
-                lineHeight: 1.5,
-                color: "rgba(0,0,0,0.6)",
-                marginTop: 8,
-                overflow: "hidden",
-                display: "-webkit-box",
-                WebkitLineClamp: 3,
-                WebkitBoxOrient: "vertical",
-              }}>
-                {project.summary}
-              </div>
-            </a>
+              hoverTextColor="#fafafa"
+              hoverMetaTextColor="#212121"
+              hoverOverlayColor="#212121"
+              className={`min-h-[45vh] ${matches ? "opacity-100" : "opacity-20 pointer-events-none"}`}
+              cursor={
+                <div className="h-20 w-20 rounded-full border border-background/40 bg-background/90 text-foreground flex items-center justify-center text-sm font-medium tracking-wide shadow-lg">
+                  Les mer
+                </div>
+              }
+            />
           );
         })}
       </div>
