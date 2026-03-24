@@ -45,16 +45,11 @@ export default function ProjectGrid({ filters }: ProjectGridProps) {
   return (
     <section style={{ background: "#F9F9ED", paddingBottom: "10rem" }}>
       {/* Heading */}
-      <div className="max-w-[1200px] mx-auto pt-3 px-2 pb-0">
-        <h2 style={{
-          fontFamily: "var(--font-bebas)",
-          fontSize: "clamp(2rem, 4vw, 3rem)",
-          color: "#212121",
-          margin: 0,
-          lineHeight: 1.1,
-        }}>
-          All projects
-        </h2>
+      <div className="max-w-[1800px] mx-auto pt-3 px-2 pb-0">
+
+        <div id="employees">
+          <h1 className="text-5xl font-light text-foreground pb-8">All projects</h1>
+        </div>
         <div style={{
           fontFamily: "var(--font-geist-mono)",
           fontSize: "0.75rem",
