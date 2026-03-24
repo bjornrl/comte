@@ -8,16 +8,59 @@ import {
 } from "react";
 import Image from "next/image";
 import ProjectCluster from "./ProjectCluster";
+import ProjectNetwork from "./ProjectNetwork";
 
 const PLACEHOLDER_IMAGE =
   "https://images.unsplash.com/photo-1773558058134-9ff1a3212ef0?q=80&w=1572&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D";
 
 function PageOne() {
   return (
-    <section className="flex h-screen w-screen flex-shrink-0 items-center justify-center bg-background px-6 md:px-12 lg:px-24">
-      <h1 className="font-sans font-light text-foreground text-center leading-tight tracking-tight text-3xl sm:text-4xl md:text-5xl lg:text-6xl max-w-[18ch]">
-        INNOVATION FOR SOCIETAL IMPACT
+    <section style={{
+      position: "relative",
+      width: "100vw",
+      height: "100vh",
+      flexShrink: 0,
+      background: "#F9F9ED",
+      overflow: "hidden",
+    }}>
+      {/* Network map behind */}
+      <ProjectNetwork mode="teaser" />
+
+      {/* Hero text on top */}
+      <h1 style={{
+        position: "absolute",
+        top: "50%",
+        left: "50%",
+        transform: "translate(-50%, -50%)",
+        fontFamily: "var(--font-bebas)",
+        fontSize: "clamp(2.5rem, 7vw, 5rem)",
+        lineHeight: 0.95,
+        letterSpacing: "0.01em",
+        color: "#1F3A32",
+        textAlign: "center",
+        maxWidth: "60vw",
+        zIndex: 5,
+        pointerEvents: "none",
+        margin: 0,
+      }}>
+        Innovation for societal impact
       </h1>
+
+      {/* CTA at bottom */}
+      <a href="/projects" style={{
+        position: "absolute",
+        bottom: "3rem",
+        left: "50%",
+        transform: "translateX(-50%)",
+        fontFamily: "var(--font-geist-sans)",
+        fontSize: "0.85rem",
+        color: "rgba(0,0,0,0.45)",
+        textDecoration: "none",
+        zIndex: 5,
+        transition: "color 0.2s ease",
+      }}>
+        Explore our projects →
+      </a>
     </section>
   );
 }

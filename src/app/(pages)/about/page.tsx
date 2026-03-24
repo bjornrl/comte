@@ -20,8 +20,23 @@ export default function AboutPage() {
         style={{ height: "calc(100vh - 5rem)" }}
       >
         <PersonCard
-          title="Design & Innovation"
-          name="Comte Bureau"
+          title="Daglig leder"
+          name="Øystein Evensen"
+          description="We design human-centered services and experiences—connecting strategy, design, and delivery to create innovation with societal impact."
+          imageUrl={PLACEHOLDER_IMAGE}
+          email="hello@comtebureau.com"
+          hoverTextColor="#fafafa"
+          hoverMetaTextColor="#212121"
+          hoverOverlayColor="#212121"
+          cursor={
+            <div className="h-20 w-20 rounded-full border border-background/40 bg-background/90 text-foreground flex items-center justify-center text-sm font-medium tracking-wide shadow-lg">
+              Les mer
+            </div>
+          }
+        />
+        <PersonCard
+          title="Designer"
+          name="Herman Billett"
           description="We design human-centered services and experiences—connecting strategy, design, and delivery to create innovation with societal impact."
           imageUrl={PLACEHOLDER_IMAGE}
           email="hello@comtebureau.com"
@@ -35,8 +50,8 @@ export default function AboutPage() {
           }
         />
         <PersonCard
-          title="Design & Innovation"
-          name="Comte Bureau"
+          title="Arkitekt & styremedlem"
+          name="Joana Sa Lima"
           description="We design human-centered services and experiences—connecting strategy, design, and delivery to create innovation with societal impact."
           imageUrl={PLACEHOLDER_IMAGE}
           email="hello@comtebureau.com"
@@ -50,23 +65,8 @@ export default function AboutPage() {
           }
         />
         <PersonCard
-          title="Design & Innovation"
-          name="Comte Bureau"
-          description="We design human-centered services and experiences—connecting strategy, design, and delivery to create innovation with societal impact."
-          imageUrl={PLACEHOLDER_IMAGE}
-          email="hello@comtebureau.com"
-          hoverTextColor="#FF00FF"
-          hoverMetaTextColor="rgba(77, 8, 226, 0.65)"
-          hoverOverlayColor="rgba(204, 31, 31, 0.65)"
-          cursor={
-            <div className="h-20 w-20 rounded-full border border-background/40 bg-background/90 text-foreground flex items-center justify-center text-sm font-medium tracking-wide shadow-lg">
-              Les mer
-            </div>
-          }
-        />
-        <PersonCard
-          title="Design & Innovation"
-          name="Comte Bureau"
+          title="Tjenestedeisgner"
+          name="Bjørn Ravlo-Leira"
           description="We design human-centered services and experiences—connecting strategy, design, and delivery to create innovation with societal impact."
           imageUrl={PLACEHOLDER_IMAGE}
           email="hello@comtebureau.com"

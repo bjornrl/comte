@@ -2,215 +2,19 @@
 
 import React, { useRef, useEffect, useCallback, useState } from "react";
 import type p5Type from "p5";
-
-/* ───────────── Types ───────────── */
-
-type Domain = "health" | "education" | "integration" | "urban" | "climate" | "digital";
-type Scale = "municipal" | "regional" | "national" | "international";
-type Method = "research" | "codesign" | "implementation" | "strategy" | "foresight";
-type InnovationLevel = "incremental" | "transformative";
-
-type Project = {
-  id: string;
-  name: string;
-  client: string;
-  domain: Domain;
-  summary: string;
-  featured: boolean;
-  year: number;
-  scale: Scale;
-  methods: Method[];
-  innovationLevel: InnovationLevel;
-};
-
-type ConnectionType = "domain" | "method" | "scale" | "theme";
-
-type Connection = {
-  from: string;
-  to: string;
-  type: ConnectionType;
-};
-
-type FilterState = {
-  domain: Domain | null;
-  scale: Scale | null;
-  method: Method | null;
-  innovationLevel: InnovationLevel | null;
-};
+import {
+  type FilterState, type Project, type ConnectionType,
+  DOMAIN_COLORS, DOMAIN_LABELS, PROJECTS, CONNECTIONS,
+  NO_FILTERS, hasActiveFilters, projectMatchesFilters, hexToRgb,
+} from "./projectNetworkData";
+export type { FilterState } from "./projectNetworkData";
 
 /* ───────────── Constants ───────────── */
 
-const DOMAIN_COLORS: Record<Domain, string> = {
-  health: "#1F3A32",
-  education: "#F27887",
-  integration: "#D6B84C",
-  urban: "#5F7C8A",
-  climate: "#4F7C6C",
-  digital: "#FF5252",
-};
-
 const THEME_LINE_COLOR = { r: 242, g: 120, b: 135 }; // #F27887 coral
+const DARK_LINE_COLOR = { r: 33, g: 33, b: 33 }; // #212121 for light bg
 
-const DOMAIN_LABELS: Record<Domain, string> = {
-  health: "Health & Care",
-  education: "Education",
-  integration: "Integration & Migration",
-  urban: "Urban Development",
-  climate: "Climate & Sustainability",
-  digital: "Digital Transformation",
-};
-
-const PROJECTS: Project[] = [
-  // Health
-  { id: "h1", name: "Redesigning Elderly Care Pathways", client: "Trondheim Kommune", domain: "health", summary: "Rethinking how elderly care is coordinated across home services, GPs, and hospitals.", featured: true, year: 2023, scale: "municipal", methods: ["codesign", "research", "strategy"], innovationLevel: "transformative" },
-  { id: "h2", name: "Digital Health Literacy", client: "Helsedirektoratet", domain: "health", summary: "Improving how patients understand and navigate digital health services.", featured: false, year: 2022, scale: "national", methods: ["research", "implementation"], innovationLevel: "incremental" },
-  { id: "h3", name: "Mental Health Service Mapping", client: "Bergen Kommune", domain: "health", summary: "Mapping the patient journey through municipal mental health services.", featured: false, year: 2021, scale: "municipal", methods: ["research", "codesign"], innovationLevel: "incremental" },
-  { id: "h4", name: "Home Care Coordination", client: "Stavanger Kommune", domain: "health", summary: "Streamlining communication between home care workers and families.", featured: false, year: 2023, scale: "municipal", methods: ["codesign", "implementation"], innovationLevel: "incremental" },
-  { id: "h5", name: "Hospital Wayfinding", client: "St. Olavs Hospital", domain: "health", summary: "Redesigning physical and digital wayfinding for a major university hospital.", featured: false, year: 2022, scale: "regional", methods: ["research", "implementation"], innovationLevel: "incremental" },
-
-  // Education
-  { id: "e1", name: "Student Housing Against Loneliness", client: "SiT Trondheim", domain: "education", summary: "Designing common areas in student housing to reduce loneliness and build community.", featured: true, year: 2023, scale: "municipal", methods: ["codesign", "research"], innovationLevel: "transformative" },
-  { id: "e2", name: "Learning Space Innovation", client: "NTNU", domain: "education", summary: "Rethinking university learning spaces for hybrid teaching models.", featured: false, year: 2024, scale: "regional", methods: ["research", "foresight"], innovationLevel: "transformative" },
-  { id: "e3", name: "Teacher Collaboration Platform", client: "Utdanningsdirektoratet", domain: "education", summary: "Designing tools for cross-school teacher knowledge sharing.", featured: false, year: 2022, scale: "national", methods: ["codesign", "implementation"], innovationLevel: "incremental" },
-  { id: "e4", name: "Vocational Training Pathways", client: "Trøndelag Fylkeskommune", domain: "education", summary: "Reimagining the journey from vocational school to employment.", featured: false, year: 2023, scale: "regional", methods: ["research", "strategy"], innovationLevel: "incremental" },
-  { id: "e5", name: "Library as Third Place", client: "Deichman Bibliotek", domain: "education", summary: "Transforming public libraries into vibrant community learning hubs.", featured: false, year: 2021, scale: "municipal", methods: ["codesign", "strategy"], innovationLevel: "incremental" },
-
-  // Integration
-  { id: "i1", name: "Humanizing the Asylum Process for Children", client: "UDI / UNE / PU", domain: "integration", summary: "Creating child-friendly services across Norway's immigration authorities.", featured: true, year: 2022, scale: "national", methods: ["codesign", "research", "strategy"], innovationLevel: "transformative" },
-  { id: "i2", name: "Language Learning Ecosystems", client: "IMDi", domain: "integration", summary: "Mapping how refugees access and navigate language learning opportunities.", featured: false, year: 2023, scale: "national", methods: ["research", "codesign"], innovationLevel: "incremental" },
-  { id: "i3", name: "Cultural Navigator Service", client: "Drammen Kommune", domain: "integration", summary: "Designing peer-to-peer cultural navigation for newly arrived families.", featured: false, year: 2022, scale: "municipal", methods: ["codesign", "implementation"], innovationLevel: "transformative" },
-  { id: "i4", name: "Employment Bridge Program", client: "NAV Intro", domain: "integration", summary: "Connecting skilled immigrants with employers through structured mentorship.", featured: false, year: 2024, scale: "regional", methods: ["implementation", "strategy"], innovationLevel: "incremental" },
-  { id: "i5", name: "Digital Inclusion for Seniors", client: "Røde Kors", domain: "integration", summary: "Helping elderly immigrants access essential digital services.", featured: false, year: 2021, scale: "international", methods: ["research", "codesign"], innovationLevel: "incremental" },
-
-  // Urban
-  { id: "u1", name: "Neighbourhood Identity Mapping", client: "Oslo Kommune", domain: "urban", summary: "Co-creating neighbourhood identities with residents to guide urban planning.", featured: true, year: 2024, scale: "municipal", methods: ["codesign", "research"], innovationLevel: "transformative" },
-  { id: "u2", name: "Car-Free City Centre", client: "Tromsø Kommune", domain: "urban", summary: "Designing the transition experience for a pedestrianized city centre.", featured: false, year: 2023, scale: "municipal", methods: ["codesign", "foresight"], innovationLevel: "transformative" },
-  { id: "u3", name: "Waterfront Public Space", client: "Bodø Kommune", domain: "urban", summary: "Envisioning inclusive public spaces along the harbour redevelopment.", featured: false, year: 2022, scale: "municipal", methods: ["codesign", "strategy"], innovationLevel: "incremental" },
-  { id: "u4", name: "School Route Safety", client: "Bærum Kommune", domain: "urban", summary: "Mapping and improving safe walking routes to schools with children.", featured: false, year: 2023, scale: "municipal", methods: ["research", "codesign"], innovationLevel: "incremental" },
-  { id: "u5", name: "Rural Co-Working Spaces", client: "Distriktssenteret", domain: "urban", summary: "Designing shared workspaces that strengthen rural communities.", featured: false, year: 2024, scale: "national", methods: ["research", "foresight", "strategy"], innovationLevel: "transformative" },
-
-  // Climate
-  { id: "c1", name: "Circular Economy Mapping", client: "Miljødirektoratet", domain: "climate", summary: "Visualizing material flows to identify circular economy opportunities.", featured: true, year: 2023, scale: "national", methods: ["research", "strategy"], innovationLevel: "transformative" },
-  { id: "c2", name: "Green Mobility Nudging", client: "Ruter", domain: "climate", summary: "Designing behavioural nudges for sustainable transport choices.", featured: false, year: 2022, scale: "regional", methods: ["research", "implementation"], innovationLevel: "incremental" },
-  { id: "c3", name: "Climate Budget Communication", client: "Kristiansand Kommune", domain: "climate", summary: "Making municipal climate budgets understandable for citizens.", featured: false, year: 2024, scale: "municipal", methods: ["codesign", "implementation"], innovationLevel: "incremental" },
-  { id: "c4", name: "Food Waste Reduction", client: "Matvett", domain: "climate", summary: "Service design for reducing food waste in grocery supply chains.", featured: false, year: 2021, scale: "national", methods: ["research", "implementation", "strategy"], innovationLevel: "incremental" },
-  { id: "c5", name: "Nature-Based Solutions Toolkit", client: "NINA", domain: "climate", summary: "A toolkit helping municipalities plan with nature, not against it.", featured: false, year: 2023, scale: "international", methods: ["research", "foresight"], innovationLevel: "transformative" },
-
-  // Digital
-  { id: "d1", name: "Supporting Vulnerable Young Men", client: "NAV / Trondheim Kommune", domain: "digital", summary: "A new cross-institutional service helping young men in the transition to adulthood.", featured: true, year: 2023, scale: "municipal", methods: ["codesign", "research", "implementation"], innovationLevel: "transformative" },
-  { id: "d2", name: "Digital Samtykke Platform", client: "Digitaliseringsdirektoratet", domain: "digital", summary: "Designing a consent management platform for public data sharing.", featured: false, year: 2024, scale: "national", methods: ["strategy", "implementation"], innovationLevel: "incremental" },
-  { id: "d3", name: "Citizen Dashboard", client: "KS", domain: "digital", summary: "A unified view of all municipal services for citizens.", featured: false, year: 2022, scale: "municipal", methods: ["codesign", "implementation"], innovationLevel: "incremental" },
-  { id: "d4", name: "AI Ethics Framework", client: "Datatilsynet", domain: "digital", summary: "Practical guidelines for ethical AI use in public services.", featured: false, year: 2023, scale: "international", methods: ["research", "strategy"], innovationLevel: "incremental" },
-  { id: "d5", name: "Cross-Agency Case Management", client: "DFØ", domain: "digital", summary: "Redesigning how cases flow across government agencies.", featured: false, year: 2021, scale: "international", methods: ["research", "strategy", "implementation"], innovationLevel: "incremental" },
-];
-
-const CONNECTIONS: Connection[] = [
-  // Domain: Health internal
-  { from: "h1", to: "h2", type: "domain" },
-  { from: "h1", to: "h4", type: "domain" },
-  { from: "h2", to: "h3", type: "domain" },
-  { from: "h3", to: "h4", type: "domain" },
-  { from: "h4", to: "h5", type: "domain" },
-  { from: "h1", to: "h5", type: "domain" },
-  { from: "h2", to: "h5", type: "domain" },
-
-  // Domain: Education internal
-  { from: "e1", to: "e2", type: "domain" },
-  { from: "e1", to: "e5", type: "domain" },
-  { from: "e2", to: "e3", type: "domain" },
-  { from: "e3", to: "e4", type: "domain" },
-  { from: "e4", to: "e5", type: "domain" },
-  { from: "e2", to: "e4", type: "domain" },
-
-  // Domain: Integration internal
-  { from: "i1", to: "i2", type: "domain" },
-  { from: "i1", to: "i3", type: "domain" },
-  { from: "i2", to: "i4", type: "domain" },
-  { from: "i3", to: "i5", type: "domain" },
-  { from: "i4", to: "i5", type: "domain" },
-  { from: "i2", to: "i3", type: "domain" },
-
-  // Domain: Urban internal
-  { from: "u1", to: "u2", type: "domain" },
-  { from: "u1", to: "u3", type: "domain" },
-  { from: "u2", to: "u4", type: "domain" },
-  { from: "u3", to: "u5", type: "domain" },
-  { from: "u4", to: "u5", type: "domain" },
-  { from: "u1", to: "u4", type: "domain" },
-
-  // Domain: Climate internal
-  { from: "c1", to: "c2", type: "domain" },
-  { from: "c1", to: "c3", type: "domain" },
-  { from: "c2", to: "c3", type: "domain" },
-  { from: "c3", to: "c4", type: "domain" },
-  { from: "c4", to: "c5", type: "domain" },
-  { from: "c1", to: "c5", type: "domain" },
-
-  // Domain: Digital internal
-  { from: "d1", to: "d2", type: "domain" },
-  { from: "d1", to: "d3", type: "domain" },
-  { from: "d2", to: "d4", type: "domain" },
-  { from: "d3", to: "d5", type: "domain" },
-  { from: "d4", to: "d5", type: "domain" },
-  { from: "d1", to: "d5", type: "domain" },
-
-  // Cross-domain: Method
-  { from: "h1", to: "i1", type: "method" },
-  { from: "h3", to: "u1", type: "method" },
-  { from: "e1", to: "u3", type: "method" },
-  { from: "e3", to: "d3", type: "method" },
-  { from: "c1", to: "d4", type: "method" },
-
-  // Cross-domain: Scale
-  { from: "h2", to: "d2", type: "scale" },
-  { from: "i5", to: "d1", type: "scale" },
-  { from: "u2", to: "c2", type: "scale" },
-  { from: "e4", to: "i4", type: "scale" },
-  { from: "c3", to: "d3", type: "scale" },
-
-  // Cross-domain: Theme
-  { from: "h4", to: "e1", type: "theme" },
-  { from: "i1", to: "e5", type: "theme" },
-  { from: "u5", to: "e2", type: "theme" },
-  { from: "c4", to: "u4", type: "theme" },
-  { from: "d1", to: "i2", type: "theme" },
-  { from: "h5", to: "u1", type: "theme" },
-  { from: "c5", to: "u3", type: "theme" },
-];
-
-const SCALE_LABELS: Record<Scale, string> = {
-  municipal: "Municipal",
-  regional: "Regional",
-  national: "National",
-  international: "International",
-};
-
-const METHOD_LABELS: Record<Method, string> = {
-  research: "Research",
-  codesign: "Co-design",
-  implementation: "Implementation",
-  strategy: "Strategy",
-  foresight: "Foresight",
-};
-
-const INNOVATION_LABELS: Record<InnovationLevel, string> = {
-  incremental: "Incremental",
-  transformative: "Transformative",
-};
-
-function projectMatchesFilters(project: Project, filters: FilterState): boolean {
-  if (filters.domain && project.domain !== filters.domain) return false;
-  if (filters.scale && project.scale !== filters.scale) return false;
-  if (filters.method && !project.methods.includes(filters.method)) return false;
-  if (filters.innovationLevel && project.innovationLevel !== filters.innovationLevel) return false;
-  return true;
-}
-
-const NO_FILTERS: FilterState = { domain: null, scale: null, method: null, innovationLevel: null };
-
-function hasActiveFilters(f: FilterState): boolean {
-  return f.domain !== null || f.scale !== null || f.method !== null || f.innovationLevel !== null;
-}
+/* Projects, connections, labels, filters — imported from projectNetworkData.ts */
 
 /* ───────────── Helpers ───────────── */
 
@@ -226,13 +30,6 @@ function seededRandom(seed: string, index: number): number {
   return (h % 10000) / 10000;
 }
 
-function hexToRgb(hex: string): { r: number; g: number; b: number } {
-  const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
-  return result
-    ? { r: parseInt(result[1], 16), g: parseInt(result[2], 16), b: parseInt(result[3], 16) }
-    : { r: 128, g: 128, b: 128 };
-}
-
 type NodePosition = {
   baseX: number;
   baseY: number;
@@ -243,7 +40,8 @@ type NodePosition = {
 function computeNodePositions(
   width: number,
   height: number,
-  isMobile = false
+  isMobile = false,
+  excludeCenter = false
 ): Record<string, NodePosition> {
   const positions: Record<string, NodePosition> = {};
   const margin = { x: width * 0.08, y: height * 0.12 };
@@ -251,8 +49,22 @@ function computeNodePositions(
 
   // Initial placement using improved hash
   for (const project of PROJECTS) {
-    const x = margin.x + seededRandom(project.id, 0) * (width - margin.x * 2);
-    const y = margin.y + seededRandom(project.id, 7919) * (height - margin.y * 2);
+    let x = margin.x + seededRandom(project.id, 0) * (width - margin.x * 2);
+    let y = margin.y + seededRandom(project.id, 7919) * (height - margin.y * 2);
+
+    // Center exclusion zone (for teaser mode hero text)
+    if (excludeCenter) {
+      const ez = { left: width * 0.25, right: width * 0.75, top: height * 0.35, bottom: height * 0.65 };
+      if (x > ez.left && x < ez.right && y > ez.top && y < ez.bottom) {
+        // Push outward from center
+        const cx = width / 2, cy = height / 2;
+        const angle = Math.atan2(y - cy, x - cx);
+        const radius = Math.max(width * 0.26, height * 0.16);
+        x = cx + Math.cos(angle) * radius;
+        y = cy + Math.sin(angle) * radius;
+      }
+    }
+
     positions[project.id] = { baseX: x, baseY: y, x, y };
   }
 
@@ -309,9 +121,15 @@ type Particle = {
 export default function ProjectNetwork({
   className,
   style,
+  mode = "full",
+  filters: externalFilters,
+  onFiltersChange,
 }: {
   className?: string;
   style?: React.CSSProperties;
+  mode?: "full" | "teaser";
+  filters?: FilterState;
+  onFiltersChange?: (f: FilterState) => void;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const canvasContainerRef = useRef<HTMLDivElement>(null);
@@ -347,7 +165,9 @@ export default function ProjectNetwork({
   const prefersReducedMotionRef = useRef(false);
   const [mobileSheetProject, setMobileSheetProject] = useState<Project | null>(null);
 
-  const [filters, setFilters] = useState<FilterState>(NO_FILTERS);
+  const [internalFilters, setInternalFilters] = useState<FilterState>(NO_FILTERS);
+  const filters = externalFilters ?? internalFilters;
+  const setFilters = onFiltersChange ?? setInternalFilters;
   const filtersRef = useRef<FilterState>(NO_FILTERS);
   const matchingIdsRef = useRef<Set<string>>(new Set());
 
@@ -539,7 +359,7 @@ export default function ProjectNetwork({
           el.style.transform = "scale(2)";
           el.style.opacity = "1";
           el.style.boxShadow = `0 0 20px rgba(${rgb.r},${rgb.g},${rgb.b},0.6)`;
-          el.style.border = "2px solid rgba(255,255,255,0.5)";
+          el.style.border = "2px solid rgba(0,0,0,0.5)";
         }
       } else if (connectedIds.has(p.id)) {
         const connScale = p.featured ? featuredCollapsed * 1.3 : 1.2;
@@ -573,7 +393,7 @@ export default function ProjectNetwork({
 
     const rect = container.getBoundingClientRect();
     sizeRef.current = { width: rect.width, height: rect.height };
-    positionsRef.current = computeNodePositions(rect.width, rect.height, rect.width < 768);
+    positionsRef.current = computeNodePositions(rect.width, rect.height, rect.width < 768, mode === "teaser");
 
     // Init particles for each connection
     particlesRef.current = CONNECTIONS.map((conn, i) => {
@@ -719,15 +539,15 @@ export default function ProjectNetwork({
               : { r: 128, g: 128, b: 128 };
 
             // Use theme color for "theme" connections, domain color for others
-            const color = conn.type === "theme" ? THEME_LINE_COLOR : domainColor;
+            const color = conn.type === "theme" ? THEME_LINE_COLOR : DARK_LINE_COLOR;
 
             // Base alpha varies by type
             let baseAlpha: number;
             switch (conn.type) {
-              case "domain":  baseAlpha = 10; break;
-              case "method":  baseAlpha = 12; break;
-              case "scale":   baseAlpha = 8;  break;
-              case "theme":   baseAlpha = 8;  break;
+              case "domain":  baseAlpha = 25; break;
+              case "method":  baseAlpha = 30; break;
+              case "scale":   baseAlpha = 20; break;
+              case "theme":   baseAlpha = 30; break;
             }
 
             // Determine target alpha: selection > filter > hover > default
@@ -857,7 +677,7 @@ export default function ProjectNetwork({
         const { width, height } = entry.contentRect;
         if (width === 0 || height === 0) continue;
         sizeRef.current = { width, height };
-        positionsRef.current = computeNodePositions(width, height, width < 768);
+        positionsRef.current = computeNodePositions(width, height, width < 768, mode === "teaser");
 
         // Reinit particles
         particlesRef.current = CONNECTIONS.map((conn, i) => {
@@ -882,7 +702,7 @@ export default function ProjectNetwork({
         p5Ref.current = null;
       }
     };
-  }, [initParticles]);
+  }, [initParticles, mode]);
 
   /* ── Hover handlers ── */
   const handleNodeEnter = useCallback(
@@ -1003,6 +823,10 @@ export default function ProjectNetwork({
   }, []);
 
   const handleNodeClick = useCallback((projectId: string) => {
+    if (mode === "teaser") {
+      window.location.href = "/projects";
+      return;
+    }
     const project = PROJECTS.find((p) => p.id === projectId);
 
     // If dimmed by filter, ignore click
@@ -1034,7 +858,7 @@ export default function ProjectNetwork({
       // Delay content fade-in until card has expanded ~60%
       setTimeout(() => setExpandedContentVisible(true), 250);
     }
-  }, [selectedProjectId, expandedProjectId, applySelectionStyling, collapseExpanded]);
+  }, [selectedProjectId, expandedProjectId, applySelectionStyling, collapseExpanded, mode]);
 
   const handleBackgroundClick = useCallback((e: React.MouseEvent) => {
     if (e.target === containerRef.current) {
@@ -1062,7 +886,7 @@ export default function ProjectNetwork({
         position: "relative",
         width: "100%",
         height: isMobile ? "50vh" : "100%",
-        background: "#212121",
+        background: "#F9F9ED",
         overflow: "hidden",
         ...style,
       }}
@@ -1095,7 +919,7 @@ export default function ProjectNetwork({
             fontSize: "0.7rem",
             textTransform: "uppercase",
             letterSpacing: "0.15em",
-            color: "rgba(255,255,255,0.4)",
+            color: "rgba(33,33,33,0.4)",
           }}
         >
           Our work
@@ -1104,7 +928,7 @@ export default function ProjectNetwork({
           style={{
             fontFamily: "var(--font-geist-sans)",
             fontSize: "1rem",
-            color: "rgba(255,255,255,0.5)",
+            color: "rgba(33,33,33,0.5)",
             marginTop: 4,
           }}
         >
@@ -1179,8 +1003,8 @@ export default function ProjectNetwork({
                   height: isExpanded ? "auto" : cardH,
                   minHeight: cardH,
                   borderRadius: isExpanded ? 12 : cardW / 2,
-                  backgroundColor: isExpanded ? "rgba(33, 33, 33, 0.95)" : color,
-                  border: isExpanded ? "1px solid rgba(255,255,255,0.1)" : "none",
+                  backgroundColor: isExpanded ? "rgba(255, 255, 255, 0.95)" : color,
+                  border: isExpanded ? "1px solid rgba(0,0,0,0.1)" : "none",
                   backdropFilter: isExpanded ? "blur(12px)" : "none",
                   WebkitBackdropFilter: isExpanded ? "blur(12px)" : "none",
                   boxShadow: isExpanded
@@ -1219,7 +1043,7 @@ export default function ProjectNetwork({
                       right: 8,
                       background: "none",
                       border: "none",
-                      color: "rgba(255,255,255,0.4)",
+                      color: "rgba(0,0,0,0.4)",
                       fontSize: "1rem",
                       cursor: "pointer",
                       padding: 8,
@@ -1231,8 +1055,8 @@ export default function ProjectNetwork({
                       justifyContent: "center",
                       zIndex: 2,
                     }}
-                    onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.color = "rgba(255,255,255,0.8)"; }}
-                    onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.color = "rgba(255,255,255,0.4)"; }}
+                    onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.color = "rgba(0,0,0,0.8)"; }}
+                    onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.color = "rgba(0,0,0,0.4)"; }}
                   >
                     ✕
                   </button>
@@ -1259,7 +1083,7 @@ export default function ProjectNetwork({
                     style={{
                       width: "100%",
                       aspectRatio: "16 / 10",
-                      background: "rgba(255,255,255,0.06)",
+                      background: "rgba(0,0,0,0.06)",
                       borderRadius: 8,
                       marginTop: 10,
                     }}
@@ -1271,7 +1095,7 @@ export default function ProjectNetwork({
                       fontFamily: "var(--font-geist-sans)",
                       fontSize: "1rem",
                       fontWeight: 600,
-                      color: "#fff",
+                      color: "#212121",
                       marginTop: 12,
                       lineHeight: 1.3,
                     }}
@@ -1284,7 +1108,7 @@ export default function ProjectNetwork({
                     style={{
                       fontFamily: "var(--font-geist-sans)",
                       fontSize: "0.8rem",
-                      color: "rgba(255,255,255,0.5)",
+                      color: "rgba(33,33,33,0.5)",
                       marginTop: 2,
                     }}
                   >
@@ -1297,7 +1121,7 @@ export default function ProjectNetwork({
                       fontFamily: "var(--font-geist-sans)",
                       fontSize: "0.8rem",
                       lineHeight: 1.45,
-                      color: "rgba(255,255,255,0.6)",
+                      color: "rgba(33,33,33,0.6)",
                       marginTop: 8,
                       overflow: "hidden",
                       display: "-webkit-box",
@@ -1338,7 +1162,7 @@ export default function ProjectNetwork({
                     fontFamily: "var(--font-geist-sans)",
                     fontSize: "0.75rem",
                     fontWeight: 500,
-                    color: "rgba(255,255,255,0.8)",
+                    color: "#212121",
                     whiteSpace: "nowrap",
                     pointerEvents: "none",
                     opacity: 0.8,
@@ -1391,7 +1215,7 @@ export default function ProjectNetwork({
                   fontFamily: "var(--font-geist-sans)",
                   fontSize: "0.75rem",
                   fontWeight: 500,
-                  color: "rgba(255,255,255,0.8)",
+                  color: "#212121",
                   whiteSpace: "nowrap",
                   pointerEvents: "none",
                   opacity: entranceReady ? 0.8 : 0,
@@ -1405,231 +1229,6 @@ export default function ProjectNetwork({
           </React.Fragment>
         );
       })}
-
-      {/* Filter bar */}
-      <div
-        style={{
-          position: "absolute",
-          bottom: isMobile ? "1rem" : "5rem",
-          left: "50%",
-          transform: "translateX(-50%)",
-          display: "flex",
-          gap: isMobile ? 4 : 6,
-          alignItems: "center",
-          flexWrap: "wrap",
-          justifyContent: "center",
-          maxWidth: "90vw",
-          zIndex: 10,
-          opacity: 0,
-          animation: prefersReducedMotionRef.current ? "filterBarIn 0.01s forwards" : "filterBarIn 0.5s ease-out 1.8s forwards",
-          overflowX: isMobile ? "auto" : undefined,
-        }}
-      >
-        <style>{`@keyframes filterBarIn { from { opacity: 0; transform: translateX(-50%) translateY(8px); } to { opacity: 1; transform: translateX(-50%) translateY(0); } }`}</style>
-
-        {/* Domain group */}
-        <span style={{ fontFamily: "var(--font-geist-mono)", fontSize: "0.55rem", letterSpacing: "0.12em", textTransform: "uppercase", color: "rgba(255,255,255,0.2)", marginRight: 6, whiteSpace: "nowrap" }}>Domain</span>
-        {(Object.keys(DOMAIN_COLORS) as Domain[]).map((d) => {
-          const active = filters.domain === d;
-          return (
-            <button
-              key={d}
-              onClick={(e) => { e.stopPropagation(); setFilters((f) => ({ ...f, domain: f.domain === d ? null : d })); }}
-              style={{
-                background: active ? DOMAIN_COLORS[d] : "rgba(255,255,255,0.06)",
-                border: `1px solid ${active ? DOMAIN_COLORS[d] : "rgba(255,255,255,0.12)"}`,
-                borderRadius: 16,
-                padding: "5px 14px",
-                fontFamily: "var(--font-geist-sans)",
-                fontSize: "0.7rem",
-                fontWeight: active ? 500 : 450,
-                color: active ? "#212121" : "rgba(255,255,255,0.45)",
-                cursor: "pointer",
-                transition: "all 0.2s ease",
-                whiteSpace: "nowrap",
-              }}
-              onMouseEnter={(e) => { if (!active) { const t = e.currentTarget; t.style.background = "rgba(255,255,255,0.1)"; t.style.color = "rgba(255,255,255,0.65)"; t.style.borderColor = "rgba(255,255,255,0.2)"; } }}
-              onMouseLeave={(e) => { if (!active) { const t = e.currentTarget; t.style.background = "rgba(255,255,255,0.06)"; t.style.color = "rgba(255,255,255,0.45)"; t.style.borderColor = "rgba(255,255,255,0.12)"; } }}
-            >
-              {DOMAIN_LABELS[d]}
-            </button>
-          );
-        })}
-
-        {/* Non-domain groups hidden on mobile */}
-        {!isMobile && <>
-        {/* Divider */}
-        <div style={{ width: 1, height: 20, background: "rgba(255,255,255,0.1)", margin: "0 8px" }} />
-
-        {/* Scale group */}
-        <span style={{ fontFamily: "var(--font-geist-mono)", fontSize: "0.55rem", letterSpacing: "0.12em", textTransform: "uppercase", color: "rgba(255,255,255,0.2)", marginRight: 6, whiteSpace: "nowrap" }}>Scale</span>
-        {(Object.keys(SCALE_LABELS) as Scale[]).map((s) => {
-          const active = filters.scale === s;
-          return (
-            <button
-              key={s}
-              onClick={(e) => { e.stopPropagation(); setFilters((f) => ({ ...f, scale: f.scale === s ? null : s })); }}
-              style={{
-                background: active ? "rgba(255,255,255,0.85)" : "rgba(255,255,255,0.06)",
-                border: `1px solid ${active ? "rgba(255,255,255,0.85)" : "rgba(255,255,255,0.12)"}`,
-                borderRadius: 16,
-                padding: "5px 14px",
-                fontFamily: "var(--font-geist-sans)",
-                fontSize: "0.7rem",
-                fontWeight: active ? 500 : 450,
-                color: active ? "#212121" : "rgba(255,255,255,0.45)",
-                cursor: "pointer",
-                transition: "all 0.2s ease",
-                whiteSpace: "nowrap",
-              }}
-              onMouseEnter={(e) => { if (!active) { const t = e.currentTarget; t.style.background = "rgba(255,255,255,0.1)"; t.style.color = "rgba(255,255,255,0.65)"; t.style.borderColor = "rgba(255,255,255,0.2)"; } }}
-              onMouseLeave={(e) => { if (!active) { const t = e.currentTarget; t.style.background = "rgba(255,255,255,0.06)"; t.style.color = "rgba(255,255,255,0.45)"; t.style.borderColor = "rgba(255,255,255,0.12)"; } }}
-            >
-              {SCALE_LABELS[s]}
-            </button>
-          );
-        })}
-
-        {/* Divider */}
-        <div style={{ width: 1, height: 20, background: "rgba(255,255,255,0.1)", margin: "0 8px" }} />
-
-        {/* Method group */}
-        <span style={{ fontFamily: "var(--font-geist-mono)", fontSize: "0.55rem", letterSpacing: "0.12em", textTransform: "uppercase", color: "rgba(255,255,255,0.2)", marginRight: 6, whiteSpace: "nowrap" }}>Method</span>
-        {(Object.keys(METHOD_LABELS) as Method[]).map((m) => {
-          const active = filters.method === m;
-          return (
-            <button
-              key={m}
-              onClick={(e) => { e.stopPropagation(); setFilters((f) => ({ ...f, method: f.method === m ? null : m })); }}
-              style={{
-                background: active ? "rgba(255,255,255,0.85)" : "rgba(255,255,255,0.06)",
-                border: `1px solid ${active ? "rgba(255,255,255,0.85)" : "rgba(255,255,255,0.12)"}`,
-                borderRadius: 16,
-                padding: "5px 14px",
-                fontFamily: "var(--font-geist-sans)",
-                fontSize: "0.7rem",
-                fontWeight: active ? 500 : 450,
-                color: active ? "#212121" : "rgba(255,255,255,0.45)",
-                cursor: "pointer",
-                transition: "all 0.2s ease",
-                whiteSpace: "nowrap",
-              }}
-              onMouseEnter={(e) => { if (!active) { const t = e.currentTarget; t.style.background = "rgba(255,255,255,0.1)"; t.style.color = "rgba(255,255,255,0.65)"; t.style.borderColor = "rgba(255,255,255,0.2)"; } }}
-              onMouseLeave={(e) => { if (!active) { const t = e.currentTarget; t.style.background = "rgba(255,255,255,0.06)"; t.style.color = "rgba(255,255,255,0.45)"; t.style.borderColor = "rgba(255,255,255,0.12)"; } }}
-            >
-              {METHOD_LABELS[m]}
-            </button>
-          );
-        })}
-
-        {/* Divider */}
-        <div style={{ width: 1, height: 20, background: "rgba(255,255,255,0.1)", margin: "0 8px" }} />
-
-        {/* Innovation group */}
-        <span style={{ fontFamily: "var(--font-geist-mono)", fontSize: "0.55rem", letterSpacing: "0.12em", textTransform: "uppercase", color: "rgba(255,255,255,0.2)", marginRight: 6, whiteSpace: "nowrap" }}>Innovation</span>
-        {(Object.keys(INNOVATION_LABELS) as InnovationLevel[]).map((il) => {
-          const active = filters.innovationLevel === il;
-          return (
-            <button
-              key={il}
-              onClick={(e) => { e.stopPropagation(); setFilters((f) => ({ ...f, innovationLevel: f.innovationLevel === il ? null : il })); }}
-              style={{
-                background: active ? "rgba(255,255,255,0.85)" : "rgba(255,255,255,0.06)",
-                border: `1px solid ${active ? "rgba(255,255,255,0.85)" : "rgba(255,255,255,0.12)"}`,
-                borderRadius: 16,
-                padding: "5px 14px",
-                fontFamily: "var(--font-geist-sans)",
-                fontSize: "0.7rem",
-                fontWeight: active ? 500 : 450,
-                color: active ? "#212121" : "rgba(255,255,255,0.45)",
-                cursor: "pointer",
-                transition: "all 0.2s ease",
-                whiteSpace: "nowrap",
-              }}
-              onMouseEnter={(e) => { if (!active) { const t = e.currentTarget; t.style.background = "rgba(255,255,255,0.1)"; t.style.color = "rgba(255,255,255,0.65)"; t.style.borderColor = "rgba(255,255,255,0.2)"; } }}
-              onMouseLeave={(e) => { if (!active) { const t = e.currentTarget; t.style.background = "rgba(255,255,255,0.06)"; t.style.color = "rgba(255,255,255,0.45)"; t.style.borderColor = "rgba(255,255,255,0.12)"; } }}
-            >
-              {INNOVATION_LABELS[il]}
-            </button>
-          );
-        })}
-        </>}
-
-        {/* Clear button */}
-        <button
-          onClick={(e) => { e.stopPropagation(); setFilters(NO_FILTERS); }}
-          style={{
-            background: "none",
-            border: "none",
-            fontFamily: "var(--font-geist-sans)",
-            fontSize: "0.7rem",
-            color: "rgba(255,255,255,0.4)",
-            cursor: "pointer",
-            marginLeft: 12,
-            padding: "5px 8px",
-            opacity: hasActiveFilters(filters) ? 1 : 0,
-            pointerEvents: hasActiveFilters(filters) ? "auto" : "none",
-            transition: "opacity 0.2s ease, color 0.2s ease",
-            whiteSpace: "nowrap",
-          }}
-          onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.color = "rgba(255,255,255,0.7)"; }}
-          onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.color = "rgba(255,255,255,0.4)"; }}
-        >
-          Clear{hasActiveFilters(filters) && ` (${matchingIdsRef.current.size})`}
-        </button>
-      </div>
-
-      {/* Legend */}
-      <div
-        style={{
-          position: "absolute",
-          bottom: 32,
-          right: 32,
-          display: "flex",
-          flexDirection: "column",
-          gap: 8,
-          fontFamily: "var(--font-geist-mono)",
-          fontSize: "0.6rem",
-          color: "rgba(255,255,255,0.3)",
-          pointerEvents: "none",
-          zIndex: 10,
-          opacity: 0,
-          animation: "legendFadeIn 0.6s ease 2s forwards",
-        }}
-      >
-        <style>{`@keyframes legendFadeIn { to { opacity: 1; } }`}</style>
-        {[
-          { label: "Same domain", type: "solid" as const },
-          { label: "Same method", type: "dotted" as const },
-          { label: "Same scale", type: "dashed" as const },
-          { label: "Shared theme", type: "theme" as const },
-        ].map((item) => (
-          <div key={item.label} style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <svg width="30" height="4" viewBox="0 0 30 4" style={{ flexShrink: 0 }}>
-              {item.type === "solid" && (
-                <line x1="0" y1="2" x2="30" y2="2" stroke="rgba(255,255,255,0.4)" strokeWidth="1" />
-              )}
-              {item.type === "dotted" && (
-                <>
-                  {[0, 6, 12, 18, 24].map((cx) => (
-                    <circle key={cx} cx={cx + 1} cy="2" r="1" fill="rgba(255,255,255,0.4)" />
-                  ))}
-                </>
-              )}
-              {item.type === "dashed" && (
-                <>
-                  <line x1="0" y1="2" x2="8" y2="2" stroke="rgba(255,255,255,0.4)" strokeWidth="0.5" />
-                  <line x1="14" y1="2" x2="22" y2="2" stroke="rgba(255,255,255,0.4)" strokeWidth="0.5" />
-                </>
-              )}
-              {item.type === "theme" && (
-                <line x1="0" y1="2" x2="30" y2="2" stroke="rgba(242,120,135,0.6)" strokeWidth="1" />
-              )}
-            </svg>
-            <span>{item.label}</span>
-          </div>
-        ))}
-      </div>
 
       {/* Detail panel (non-featured nodes only — featured use in-place expansion) */}
       {selectedProjectId && !expandedProjectId && (() => {
@@ -1660,8 +1259,8 @@ export default function ProjectNetwork({
               left: panelLeft,
               top: panelTop,
               width: panelWidth,
-              background: "rgba(33, 33, 33, 0.95)",
-              border: "1px solid rgba(255,255,255,0.1)",
+              background: "rgba(255, 255, 255, 0.95)",
+              border: "1px solid rgba(0,0,0,0.1)",
               borderRadius: 12,
               padding: 24,
               backdropFilter: "blur(12px)",
@@ -1687,7 +1286,7 @@ export default function ProjectNetwork({
                 right: 12,
                 background: "none",
                 border: "none",
-                color: "rgba(255,255,255,0.4)",
+                color: "rgba(0,0,0,0.4)",
                 fontSize: "1rem",
                 cursor: "pointer",
                 padding: 8,
@@ -1698,8 +1297,8 @@ export default function ProjectNetwork({
                 alignItems: "center",
                 justifyContent: "center",
               }}
-              onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.color = "rgba(255,255,255,0.8)"; }}
-              onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.color = "rgba(255,255,255,0.4)"; }}
+              onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.color = "rgba(0,0,0,0.8)"; }}
+              onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.color = "rgba(0,0,0,0.4)"; }}
             >
               ✕
             </button>
@@ -1727,7 +1326,7 @@ export default function ProjectNetwork({
                 fontFamily: "var(--font-geist-sans)",
                 fontSize: "1.25rem",
                 fontWeight: 600,
-                color: "#ffffff",
+                color: "#212121",
                 marginTop: 12,
                 marginBottom: 0,
                 lineHeight: 1.3,
@@ -1742,7 +1341,7 @@ export default function ProjectNetwork({
                 fontFamily: "var(--font-geist-sans)",
                 fontSize: "0.85rem",
                 fontWeight: 400,
-                color: "rgba(255,255,255,0.5)",
+                color: "rgba(33,33,33,0.5)",
                 marginTop: 4,
               }}
             >
@@ -1755,7 +1354,7 @@ export default function ProjectNetwork({
                 fontFamily: "var(--font-geist-sans)",
                 fontSize: "0.9rem",
                 lineHeight: 1.5,
-                color: "rgba(255,255,255,0.7)",
+                color: "rgba(33,33,33,0.7)",
                 marginTop: 16,
                 marginBottom: 0,
               }}
@@ -1772,7 +1371,7 @@ export default function ProjectNetwork({
                     fontSize: "0.6rem",
                     textTransform: "uppercase",
                     letterSpacing: "0.1em",
-                    color: "rgba(255,255,255,0.3)",
+                    color: "rgba(33,33,33,0.3)",
                     marginBottom: 8,
                   }}
                 >
@@ -1800,12 +1399,12 @@ export default function ProjectNetwork({
                           gap: 8,
                           fontFamily: "var(--font-geist-sans)",
                           fontSize: "0.8rem",
-                          color: "rgba(255,255,255,0.5)",
+                          color: "rgba(33,33,33,0.5)",
                           textAlign: "left",
                           lineHeight: 1.3,
                         }}
-                        onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.color = "rgba(255,255,255,0.85)"; }}
-                        onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.color = "rgba(255,255,255,0.5)"; }}
+                        onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.color = "rgba(33,33,33,0.85)"; }}
+                        onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.color = "rgba(33,33,33,0.5)"; }}
                       >
                         <span
                           style={{
@@ -1818,7 +1417,7 @@ export default function ProjectNetwork({
                         />
                         <span>
                           {other.name}{" "}
-                          <span style={{ color: "rgba(255,255,255,0.3)" }}>
+                          <span style={{ color: "rgba(33,33,33,0.3)" }}>
                             ({CONNECTION_TYPE_LABELS[conn.type]})
                           </span>
                         </span>
@@ -1857,8 +1456,8 @@ export default function ProjectNetwork({
             position: "fixed",
             left: tooltipPos.x + 16,
             top: tooltipPos.y - 8,
-            background: "rgba(0,0,0,0.85)",
-            border: "1px solid rgba(255,255,255,0.15)",
+            background: "#212121",
+            border: "1px solid rgba(0,0,0,0.1)",
             borderRadius: 8,
             padding: "8px 12px",
             pointerEvents: "none",
@@ -1911,7 +1510,7 @@ export default function ProjectNetwork({
               maxHeight: "60vh",
               overflowY: "auto",
               borderRadius: "16px 16px 0 0",
-              background: "rgba(33, 33, 33, 0.97)",
+              background: "rgba(255, 255, 255, 0.97)",
               padding: 24,
               zIndex: 100,
               animation: "sheetUp 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards",
@@ -1929,7 +1528,7 @@ export default function ProjectNetwork({
                 right: 12,
                 background: "none",
                 border: "none",
-                color: "rgba(255,255,255,0.4)",
+                color: "rgba(0,0,0,0.4)",
                 fontSize: "1.2rem",
                 cursor: "pointer",
                 padding: 8,
@@ -1960,13 +1559,13 @@ export default function ProjectNetwork({
               {DOMAIN_LABELS[mobileSheetProject.domain]}
             </div>
 
-            <h2 style={{ fontFamily: "var(--font-geist-sans)", fontSize: "1.25rem", fontWeight: 600, color: "#fff", marginTop: 12, marginBottom: 0, lineHeight: 1.3 }}>
+            <h2 style={{ fontFamily: "var(--font-geist-sans)", fontSize: "1.25rem", fontWeight: 600, color: "#212121", marginTop: 12, marginBottom: 0, lineHeight: 1.3 }}>
               {mobileSheetProject.name}
             </h2>
-            <div style={{ fontFamily: "var(--font-geist-sans)", fontSize: "0.85rem", color: "rgba(255,255,255,0.5)", marginTop: 4 }}>
+            <div style={{ fontFamily: "var(--font-geist-sans)", fontSize: "0.85rem", color: "rgba(33,33,33,0.5)", marginTop: 4 }}>
               {mobileSheetProject.client} · {mobileSheetProject.year}
             </div>
-            <p style={{ fontFamily: "var(--font-geist-sans)", fontSize: "0.9rem", lineHeight: 1.5, color: "rgba(255,255,255,0.7)", marginTop: 16, marginBottom: 0 }}>
+            <p style={{ fontFamily: "var(--font-geist-sans)", fontSize: "0.9rem", lineHeight: 1.5, color: "rgba(33,33,33,0.7)", marginTop: 16, marginBottom: 0 }}>
               {mobileSheetProject.summary}
             </p>
             <a
@@ -1990,7 +1589,7 @@ export default function ProjectNetwork({
       {/* Focus indicator styles */}
       <style>{`
         [role="button"]:focus-visible {
-          outline: 2px solid rgba(255,255,255,0.6) !important;
+          outline: 2px solid rgba(0,0,0,0.6) !important;
           outline-offset: 4px;
         }
         @media (prefers-reduced-motion: reduce) {
