@@ -4,10 +4,10 @@ import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 
 const NAV_ITEMS = [
-  { label: "About", href: "/about" },
+  { label: "Home", href: "/" },
   { label: "Projects", href: "/projects" },
   { label: "Insights", href: "/insights" },
-  { label: "Contact", href: "/contact" },
+  { label: "About", href: "/about" },
 ];
 
 function HamburgerIcon({ isOpen }: { isOpen: boolean }) {

@@ -2,18 +2,73 @@
 
 import {
   useRef,
+  useState,
   useEffect,
   useCallback,
   type MutableRefObject,
 } from "react";
 import Image from "next/image";
-import ProjectCluster from "./ProjectCluster";
-import ProjectNetwork from "./ProjectNetwork";
+import ProjectNetwork, { type IntroPhase } from "./ProjectNetwork";
 
 const PLACEHOLDER_IMAGE =
   "https://images.unsplash.com/photo-1773558058134-9ff1a3212ef0?q=80&w=1572&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D";
 
+const LOGO_LETTERS = ["c", "o", "m", "t", "e"];
+const HEADLINE_TEXT = "Innovation for societal impact";
+const HEADLINE_WORDS = HEADLINE_TEXT.split(" ");
+
 function PageOne() {
+  const [phase, setPhase] = useState<IntroPhase>("dot");
+  const [shouldAnimate, setShouldAnimate] = useState(false);
+  const logoRef = useRef<HTMLDivElement>(null);
+  const [dotPos, setDotPos] = useState({ x: 0, y: 0 });
+  const reducedMotion = useRef(false);
+
+  useEffect(() => {
+    reducedMotion.current =
+      typeof window !== "undefined" &&
+      window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+    const played = sessionStorage.getItem("comte-intro-played");
+    if (played || reducedMotion.current) {
+      setPhase("done");
+      return;
+    }
+
+    setShouldAnimate(true);
+    sessionStorage.setItem("comte-intro-played", "true");
+
+    const timers = [
+      setTimeout(() => setPhase("typing-logo"), 250),
+      setTimeout(() => setPhase("hold"), 900),
+      setTimeout(() => setPhase("springout"), 1100),
+      setTimeout(() => setPhase("erasing"), 1800),
+      setTimeout(() => setPhase("typing-headline"), 2400),
+      setTimeout(() => setPhase("done"), 3500),
+    ];
+    return () => timers.forEach(clearTimeout);
+  }, []);
+
+  // Measure dot position relative to "comte" text
+  useEffect(() => {
+    if (!logoRef.current) return;
+    const measure = () => {
+      const el = logoRef.current;
+      if (!el) return;
+      const rect = el.getBoundingClientRect();
+      setDotPos({ x: rect.right + 4, y: rect.top - 4 });
+    };
+    measure();
+    window.addEventListener("resize", measure);
+    return () => window.removeEventListener("resize", measure);
+  }, []);
+
+  const phaseIdx = ["dot", "typing-logo", "hold", "springout", "erasing", "typing-headline", "done"].indexOf(phase);
+  const showLogo = shouldAnimate && phaseIdx >= 1 && phaseIdx <= 4;
+  const showDot = shouldAnimate && phaseIdx >= 0 && phaseIdx <= 3;
+  const showHeadline = phase === "typing-headline" || phase === "done";
+  const showCta = phase === "done";
+
   return (
     <section style={{
       position: "relative",
@@ -23,16 +78,83 @@ function PageOne() {
       background: "#F9F9ED",
       overflow: "hidden",
     }}>
-      {/* Network map behind */}
-      <ProjectNetwork mode="teaser" />
+      {/* Network map */}
+      <ProjectNetwork
+        mode="teaser"
+        introPhase={shouldAnimate ? phase : "done"}
+        logoDotPosition={dotPos}
+      />
 
-      {/* Hero text on top */}
-      <h1 style={{
+      {/* Logo dot (before springout) */}
+      {showDot && (
+        <div style={{
+          position: "fixed",
+          left: dotPos.x + 40,
+          top: dotPos.y - 4,
+          width: 20,
+          height: 20,
+          borderRadius: "50%",
+          background: "#212121",
+          zIndex: 15,
+          opacity: phase === "dot" ? 1 : 1,
+          transition: "opacity 0.25s ease-out",
+          pointerEvents: "none",
+        }} />
+      )}
+
+      {/* "comte" typewriter text — always mounted for measurement, visibility controlled */}
+      <div
+        ref={logoRef}
+        style={{
+          position: "fixed",
+          top: "50%",
+          left: "50%",
+          transform: "translate(-50%, -50%)",
+          fontFamily: "var(--font-bebas)",
+          fontSize: "clamp(2.5rem, 7vw, 5rem)",
+          lineHeight: 0.95,
+          letterSpacing: "0.01em",
+          color: "#1F3A32",
+          zIndex: 15,
+          pointerEvents: "none",
+          display: "flex",
+          visibility: showLogo ? "visible" : "hidden",
+        }}
+      >
+        {LOGO_LETTERS.map((letter, i) => {
+          const isErasing = phase === "erasing";
+          const eraseIdx = LOGO_LETTERS.length - 1 - i;
+          const typeDelay = 250 + i * 100;
+          const eraseDelay = isErasing ? eraseIdx * 80 : 0;
+
+          return (
+            <span
+              key={i}
+              style={{
+                display: "inline-block",
+                opacity: isErasing ? 0 : (phaseIdx >= 1 ? 1 : 0),
+                transform: isErasing
+                  ? "translateX(6px)"
+                  : (phaseIdx >= 1 ? "translateX(0)" : "translateX(6px)"),
+                transition: isErasing
+                  ? `opacity 0.1s ease-in ${eraseDelay}ms, transform 0.1s ease-in ${eraseDelay}ms`
+                  : `opacity 0.12s cubic-bezier(0.16, 1, 0.3, 1) ${typeDelay}ms, transform 0.12s cubic-bezier(0.16, 1, 0.3, 1) ${typeDelay}ms`,
+              }}
+            >
+              {letter}
+            </span>
+          );
+        })}
+      </div>
+
+      {/* "Innovation for societal impact" typewriter headline */}
+      <div style={{
         position: "absolute",
         top: "50%",
         left: "50%",
         transform: "translate(-50%, -50%)",
-        fontFamily: "var(--font-bebas)",
+        fontFamily: "var(--font-neue-haas)",
+        fontWeight: 300,
         fontSize: "clamp(2.5rem, 7vw, 5rem)",
         lineHeight: 0.95,
         letterSpacing: "0.01em",
@@ -42,9 +164,38 @@ function PageOne() {
         zIndex: 5,
         pointerEvents: "none",
         margin: 0,
+        display: "flex",
+        flexWrap: "wrap",
+        justifyContent: "center",
       }}>
-        Innovation for societal impact
-      </h1>
+        {!shouldAnimate
+          ? HEADLINE_TEXT
+          : (() => {
+            let charIndex = 0;
+            return HEADLINE_WORDS.map((word, wordIndex) => (
+              <span key={`${word}-${wordIndex}`} style={{ whiteSpace: "nowrap", display: "inline-block" }}>
+                {word.split("").map((char) => {
+                  const currentIndex = charIndex++;
+                  const charDelay = showHeadline ? currentIndex * 30 : 0;
+                  return (
+                    <span
+                      key={`${wordIndex}-${currentIndex}`}
+                      style={{
+                        display: "inline-block",
+                        opacity: showHeadline ? 1 : 0,
+                        transform: showHeadline ? "translateY(0)" : "translateY(4px)",
+                        transition: `opacity 0.08s cubic-bezier(0.16, 1, 0.3, 1) ${charDelay}ms, transform 0.08s cubic-bezier(0.16, 1, 0.3, 1) ${charDelay}ms`,
+                      }}
+                    >
+                      {char}
+                    </span>
+                  );
+                })}
+                {wordIndex < HEADLINE_WORDS.length - 1 ? "\u00A0" : null}
+              </span>
+            ));
+          })()}
+      </div>
 
       {/* CTA at bottom */}
       <a href="/projects" style={{
@@ -57,7 +208,8 @@ function PageOne() {
         color: "rgba(0,0,0,0.45)",
         textDecoration: "none",
         zIndex: 5,
-        transition: "color 0.2s ease",
+        opacity: showCta ? 1 : 0,
+        transition: "opacity 0.5s ease 0.3s, color 0.2s ease",
       }}>
         Explore our projects →
       </a>

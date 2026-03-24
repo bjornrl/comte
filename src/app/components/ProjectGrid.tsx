@@ -45,7 +45,7 @@ export default function ProjectGrid({ filters }: ProjectGridProps) {
   return (
     <section style={{ background: "#F9F9ED", paddingBottom: "10rem" }}>
       {/* Heading */}
-      <div style={{ maxWidth: 1200, margin: "0 auto", padding: "3rem 2rem 0 2rem" }}>
+      <div className="max-w-[1200px] mx-auto pt-3 px-2 pb-0">
         <h2 style={{
           fontFamily: "var(--font-bebas)",
           fontSize: "clamp(2rem, 4vw, 3rem)",

@@ -118,18 +118,24 @@ type Particle = {
 
 /* ───────────── Component ───────────── */
 
+export type IntroPhase = "dot" | "typing-logo" | "hold" | "springout" | "erasing" | "typing-headline" | "done";
+
 export default function ProjectNetwork({
   className,
   style,
   mode = "full",
   filters: externalFilters,
   onFiltersChange,
+  introPhase,
+  logoDotPosition,
 }: {
   className?: string;
   style?: React.CSSProperties;
   mode?: "full" | "teaser";
   filters?: FilterState;
   onFiltersChange?: (f: FilterState) => void;
+  introPhase?: IntroPhase;
+  logoDotPosition?: { x: number; y: number };
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const canvasContainerRef = useRef<HTMLDivElement>(null);
@@ -155,6 +161,14 @@ export default function ProjectNetwork({
   const mountTimeRef = useRef(0);
   const entranceMultiplierRef = useRef(0);
   const [entranceReady, setEntranceReady] = useState(false);
+  // When introPhase is provided, derive entranceReady from it
+  const effectiveEntranceReady = introPhase
+    ? (introPhase === "springout" || introPhase === "erasing" || introPhase === "typing-headline" || introPhase === "done")
+    : entranceReady;
+  // Lines should only appear after typing-headline phase (or default entrance)
+  const linesReady = introPhase
+    ? (introPhase === "typing-headline" || introPhase === "done")
+    : true;
 
   // Mouse position for proximity glow
   const mousePosRef = useRef({ x: -1000, y: -1000 });
@@ -207,6 +221,14 @@ export default function ProjectNetwork({
       (a, b) => seededRandom("entrance", a) - seededRandom("entrance", b)
     )
   );
+
+  // Reset line entrance timer when lines become ready (for intro-driven mode)
+  useEffect(() => {
+    if (linesReady && introPhase) {
+      mountTimeRef.current = Date.now();
+      entranceMultiplierRef.current = 0;
+    }
+  }, [linesReady, introPhase]);
 
   /* ── Sync filter refs and close selection on filter change ── */
   useEffect(() => {
@@ -453,9 +475,16 @@ export default function ProjectNetwork({
           const highlighted = highlightedRef.current;
           const selected = selectedIdRef.current;
 
-          // Entrance: lines fade in after 600ms
-          const entranceElapsed = now - mountTimeRef.current - 600;
-          const entranceTarget = Math.max(0, Math.min(1, reducedMotion ? 1 : entranceElapsed / 1500));
+          // Entrance: lines fade in
+          let entranceTarget: number;
+          if (reducedMotion) {
+            entranceTarget = 1;
+          } else if (!linesReady) {
+            entranceTarget = 0;
+          } else {
+            const entranceElapsed = now - mountTimeRef.current - 600;
+            entranceTarget = Math.max(0, Math.min(1, entranceElapsed / 1500));
+          }
           entranceMultiplierRef.current += (entranceTarget - entranceMultiplierRef.current) * 0.05;
           const entranceMul = entranceMultiplierRef.current;
 
@@ -901,15 +930,15 @@ export default function ProjectNetwork({
         }}
       />
 
-      {/* HTML overlay: section heading */}
-      <div
+      {/* HTML overlay: section heading (hidden in teaser mode — parent handles text) */}
+      {mode !== "teaser" && <div
         style={{
           position: "absolute",
           top: isMobile ? 16 : 32,
           left: isMobile ? 16 : 32,
           zIndex: 10,
           opacity: 0,
-          animation: entranceReady ? "headingIn 0.6s ease forwards" : undefined,
+          animation: effectiveEntranceReady ? "headingIn 0.6s ease forwards" : undefined,
         }}
       >
         <style>{`@keyframes headingIn { to { opacity: 1; } }`}</style>
@@ -934,7 +963,7 @@ export default function ProjectNetwork({
         >
           30 projects across six domains
         </div>
-      </div>
+      </div>}
 
       {/* HTML overlay: project nodes */}
       {PROJECTS.map((project, projectIndex) => {
@@ -1011,12 +1040,12 @@ export default function ProjectNetwork({
                     ? "0 8px 32px rgba(0,0,0,0.4)"
                     : `0 0 8px rgba(${rgb.r},${rgb.g},${rgb.b},0.3)`,
                   cursor: isExpanded ? "default" : "pointer",
-                  opacity: entranceReady ? 0.8 : 0,
-                  transform: isExpanded ? "scale(1)" : `scale(${entranceReady ? collapsedScale : 0})`,
+                  opacity: effectiveEntranceReady ? 0.8 : 0,
+                  transform: isExpanded ? "scale(1)" : `scale(${effectiveEntranceReady ? collapsedScale : 0})`,
                   transformOrigin: "center center",
                   transition: reducedMotion
                     ? "none"
-                    : `transform 0.5s cubic-bezier(0.16, 1, 0.3, 1) ${entranceDelay}ms, opacity 0.5s ease ${entranceDelay}ms, border-radius 0.4s ease, background-color 0.3s ease, box-shadow 0.4s ease, border 0.3s ease`,
+                    : `transform 0.6s cubic-bezier(0.16, 1, 0.3, 1) ${entranceDelay}ms, opacity 0.5s ease ${entranceDelay}ms, border-radius 0.4s ease, background-color 0.3s ease, box-shadow 0.4s ease, border 0.3s ease`,
                   willChange: "transform",
                   zIndex: isExpanded ? 20 : 10,
                   overflow: "hidden",
@@ -1196,11 +1225,11 @@ export default function ProjectNetwork({
                 backgroundColor: color,
                 boxShadow: `0 0 8px rgba(${rgb.r},${rgb.g},${rgb.b},0.3)`,
                 cursor: "pointer",
-                opacity: entranceReady ? 0.8 : 0,
-                transform: entranceReady ? "scale(1)" : "scale(0)",
+                opacity: effectiveEntranceReady ? 0.8 : 0,
+                transform: effectiveEntranceReady ? "scale(1)" : "scale(0)",
                 transition: reducedMotion
                   ? "none"
-                  : `transform 0.5s cubic-bezier(0.16, 1, 0.3, 1) ${entranceDelay}ms, opacity 0.5s ease ${entranceDelay}ms, box-shadow 0.4s ease, border 0.3s ease`,
+                  : `transform 0.6s cubic-bezier(0.16, 1, 0.3, 1) ${entranceDelay}ms, opacity 0.5s ease ${entranceDelay}ms, box-shadow 0.4s ease, border 0.3s ease`,
                 willChange: "transform",
                 zIndex: 10,
                 boxSizing: "border-box",
@@ -1218,7 +1247,7 @@ export default function ProjectNetwork({
                   color: "#212121",
                   whiteSpace: "nowrap",
                   pointerEvents: "none",
-                  opacity: entranceReady ? 0.8 : 0,
+                  opacity: effectiveEntranceReady ? 0.8 : 0,
                   transition: reducedMotion ? "none" : `opacity 0.5s ease ${entranceDelay}ms`,
                   zIndex: 10,
                 }}

@@ -181,6 +181,10 @@ body {
   margin: 0;
 }
 
+html {
+  scroll-behavior: smooth;
+}
+
 /* Hide scrollbar but keep scroll functionality */
 ::-webkit-scrollbar {
   display: none;
@@ -191,6 +195,10 @@ body {
 }
 
 @media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
   *,
   *::before,
   *::after {

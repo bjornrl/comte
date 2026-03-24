@@ -51,7 +51,7 @@ export default function InsightsPage() {
         INSIGHT_HOVER_COLORS[Math.floor(Math.random() * INSIGHT_HOVER_COLORS.length)];
 
     return (
-        <div style={{ minHeight: "100svh", overflowY: "auto", height: "100vh" }}>
+        <div className="px-2" style={{ minHeight: "100svh", overflowY: "auto", height: "100vh" }}>
             <BlobNav />
             <div className="w-full h-[50vh] flex flex-col md:flex-row items-end justify-end gap-4 pt-12 px-6 md:px-12 lg:px-0">
                 <h1 className="text-5xl font-light text-foreground w-full">Insights</h1>
