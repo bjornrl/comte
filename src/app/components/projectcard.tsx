@@ -42,7 +42,7 @@ export default function ProjectCard({
             onMouseEnter={() => setIsHovering(true)}
             onMouseLeave={() => setIsHovering(false)}
             onMouseMove={handleMove}
-            className={`group relative h-full min-h-[50vh] overflow-hidden rounded-lg p-6 flex flex-col justify-between bg-cover bg-center cursor-pointer ${className}`}
+            className={`group relative h-[60vh] min-h-[50vh] overflow-hidden rounded-lg p-6 flex flex-col justify-between bg-cover bg-center cursor-pointer ${className}`}
             style={imageUrl ? { backgroundImage: `url(${imageUrl})` } : undefined}
         >
             {/* gradients for text legibility */}
