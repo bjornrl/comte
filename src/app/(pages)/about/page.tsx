@@ -48,10 +48,15 @@ export default function AboutPage() {
   const [message, setMessage] = useState("");
 
   return (
-    <div style={{ minHeight: "100svh", overflowY: "auto", height: "100vh", scrollBehavior: "smooth" }}>
+    <div
+      style={{ minHeight: "100svh", overflowY: "auto", height: "100vh", scrollBehavior: "smooth" }}
+    >
       <BlobNav />
-      <div className="w-full px-2 h-[50vh] flex flex-col items-start justify-end pt-12 bg-background">
-        <h1 className="text-5xl font-light text-foreground">We are a multidisciplinary innovation agency that designs the human-centered services, products, organizations, physical environments and experiences of the future. </h1>
+      <div className="w-full px-2 h-[50vh] flex flex-col items-start justify-end py-12 bg-background">
+        <h1 className="text-5xl font-light text-foreground">
+          We are a multidisciplinary innovation agency that designs the human-centered services,
+          products, organizations, physical environments and experiences of the future.{" "}
+        </h1>
       </div>
       <div className="w-full bg-background px-2 pb-8">
         <div className="flex w-full flex-col justify-center items-center gap-2 md:flex-row">
@@ -103,26 +108,36 @@ export default function AboutPage() {
               Auguste Comte
             </h2>
             <p className="text-foreground/80 font-light text-lg leading-relaxed mb-6">
-              Auguste Comte (1798–1857) was a French philosopher and writer who founded the discipline of sociology and the doctrine of positivism. He believed that society, like the physical world, operates according to general laws that can be studied scientifically.
+              Auguste Comte (1798–1857) was a French philosopher and writer who founded the
+              discipline of sociology and the doctrine of positivism. He believed that society, like
+              the physical world, operates according to general laws that can be studied
+              scientifically.
             </p>
             <p className="text-foreground/80 font-light text-lg leading-relaxed mb-6">
-              Comte introduced the idea of the “law of three stages”—theological, metaphysical, and positive—to describe how human thought and society evolve. In the positive stage, explanation is based on observation and scientific method rather than speculation or superstition.
+              Comte introduced the idea of the “law of three stages”—theological, metaphysical, and
+              positive—to describe how human thought and society evolve. In the positive stage,
+              explanation is based on observation and scientific method rather than speculation or
+              superstition.
             </p>
             <p className="text-foreground/80 font-light text-lg leading-relaxed">
-              His work influenced later thinkers across sociology, philosophy, and political theory, and his emphasis on order, progress, and scientific knowledge still shapes how we think about modern society.
+              His work influenced later thinkers across sociology, philosophy, and political theory,
+              and his emphasis on order, progress, and scientific knowledge still shapes how we
+              think about modern society.
             </p>
           </div>
         </div>
       </section>
 
-      <div id="employees" className="w-full px-2 h-[50vh] flex flex-col items-end justify-end pt-12 bg-background">
-        <h1 className="text-5xl font-light text-foreground pb-8">Our team consists of designers, architects, doctors, psycologists, developers, thinkers and innovators.</h1>
-      </div>
       <div
-
-        className="w-full py-8 px-2 grid grid-cols-1 h-fit md:grid-cols-2 lg:grid-cols-4 gap-2 bg-background pt-2 pb-2"
-
+        id="employees"
+        className="w-full px-2 h-[50vh] flex flex-col items-end justify-end pt-12 bg-background"
       >
+        <h1 className="text-5xl font-light text-foreground pb-8">
+          Our team consists of designers, architects, doctors, psycologists, developers, thinkers
+          and innovators.
+        </h1>
+      </div>
+      <div className="w-full py-8 px-2 grid grid-cols-1 h-fit md:grid-cols-2 lg:grid-cols-4 gap-2 bg-background pt-2 pb-2">
         <PersonCard
           title="Daglig leder"
           name="Øystein Evensen"
@@ -348,14 +363,12 @@ export default function AboutPage() {
             </div>
           }
         />
-
       </div>
       <section id="aboutContact" className="relative z-20 w-full bg-background px-2">
         <div className="w-full h-[50vh] flex flex-col items-start justify-end pt-12 bg-background">
           <h1 className="text-5xl font-light text-foreground">Contact</h1>
         </div>
         <div className="relative z-0 grid h-auto w-full grid-cols-1 gap-2 pt-2 pb-2 md:h-[calc(100vh-5rem)] md:grid-cols-2 lg:grid-cols-4">
-
           <div className="relative min-h-[45vh] overflow-hidden rounded-lg md:min-h-0">
             <Image
               src={PLACEHOLDER_IMAGE}
@@ -396,7 +409,7 @@ export default function AboutPage() {
                   <div className="space-y-1">
                     <p className="font-medium text-foreground">Comte Bureau</p>
                     <p className="text-xs text-muted-foreground">
-                      {59.9201993.toFixed(4)}, {10.736009.toFixed(4)}
+                      {(59.9201993).toFixed(4)}, {(10.736009).toFixed(4)}
                     </p>
                   </div>
                 </MarkerPopup>

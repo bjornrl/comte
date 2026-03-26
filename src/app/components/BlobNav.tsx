@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
+import Image from "next/image";
 
 const NAV_ITEMS = [
   { label: "Home", href: "/" },
@@ -100,9 +101,7 @@ export default function BlobNav() {
     display: "flex",
     flexDirection: "column",
     // clip-path animates on GPU (composited), no layout reflow
-    clipPath: isOpen
-      ? "inset(0 0 0 0 round 8px)"
-      : "inset(0 0 calc(100% - 40px) 0 round 8px)",
+    clipPath: isOpen ? "inset(0 0 0 0 round 8px)" : "inset(0 0 calc(100% - 40px) 0 round 8px)",
     transition: "clip-path 0.45s cubic-bezier(0.25, 1, 0.5, 1)",
   };
 
@@ -138,7 +137,8 @@ export default function BlobNav() {
   };
 
   return (
-    <nav className="pointer-events-none fixed inset-0 z-100"
+    <nav
+      className="pointer-events-none fixed inset-0 z-100"
       // style={{ pointerEvents: "none", position: "fixed", inset: 0, zIndex: 100 }}
       aria-label="Main navigation"
     >
@@ -162,15 +162,26 @@ export default function BlobNav() {
             href="/"
             style={{
               fontFamily: "var(--font-neue-haas)",
-              fontSize: "1rem",
-              fontWeight: 300,
-              letterSpacing: "0.08em",
               color: "var(--comte-near-black)",
               textDecoration: "none",
               pointerEvents: "all",
+              display: "inline-flex",
+              alignItems: "center",
             }}
           >
-            comte
+            <Image
+              src="/comtelogo.svg"
+              alt="Comte"
+              width={120}
+              height={30}
+              style={{
+                height: 18,
+                width: "auto",
+                filter: "invert(1) brightness(0.12) sepia(0.1)",
+                opacity: 0.9,
+              }}
+              priority={false}
+            />
           </Link>
         </div>
 
@@ -215,10 +226,7 @@ export default function BlobNav() {
                 justifyContent: "center",
                 aspectRatio: "1 / 1",
                 borderRadius: "12px",
-                background:
-                  hoveredIndex === i
-                    ? "rgba(0,0,0,0.08)"
-                    : "rgba(0,0,0,0.04)",
+                background: hoveredIndex === i ? "rgba(0,0,0,0.08)" : "rgba(0,0,0,0.04)",
                 transition: "background 0.15s ease",
                 fontFamily: "var(--font-neue-haas)",
                 fontSize: "clamp(1rem, 1.5vw, 1.25rem)",

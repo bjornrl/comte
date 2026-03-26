@@ -2,9 +2,20 @@
 
 import React from "react";
 import {
-  type Domain, type Scale, type Method, type InnovationLevel, type FilterState,
-  DOMAIN_COLORS, DOMAIN_LABELS, SCALE_LABELS, METHOD_LABELS, INNOVATION_LABELS,
-  NO_FILTERS, hasActiveFilters, PROJECTS, projectMatchesFilters,
+  type Domain,
+  type Scale,
+  type Method,
+  type InnovationLevel,
+  type FilterState,
+  DOMAIN_COLORS,
+  DOMAIN_LABELS,
+  SCALE_LABELS,
+  METHOD_LABELS,
+  INNOVATION_LABELS,
+  NO_FILTERS,
+  hasActiveFilters,
+  PROJECTS,
+  projectMatchesFilters,
 } from "./projectNetworkData";
 
 interface FilterBarProps {
@@ -90,8 +101,20 @@ export default function FilterBar({ filters, onChange }: FilterBarProps) {
                 key={d}
                 onClick={() => onChange({ ...filters, domain: filters.domain === d ? null : d })}
                 style={pillStyle(active, active ? DOMAIN_COLORS[d] : undefined)}
-                onMouseEnter={(e) => { if (!active) { const t = e.currentTarget; t.style.background = "rgba(0,0,0,0.08)"; t.style.color = "rgba(0,0,0,0.7)"; } }}
-                onMouseLeave={(e) => { if (!active) { const t = e.currentTarget; t.style.background = "rgba(0,0,0,0.04)"; t.style.color = "rgba(0,0,0,0.5)"; } }}
+                onMouseEnter={(e) => {
+                  if (!active) {
+                    const t = e.currentTarget;
+                    t.style.background = "rgba(0,0,0,0.08)";
+                    t.style.color = "rgba(0,0,0,0.7)";
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (!active) {
+                    const t = e.currentTarget;
+                    t.style.background = "rgba(0,0,0,0.04)";
+                    t.style.color = "rgba(0,0,0,0.5)";
+                  }
+                }}
               >
                 {DOMAIN_LABELS[d]}
               </button>
@@ -109,8 +132,20 @@ export default function FilterBar({ filters, onChange }: FilterBarProps) {
                 key={s}
                 onClick={() => onChange({ ...filters, scale: filters.scale === s ? null : s })}
                 style={pillStyle(active)}
-                onMouseEnter={(e) => { if (!active) { const t = e.currentTarget; t.style.background = "rgba(0,0,0,0.08)"; t.style.color = "rgba(0,0,0,0.7)"; } }}
-                onMouseLeave={(e) => { if (!active) { const t = e.currentTarget; t.style.background = "rgba(0,0,0,0.04)"; t.style.color = "rgba(0,0,0,0.5)"; } }}
+                onMouseEnter={(e) => {
+                  if (!active) {
+                    const t = e.currentTarget;
+                    t.style.background = "rgba(0,0,0,0.08)";
+                    t.style.color = "rgba(0,0,0,0.7)";
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (!active) {
+                    const t = e.currentTarget;
+                    t.style.background = "rgba(0,0,0,0.04)";
+                    t.style.color = "rgba(0,0,0,0.5)";
+                  }
+                }}
               >
                 {SCALE_LABELS[s]}
               </button>
@@ -128,8 +163,20 @@ export default function FilterBar({ filters, onChange }: FilterBarProps) {
                 key={m}
                 onClick={() => onChange({ ...filters, method: filters.method === m ? null : m })}
                 style={pillStyle(active)}
-                onMouseEnter={(e) => { if (!active) { const t = e.currentTarget; t.style.background = "rgba(0,0,0,0.08)"; t.style.color = "rgba(0,0,0,0.7)"; } }}
-                onMouseLeave={(e) => { if (!active) { const t = e.currentTarget; t.style.background = "rgba(0,0,0,0.04)"; t.style.color = "rgba(0,0,0,0.5)"; } }}
+                onMouseEnter={(e) => {
+                  if (!active) {
+                    const t = e.currentTarget;
+                    t.style.background = "rgba(0,0,0,0.08)";
+                    t.style.color = "rgba(0,0,0,0.7)";
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (!active) {
+                    const t = e.currentTarget;
+                    t.style.background = "rgba(0,0,0,0.04)";
+                    t.style.color = "rgba(0,0,0,0.5)";
+                  }
+                }}
               >
                 {METHOD_LABELS[m]}
               </button>
@@ -145,10 +192,27 @@ export default function FilterBar({ filters, onChange }: FilterBarProps) {
             return (
               <button
                 key={il}
-                onClick={() => onChange({ ...filters, innovationLevel: filters.innovationLevel === il ? null : il })}
+                onClick={() =>
+                  onChange({
+                    ...filters,
+                    innovationLevel: filters.innovationLevel === il ? null : il,
+                  })
+                }
                 style={pillStyle(active)}
-                onMouseEnter={(e) => { if (!active) { const t = e.currentTarget; t.style.background = "rgba(0,0,0,0.08)"; t.style.color = "rgba(0,0,0,0.7)"; } }}
-                onMouseLeave={(e) => { if (!active) { const t = e.currentTarget; t.style.background = "rgba(0,0,0,0.04)"; t.style.color = "rgba(0,0,0,0.5)"; } }}
+                onMouseEnter={(e) => {
+                  if (!active) {
+                    const t = e.currentTarget;
+                    t.style.background = "rgba(0,0,0,0.08)";
+                    t.style.color = "rgba(0,0,0,0.7)";
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (!active) {
+                    const t = e.currentTarget;
+                    t.style.background = "rgba(0,0,0,0.04)";
+                    t.style.color = "rgba(0,0,0,0.5)";
+                  }
+                }}
               >
                 {INNOVATION_LABELS[il]}
               </button>
@@ -170,8 +234,12 @@ export default function FilterBar({ filters, onChange }: FilterBarProps) {
               transition: "opacity 0.2s ease, color 0.2s ease",
               whiteSpace: "nowrap",
             }}
-            onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.color = "rgba(0,0,0,0.7)"; }}
-            onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.color = "rgba(0,0,0,0.4)"; }}
+            onMouseEnter={(e) => {
+              (e.currentTarget as HTMLElement).style.color = "rgba(0,0,0,0.7)";
+            }}
+            onMouseLeave={(e) => {
+              (e.currentTarget as HTMLElement).style.color = "rgba(0,0,0,0.4)";
+            }}
           >
             Clear{hasActiveFilters(filters) ? ` (${matchCount})` : ""}
           </button>

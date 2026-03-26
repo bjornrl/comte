@@ -70,14 +70,16 @@ function PageOne() {
   const showCta = phase === "done";
 
   return (
-    <section style={{
-      position: "relative",
-      width: "100vw",
-      height: "100vh",
-      flexShrink: 0,
-      background: "#F9F9ED",
-      overflow: "hidden",
-    }}>
+    <section
+      style={{
+        position: "relative",
+        width: "100vw",
+        height: "100vh",
+        flexShrink: 0,
+        background: "#F9F9ED",
+        overflow: "hidden",
+      }}
+    >
       {/* Network map */}
       <ProjectNetwork
         mode="teaser"
@@ -87,19 +89,21 @@ function PageOne() {
 
       {/* Logo dot (before springout) */}
       {showDot && (
-        <div style={{
-          position: "fixed",
-          left: dotPos.x + 40,
-          top: dotPos.y - 4,
-          width: 20,
-          height: 20,
-          borderRadius: "50%",
-          background: "#212121",
-          zIndex: 15,
-          opacity: phase === "dot" ? 1 : 1,
-          transition: "opacity 0.25s ease-out",
-          pointerEvents: "none",
-        }} />
+        <div
+          style={{
+            position: "fixed",
+            left: dotPos.x + 40,
+            top: dotPos.y - 4,
+            width: 20,
+            height: 20,
+            borderRadius: "50%",
+            background: "#212121",
+            zIndex: 15,
+            opacity: phase === "dot" ? 1 : 1,
+            transition: "opacity 0.25s ease-out",
+            pointerEvents: "none",
+          }}
+        />
       )}
 
       {/* "comte" typewriter text — always mounted for measurement, visibility controlled */}
@@ -132,10 +136,12 @@ function PageOne() {
               key={i}
               style={{
                 display: "inline-block",
-                opacity: isErasing ? 0 : (phaseIdx >= 1 ? 1 : 0),
+                opacity: isErasing ? 0 : phaseIdx >= 1 ? 1 : 0,
                 transform: isErasing
                   ? "translateX(6px)"
-                  : (phaseIdx >= 1 ? "translateX(0)" : "translateX(6px)"),
+                  : phaseIdx >= 1
+                    ? "translateX(0)"
+                    : "translateX(6px)",
                 transition: isErasing
                   ? `opacity 0.1s ease-in ${eraseDelay}ms, transform 0.1s ease-in ${eraseDelay}ms`
                   : `opacity 0.12s cubic-bezier(0.16, 1, 0.3, 1) ${typeDelay}ms, transform 0.12s cubic-bezier(0.16, 1, 0.3, 1) ${typeDelay}ms`,
@@ -148,71 +154,59 @@ function PageOne() {
       </div>
 
       {/* "Innovation for societal impact" typewriter headline */}
-      <div style={{
-        position: "absolute",
-        top: "50%",
-        left: "50%",
-        transform: "translate(-50%, -50%)",
-        fontFamily: "var(--font-neue-haas)",
-        fontWeight: 300,
-        fontSize: "clamp(2.5rem, 7vw, 5rem)",
-        lineHeight: 0.95,
-        letterSpacing: "0.01em",
-        color: "#1F3A32",
-        textAlign: "center",
-        maxWidth: "60vw",
-        zIndex: 5,
-        pointerEvents: "none",
-        margin: 0,
-        display: "flex",
-        flexWrap: "wrap",
-        justifyContent: "center",
-      }}>
+      <div
+        style={{
+          position: "absolute",
+          top: "50%",
+          left: "50%",
+          transform: "translate(-50%, -50%)",
+          fontFamily: "var(--font-neue-haas)",
+          fontWeight: 300,
+          fontSize: "clamp(2.5rem, 7vw, 5rem)",
+          lineHeight: 0.95,
+          letterSpacing: "0.01em",
+          color: "#1F3A32",
+          textAlign: "center",
+          maxWidth: "60vw",
+          zIndex: 5,
+          pointerEvents: "none",
+          margin: 0,
+          display: "flex",
+          flexWrap: "wrap",
+          justifyContent: "center",
+        }}
+      >
         {!shouldAnimate
           ? HEADLINE_TEXT
           : (() => {
-            let charIndex = 0;
-            return HEADLINE_WORDS.map((word, wordIndex) => (
-              <span key={`${word}-${wordIndex}`} style={{ whiteSpace: "nowrap", display: "inline-block" }}>
-                {word.split("").map((char) => {
-                  const currentIndex = charIndex++;
-                  const charDelay = showHeadline ? currentIndex * 30 : 0;
-                  return (
-                    <span
-                      key={`${wordIndex}-${currentIndex}`}
-                      style={{
-                        display: "inline-block",
-                        opacity: showHeadline ? 1 : 0,
-                        transform: showHeadline ? "translateY(0)" : "translateY(4px)",
-                        transition: `opacity 0.08s cubic-bezier(0.16, 1, 0.3, 1) ${charDelay}ms, transform 0.08s cubic-bezier(0.16, 1, 0.3, 1) ${charDelay}ms`,
-                      }}
-                    >
-                      {char}
-                    </span>
-                  );
-                })}
-                {wordIndex < HEADLINE_WORDS.length - 1 ? "\u00A0" : null}
-              </span>
-            ));
-          })()}
+              let charIndex = 0;
+              return HEADLINE_WORDS.map((word, wordIndex) => (
+                <span
+                  key={`${word}-${wordIndex}`}
+                  style={{ whiteSpace: "nowrap", display: "inline-block" }}
+                >
+                  {word.split("").map((char) => {
+                    const currentIndex = charIndex++;
+                    const charDelay = showHeadline ? currentIndex * 30 : 0;
+                    return (
+                      <span
+                        key={`${wordIndex}-${currentIndex}`}
+                        style={{
+                          display: "inline-block",
+                          opacity: showHeadline ? 1 : 0,
+                          transform: showHeadline ? "translateY(0)" : "translateY(4px)",
+                          transition: `opacity 0.08s cubic-bezier(0.16, 1, 0.3, 1) ${charDelay}ms, transform 0.08s cubic-bezier(0.16, 1, 0.3, 1) ${charDelay}ms`,
+                        }}
+                      >
+                        {char}
+                      </span>
+                    );
+                  })}
+                  {wordIndex < HEADLINE_WORDS.length - 1 ? "\u00A0" : null}
+                </span>
+              ));
+            })()}
       </div>
-
-      {/* CTA at bottom */}
-      <a href="/projects" style={{
-        position: "absolute",
-        bottom: "3rem",
-        left: "50%",
-        transform: "translateX(-50%)",
-        fontFamily: "var(--font-geist-sans)",
-        fontSize: "0.85rem",
-        color: "rgba(0,0,0,0.45)",
-        textDecoration: "none",
-        zIndex: 5,
-        opacity: showCta ? 1 : 0,
-        transition: "opacity 0.5s ease 0.3s, color 0.2s ease",
-      }}>
-        Explore our projects →
-      </a>
     </section>
   );
 }
