@@ -103,11 +103,11 @@ export default function ProjectPage({
                 className="w-full grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 max-w-3xl mx-auto gap-2 bg-background pt-2 pb-2 h-[50vh]"
 
             >
-                <StatCard value="30%" description="Redusert klimagassutslipp" backgroundColor={comteColors.darkGreen}
+                <StatCard value="30%" description="Redusert klimagassutslipp" backgroundColor={comteColors.coral}
                     textColor={comteColors.cream} />
-                <StatCard value="47" description="Menn inkludert i prøveordning" backgroundColor={comteColors.deepRed}
-                    textColor={comteColors.cream} />
-                <StatCard value="25%" description="Voksenandel i styre" backgroundColor={comteColors.coolBlue}
+                <StatCard value="47" description="Menn inkludert i prøveordning" backgroundColor={comteColors.yellow}
+                    textColor={comteColors.darkGreen} />
+                <StatCard value="25%" description="Voksenandel i styre" backgroundColor={comteColors.mutedGreen}
                     textColor={comteColors.lightBase} />
 
 

@@ -65,8 +65,9 @@ export default function FilterBar({ filters, onChange }: FilterBarProps) {
 
   return (
     <div
+      id="projects-filter-bar"
       style={{
-        position: "fixed",
+        position: "sticky",
         bottom: 0,
         left: 0,
         right: 0,

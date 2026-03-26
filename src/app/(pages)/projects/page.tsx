@@ -6,6 +6,7 @@ import ProjectGrid from "../../components/ProjectGrid";
 import FilterBar from "../../components/FilterBar";
 import BlobNav from "../../components/BlobNav";
 import { type FilterState, NO_FILTERS } from "../../components/projectNetworkData";
+import Footer from "@/app/components/Footer";
 
 export default function ProjectsPage() {
   const [filters, setFilters] = useState<FilterState>(NO_FILTERS);
@@ -24,6 +25,9 @@ export default function ProjectsPage() {
 
       {/* Sticky filter bar */}
       <FilterBar filters={filters} onChange={setFilters} />
+
+      {/* Footer */}
+      <Footer />
     </div>
   );
 }
