@@ -456,33 +456,6 @@ export default function UnitVisualization() {
   return (
     <section className="w-full bg-[var(--comte-light-base)] px-2">
       <div className="mx-auto max-w-[1800px]">
-        {/* View selector buttons */}
-        <div
-          className="flex flex-wrap justify-start gap-2 px-0 pb-6"
-        >
-          {VIEWS.map((v) => (
-            <button
-              key={v.key}
-              onClick={() => handleViewChange(v.key)}
-              aria-pressed={activeView === v.key}
-              className="transition-all duration-200 ease-out focus:outline-none focus:ring-2 focus:ring-[var(--comte-dark-green)] focus:ring-offset-2"
-              style={{
-                padding: "8px 18px",
-                borderRadius: "20px",
-                border: "none",
-                fontFamily: "var(--font-neue-haas)",
-                fontSize: "0.8rem",
-                fontWeight: 500,
-                cursor: "pointer",
-                background: activeView === v.key ? "#1F3A32" : "rgba(0,0,0,0.05)",
-                color: activeView === v.key ? "#F9F9ED" : "rgba(0,0,0,0.5)",
-              }}
-            >
-              {v.label}
-            </button>
-          ))}
-        </div>
-
         {/* Dot area */}
         <div
           ref={containerRef}
@@ -567,6 +540,49 @@ export default function UnitVisualization() {
             ))}
         </div>
 
+        {/* View selector buttons */}
+        <div className="flex flex-wrap justify-center gap-2 px-0 pb-6">
+          {VIEWS.map((v) => {
+            const active = activeView === v.key;
+            return (
+              <button
+                key={v.key}
+                onClick={() => handleViewChange(v.key)}
+                aria-pressed={active}
+                className="focus:outline-none focus:ring-2 focus:ring-[var(--comte-dark-green)] focus:ring-offset-2"
+                style={{
+                  padding: "5px 14px",
+                  borderRadius: 16,
+                  border: active ? "1px solid #212121" : "1px solid rgba(0,0,0,0.1)",
+                  fontFamily: "var(--font-geist-sans)",
+                  fontSize: "0.7rem",
+                  fontWeight: active ? 500 : 450,
+                  cursor: "pointer",
+                  background: active ? "#212121" : "rgba(0,0,0,0.04)",
+                  color: active ? "#F9F9ED" : "rgba(0,0,0,0.5)",
+                  transition: "all 0.2s ease",
+                  whiteSpace: "nowrap",
+                }}
+                onMouseEnter={(e) => {
+                  if (!active) {
+                    const t = e.currentTarget;
+                    t.style.background = "rgba(0,0,0,0.08)";
+                    t.style.color = "rgba(0,0,0,0.7)";
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (!active) {
+                    const t = e.currentTarget;
+                    t.style.background = "rgba(0,0,0,0.04)";
+                    t.style.color = "rgba(0,0,0,0.5)";
+                  }
+                }}
+              >
+                {v.label}
+              </button>
+            );
+          })}
+        </div>
         {/* Description label */}
         <div
           aria-live="polite"
@@ -584,6 +600,8 @@ export default function UnitVisualization() {
               fontSize: "clamp(0.95rem, 1.5vw, 1.1rem)",
               color: "rgba(0,0,0,0.6)",
               lineHeight: 1.5,
+              height: "3em", // always reserve two lines (2 * 1.5em)
+              overflow: "hidden",
             }}
           >
             {currentDescription}

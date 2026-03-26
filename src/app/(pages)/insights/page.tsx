@@ -213,13 +213,40 @@ export default function InsightsPage() {
 
       {/* Hero visualization section — mirrors project page's full-height map */}
       <div className="relative px-2 pt-24 pb-8">
-        <div className="mx-auto max-w-[1800px] pb-8">
-          <h1 className="text-5xl font-light text-foreground">The landscape</h1>
+        <div className="mx-auto max-w-[1800px] min-h-[50vh] flex flex-col items-start justify-end pb-8">
+          <h1 className="text-5xl font-light text-foreground">
+            Insights, statistics and resources
+          </h1>
           <p className="mt-3 max-w-[600px] text-lg font-light text-foreground/50">
             The societal challenges we work within. Same people, different lenses.
           </p>
         </div>
-        <UnitVisualization />
+        <div className="flex gap-2 w-full justify-center mb-4">
+          <a
+            href="#unitVisualization"
+            className="flex h-8 w-30 items-center justify-center rounded-full border border-foreground bg-background text-xl font-light tracking-wide text-foreground transition-colors hover:cursor-pointer hover:bg-foreground/10 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-background/30"
+            aria-label="Go to insights section"
+          >
+            Stats
+          </a>
+          <a
+            href="#resources"
+            className="flex h-8 w-30 items-center justify-center rounded-full border border-foreground bg-foreground text-xl font-light tracking-wide text-background transition-colors hover:cursor-pointer hover:bg-foreground/90 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-background/30"
+            aria-label="Go to resources section"
+          >
+            Resources
+          </a>
+          <a
+            href="#insights-table"
+            className="flex h-8 w-30 items-center justify-center rounded-full border border-foreground bg-background text-xl font-light tracking-wide text-foreground transition-colors hover:cursor-pointer hover:bg-foreground/10 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-background/30"
+            aria-label="Go to insights section"
+          >
+            Insights
+          </a>
+        </div>
+        <div id="unitVisualization">
+          <UnitVisualization />
+        </div>
       </div>
 
       {/* Resources grid — mirrors project page's grid section */}
@@ -227,24 +254,11 @@ export default function InsightsPage() {
         <div className="mx-auto max-w-[1800px]">
           <div className="flex w-full flex-col items-start justify-between gap-4 pb-8 md:flex-row md:items-end">
             <h2 className="text-5xl font-light text-foreground">Resources</h2>
-            <div className="flex gap-2">
-              <a
-                href="#insights-table"
-                className="flex h-8 w-30 items-center justify-center rounded-full border border-foreground bg-background text-xl font-light tracking-wide text-foreground transition-colors hover:cursor-pointer hover:bg-foreground/10 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-background/30"
-                aria-label="Go to insights section"
-              >
-                Insights
-              </a>
-              <a
-                href="#resources"
-                className="flex h-8 w-30 items-center justify-center rounded-full border border-foreground bg-foreground text-xl font-light tracking-wide text-background transition-colors hover:cursor-pointer hover:bg-foreground/90 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-background/30"
-                aria-label="Go to resources section"
-              >
-                Resources
-              </a>
-            </div>
           </div>
-          <div id="resources" className="grid w-full grid-cols-1 gap-1 md:grid-cols-2 lg:grid-cols-4">
+          <div
+            id="resources"
+            className="grid w-full grid-cols-1 gap-1 md:grid-cols-2 lg:grid-cols-4"
+          >
             {RESOURCES.map((r) => (
               <ProductCard
                 key={r.slug}
@@ -267,7 +281,7 @@ export default function InsightsPage() {
       >
         <div className="mx-auto w-full max-w-[1800px]">
           <h2 className="pb-8 text-5xl font-light text-foreground">
-            Vi b\u00e5de skriver ting og blir noen ganger skrevet om. Vi pr\u00f8ver \u00e5 samle det meste her.
+            Vi både skriver ting og blir noen ganger skrevet om. Vi prøer å samle det meste her.
           </h2>
           <div className="w-full overflow-hidden rounded-xl border border-foreground/30">
             <div className="sticky top-0 z-10 grid grid-cols-3 gap-x-4 border-b border-foreground/30 px-4 py-3 text-left text-sm font-medium text-foreground/70">
@@ -297,7 +311,7 @@ export default function InsightsPage() {
                 }}
                 onMouseMove={(e) => {
                   setHoveredInsight((prev) =>
-                    prev && prev.index === i ? { ...prev, x: e.clientX, y: e.clientY } : prev
+                    prev && prev.index === i ? { ...prev, x: e.clientX, y: e.clientY } : prev,
                   );
                 }}
                 onMouseLeave={() => {
