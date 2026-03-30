@@ -115,6 +115,32 @@
   --sidebar-accent-foreground: var(--comte-near-black);
   --sidebar-border: color-mix(in srgb, var(--comte-near-black) 12%, var(--comte-light-base));
   --sidebar-ring: color-mix(in srgb, var(--comte-near-black) 35%, transparent);
+
+  /* Presentation tool variables (namespaced to avoid conflicts) */
+  --pres-text-xs: 0.75rem;
+  --pres-text-sm: 0.875rem;
+  --pres-text-base: 1rem;
+  --pres-text-lg: 1.125rem;
+  --pres-text-xl: 1.25rem;
+  --pres-h1: 2rem;
+  --pres-h2: 1.75rem;
+  --pres-h3: 1.5rem;
+  --pres-stat-large: 2.5rem;
+  --pres-padding-xs: 0.5rem;
+  --pres-padding-sm: 0.75rem;
+  --pres-padding-base: 1rem;
+  --pres-padding-lg: 1.5rem;
+  --pres-padding-xl: 2rem;
+  --pres-gap-xs: 0.5rem;
+  --pres-gap-sm: 0.75rem;
+  --pres-gap-base: 1rem;
+  --pres-gap-md: 1.25rem;
+  --pres-gap-lg: 1.5rem;
+  --pres-radius-sm: 0.5rem;
+  --pres-radius-base: 0.75rem;
+  --pres-radius-lg: 1rem;
+  --pres-color-white: #F9F9ED;
+  --pres-color-black: #1F3A32;
 }
 
 @theme inline {

@@ -181,6 +181,46 @@ export const project = defineType({
       type: "number",
       description: "Lower numbers appear first. Leave empty for default (alphabetical) ordering.",
     }),
+    defineField({
+      name: "presentationData",
+      title: "Presentation Data",
+      type: "object",
+      description: "Extra fields used by the presentation generator",
+      fields: [
+        defineField({
+          name: "stat1",
+          title: "Stat 1",
+          type: "string",
+          description: 'Key statistic, e.g. "40+ unge menn som fikk hjelp"',
+        }),
+        defineField({
+          name: "stat2",
+          title: "Stat 2",
+          type: "string",
+          description: "Second statistic (optional)",
+        }),
+        defineField({
+          name: "bulletPoints",
+          title: "Bullet Points",
+          type: "array",
+          of: [{ type: "string" }],
+          description: "Short bullet points for presentation slides (max 3)",
+          validation: (Rule) => Rule.max(3),
+        }),
+        defineField({
+          name: "location",
+          title: "Location",
+          type: "string",
+          description: 'E.g. "Trondheim", "Oslo", "Nasjonalt"',
+        }),
+        defineField({
+          name: "industry",
+          title: "Industry",
+          type: "string",
+          description: 'E.g. "Offentlig sektor", "Helse", "Utdanning"',
+        }),
+      ],
+    }),
   ],
   orderings: [
     { title: "Year (newest)", name: "yearDesc", by: [{ field: "year", direction: "desc" }] },

@@ -1,3 +1,5 @@
+export const revalidate = 60;
+
 import Image from "next/image";
 import { notFound } from "next/navigation";
 import BlobNav from "@/app/components/BlobNav";
@@ -49,7 +51,10 @@ export default async function ArticlePage({
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = await params;
-  const article = await client.fetch(ARTICLE_DETAIL_QUERY, { slug });
+  let article = null;
+  try {
+    article = await client.fetch(ARTICLE_DETAIL_QUERY, { slug });
+  } catch {}
 
   if (!article) return notFound();
 

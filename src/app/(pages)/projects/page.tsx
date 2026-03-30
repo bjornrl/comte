@@ -1,15 +1,16 @@
-export const dynamic = "force-dynamic";
-
 import { client } from "@/sanity/lib/client";
 import { PROJECTS_QUERY } from "@/sanity/lib/queries";
 import { generateConnections } from "@/app/components/projectNetworkData";
 import type { Project, Domain, Scale, Method, InnovationLevel } from "@/app/components/projectNetworkData";
 import ProjectsPageClient from "@/app/components/ProjectsPageClient";
+import { FALLBACK_PROJECTS } from "@/lib/fallbacks";
+
+export const revalidate = 60;
 
 function mapSanityProject(doc: any): Project {
   return {
     id: doc._id,
-    slug: doc.slug?.current,
+    slug: doc.slug,
     name: doc.title,
     client: doc.client,
     domain: (doc.domain ?? "digital") as Domain,
@@ -23,8 +24,14 @@ function mapSanityProject(doc: any): Project {
 }
 
 export default async function ProjectsPage() {
-  const sanityProjects = await client.fetch(PROJECTS_QUERY);
-  const projects: Project[] = (sanityProjects ?? []).map(mapSanityProject);
+  let sanityProjects = null;
+  try {
+    sanityProjects = await client.fetch(PROJECTS_QUERY);
+  } catch {}
+
+  const projects: Project[] = sanityProjects?.length
+    ? sanityProjects.map(mapSanityProject)
+    : FALLBACK_PROJECTS;
   const connections = generateConnections(projects);
 
   return <ProjectsPageClient projects={projects} connections={connections} />;

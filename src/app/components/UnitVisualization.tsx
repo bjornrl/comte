@@ -140,7 +140,9 @@ const SECTOR_LABELS: Record<string, string> = {
 /* ───────── view definitions ───────── */
 type ViewKey = "everyone" | "age" | "challenge" | "sector" | "urban" | "severity";
 
-const VIEWS: { key: ViewKey; label: string; description: string }[] = [
+type ViewDef = { key: ViewKey; label: string; description: string };
+
+const DEFAULT_VIEWS: ViewDef[] = [
   { key: "everyone", label: "Everyone", description: "200 people. Each dot represents someone facing a societal challenge in Norway." },
   { key: "age", label: "By age", description: "Age shapes which challenges people face \u2014 and which services they need." },
   { key: "challenge", label: "By challenge", description: "Loneliness and exclusion are the most common challenges. These are the problems Comte works on." },
@@ -323,7 +325,14 @@ const EASE = (t: number) =>
 const TRANSITION_DURATION = 800;
 
 /* ───────── component ───────── */
-export default function UnitVisualization() {
+export default function UnitVisualization({ views: viewsProp }: { views?: { key: string; title: string; description: string }[] } = {}) {
+  const VIEWS: ViewDef[] = viewsProp?.length
+    ? viewsProp.map((v) => ({
+        key: v.key as ViewKey,
+        label: v.title,
+        description: v.description,
+      }))
+    : DEFAULT_VIEWS;
   const containerRef = useRef<HTMLDivElement>(null);
   const dotRefs = useRef<(HTMLDivElement | null)[]>([]);
   const currentPositions = useRef<DotTarget[]>([]);

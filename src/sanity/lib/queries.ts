@@ -5,7 +5,7 @@ export const PROJECTS_QUERY = groq`
   *[_type == "project"] | order(order asc, year desc) {
     _id,
     title,
-    slug,
+    "slug": slug.current,
     client,
     domain,
     summary,
@@ -15,7 +15,8 @@ export const PROJECTS_QUERY = groq`
     methods,
     innovationLevel,
     heroImage,
-    "relatedProjectIds": relatedProjects[]->_id
+    "relatedProjectIds": relatedProjects[]->_id,
+    order
   }
 `;
 
@@ -46,12 +47,22 @@ export const PROJECT_DETAIL_QUERY = groq`
       hotspot,
       crop
     },
+    // New 6-section structure
+    societalIssue,
+    solution,
+    whyItWorked,
+    impact,
+    scalability,
+    valueCreation,
+    // Legacy fields (fallback)
     challenge,
     approach,
     outcome,
+    // Other
     clientQuote,
+    collaborators,
     "relatedProjects": relatedProjects[]-> {
-      _id, title, slug, client, domain, summary,
+      _id, title, "slug": slug.current, client, domain, summary,
       heroImage { asset-> { _id, url }, alt }
     }
   }
@@ -212,6 +223,46 @@ export const FOOTER_TAGS_QUERY = groq`
     label,
     category,
     color
+  }
+`;
+
+// Presentation tool: projects with presentation-specific fields
+export const PRESENTATION_PROJECTS_QUERY = groq`
+  *[_type == "project"] | order(order asc) {
+    _id,
+    title,
+    "slug": slug.current,
+    client,
+    domain,
+    summary,
+    year,
+    heroImage,
+    gallery,
+    methods,
+    "presentationData": presentationData {
+      stat1, stat2, bulletPoints, location, industry
+    }
+  }
+`;
+
+// Presentation tool: service categories
+export const SERVICE_CATEGORIES_QUERY = groq`
+  *[_type == "serviceCategory"] | order(order asc) {
+    _id,
+    title,
+    "slug": slug.current,
+    blurb,
+    expertise,
+    stats,
+    statsTitle,
+    statsDescription,
+    heroImage {
+      asset-> { _id, url },
+      alt,
+      hotspot,
+      crop
+    },
+    order
   }
 `;
 

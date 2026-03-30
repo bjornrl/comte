@@ -1,3 +1,5 @@
+export const revalidate = 60;
+
 import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -30,18 +32,39 @@ export default async function ProjectPage({
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = await params;
-  const project = await client.fetch(PROJECT_DETAIL_QUERY, { slug });
+  let project = null;
+  try {
+    project = await client.fetch(PROJECT_DETAIL_QUERY, { slug });
+  } catch {}
 
   if (!project) return notFound();
 
   const heroUrl = sanityImageUrl(project.heroImage) ?? PLACEHOLDER_IMAGE;
   const heroAlt = project.heroImage?.alt ?? project.title ?? "";
 
-  const hasChallenge = hasPortableTextContent(project.challenge);
-  const hasApproach = hasPortableTextContent(project.approach);
-  const hasOutcome = hasPortableTextContent(project.outcome);
   const hasQuote = project.clientQuote?.text;
   const hasGallery = project.gallery && project.gallery.length > 0;
+
+  // Determine which content structure to use (new 6-section or legacy 3-section)
+  const hasNewStructure =
+    hasPortableTextContent(project.societalIssue) ||
+    hasPortableTextContent(project.solution) ||
+    hasPortableTextContent(project.impact);
+
+  const contentSections = hasNewStructure
+    ? [
+        { title: "The Societal Issue", content: project.societalIssue },
+        { title: "The Solution", content: project.solution },
+        { title: "Why This Approach Worked", content: project.whyItWorked },
+        { title: "Impact", content: project.impact },
+        { title: "Scalability", content: project.scalability },
+        { title: "Value Creation", content: project.valueCreation },
+      ]
+    : [
+        { title: "The Challenge", content: project.challenge },
+        { title: "The Approach", content: project.approach },
+        { title: "What Changed", content: project.outcome },
+      ];
 
   return (
     <div style={{ minHeight: "100svh", overflowY: "auto", height: "100vh" }}>
@@ -68,15 +91,17 @@ export default async function ProjectPage({
         </div>
       </div>
 
-      {/* Challenge */}
-      {hasChallenge && (
-        <div className="w-full bg-background px-6 py-12 md:px-12 lg:px-24 max-w-3xl mx-auto">
-          <div className="text-foreground font-light space-y-6 text-lg leading-relaxed [&>p]:mb-0">
-            <p className="text-2xl font-bold text-center">The challenge</p>
-            <PortableText value={project.challenge} />
+      {/* Content sections (6-section or legacy 3-section) */}
+      {contentSections
+        .filter((s) => hasPortableTextContent(s.content))
+        .map((section, i) => (
+          <div key={i} className="w-full bg-background px-6 py-12 md:px-12 lg:px-24 max-w-3xl mx-auto">
+            <div className="text-foreground font-light space-y-6 text-lg leading-relaxed [&>p]:mb-0">
+              <p className="text-2xl font-bold text-center">{section.title}</p>
+              <PortableText value={section.content} />
+            </div>
           </div>
-        </div>
-      )}
+        ))}
 
       {/* Client quote */}
       {hasQuote && (
@@ -92,6 +117,16 @@ export default async function ProjectPage({
               </footer>
             )}
           </blockquote>
+        </div>
+      )}
+
+      {/* Collaborators */}
+      {project.collaborators && project.collaborators.length > 0 && (
+        <div className="w-full bg-background px-6 py-8 md:px-12 lg:px-24 max-w-3xl mx-auto">
+          <div className="text-center">
+            <span className="text-sm text-foreground/50">In collaboration with </span>
+            <span className="text-sm text-foreground/80">{project.collaborators.join(", ")}</span>
+          </div>
         </div>
       )}
 
@@ -122,26 +157,6 @@ export default async function ProjectPage({
         </div>
       )}
 
-      {/* Approach */}
-      {hasApproach && (
-        <div className="w-full bg-background px-6 py-12 md:px-12 lg:px-24 max-w-3xl mx-auto">
-          <div className="text-foreground font-light space-y-6 text-lg leading-relaxed [&>p]:mb-0">
-            <p className="text-2xl font-bold text-center">The approach</p>
-            <PortableText value={project.approach} />
-          </div>
-        </div>
-      )}
-
-      {/* Outcome */}
-      {hasOutcome && (
-        <div className="w-full bg-background px-6 py-12 md:px-12 lg:px-24 max-w-3xl mx-auto">
-          <div className="text-foreground font-light space-y-6 text-lg leading-relaxed [&>p]:mb-0">
-            <p className="text-2xl font-bold text-center">What changed</p>
-            <PortableText value={project.outcome} />
-          </div>
-        </div>
-      )}
-
       {/* Related projects */}
       {project.relatedProjects && project.relatedProjects.length > 0 && (
         <div className="w-full bg-background px-6 py-12 md:px-12 lg:px-24">
@@ -152,7 +167,7 @@ export default async function ProjectPage({
               return (
                 <Link
                   key={rp._id}
-                  href={`/projects/${rp.slug?.current}`}
+                  href={`/projects/${rp.slug}`}
                   className="group relative aspect-[4/3] overflow-hidden rounded-lg bg-gray-100"
                 >
                   <Image

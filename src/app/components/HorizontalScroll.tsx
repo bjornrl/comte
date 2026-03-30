@@ -3,15 +3,17 @@
 import { useRef, useState, useEffect, useCallback, type MutableRefObject } from "react";
 import Image from "next/image";
 import ProjectNetwork, { type IntroPhase } from "./ProjectNetwork";
+import type { Project } from "./projectNetworkData";
 
 const PLACEHOLDER_IMAGE =
   "https://images.unsplash.com/photo-1773558058134-9ff1a3212ef0?q=80&w=1572&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D";
 
 const LOGO_LETTERS = ["c", "o", "m", "t", "e"];
-const HEADLINE_TEXT = "Innovation for societal impact";
-const HEADLINE_WORDS = HEADLINE_TEXT.split(" ");
+const DEFAULT_HEADLINE = "Innovation for societal impact";
 
-function PageOne() {
+function PageOne({ heroText }: { heroText?: string }) {
+  const HEADLINE_TEXT = heroText || DEFAULT_HEADLINE;
+  const HEADLINE_WORDS = HEADLINE_TEXT.split(" ");
   const [phase, setPhase] = useState<IntroPhase>("dot");
   const [shouldAnimate, setShouldAnimate] = useState(false);
   const logoRef = useRef<HTMLDivElement>(null);
@@ -327,24 +329,13 @@ function PageFour() {
   );
 }
 
-const PLACEHOLDER_PROJECTS = [
-  { year: "2024", customer: "Acme Corp", achievement: "Brand identity & web" },
-  { year: "2024", customer: "Nordic Design", achievement: "Campaign concept" },
-  { year: "2023", customer: "Studio Oslo", achievement: "Editorial design" },
-  { year: "2023", customer: "TechStart", achievement: "Product launch site" },
-  { year: "2023", customer: "Museum Nord", achievement: "Exhibition identity" },
-  { year: "2022", customer: "Green Energy Co", achievement: "Annual report" },
-  { year: "2022", customer: "Fashion House", achievement: "Lookbook & campaign" },
-  { year: "2022", customer: "Food & Wine", achievement: "Magazine redesign" },
-  { year: "2021", customer: "Architects AS", achievement: "Portfolio site" },
-  { year: "2021", customer: "City Council", achievement: "Public campaign" },
-  { year: "2021", customer: "Startup Lab", achievement: "Pitch deck & brand" },
-  { year: "2020", customer: "Gallery One", achievement: "Exhibition catalogue" },
-  { year: "2020", customer: "Health First", achievement: "App UI & branding" },
-  { year: "2020", customer: "Local Brewery", achievement: "Packaging & identity" },
-];
-
-function PageFive() {
+function PageFive({ projects }: { projects?: Project[] }) {
+  const displayProjects = (projects ?? []).map((p) => ({
+    year: String(p.year),
+    customer: p.client,
+    achievement: p.name,
+    slug: p.slug ?? p.id,
+  }));
   return (
     <section className="flex h-screen w-screen flex-shrink-0 items-center justify-center bg-background min-pt:18 p-6 md:p-12 lg:p-24">
       <div className="rounded-xl border border-foreground/30 bg-[#EEEEEE] w-full h-full overflow-y-auto">
@@ -353,7 +344,7 @@ function PageFive() {
           <span>Customer</span>
           <span>Achievement</span>
         </div>
-        {PLACEHOLDER_PROJECTS.map((p, i) => (
+        {displayProjects.map((p, i) => (
           <div
             key={i}
             className="grid grid-cols-3 gap-x-4 border-b border-foreground/20 px-4 py-4 text-left"
@@ -382,9 +373,11 @@ export type HorizontalScrollNavApi = {
 type HorizontalScrollProps = {
   navRef?: MutableRefObject<HorizontalScrollNavApi | null>;
   onActiveIndexChange?: (index: number) => void;
+  heroText?: string;
+  projects?: Project[];
 };
 
-export default function HorizontalScroll({ navRef, onActiveIndexChange }: HorizontalScrollProps) {
+export default function HorizontalScroll({ navRef, onActiveIndexChange, heroText, projects }: HorizontalScrollProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const isAdjusting = useRef(false);
 
@@ -505,6 +498,9 @@ export default function HorizontalScroll({ navRef, onActiveIndexChange }: Horizo
     >
       {panels.map((panel) => {
         const PageComponent = PAGES[panel.pageIndex];
+        const pageProps: Record<string, unknown> = {};
+        if (panel.pageIndex === 0) pageProps.heroText = heroText;
+        if (panel.pageIndex === PAGES.length - 1) pageProps.projects = projects;
         return (
           <div
             key={panel.key}
@@ -514,7 +510,7 @@ export default function HorizontalScroll({ navRef, onActiveIndexChange }: Horizo
               scrollSnapStop: "always",
             }}
           >
-            <PageComponent />
+            <PageComponent {...pageProps} />
           </div>
         );
       })}

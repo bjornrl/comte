@@ -1,5 +1,6 @@
 import Link from "next/link";
 import Image from "next/image";
+import { FALLBACK_SITE_SETTINGS } from "@/lib/fallbacks";
 
 const NAV_LINKS = [
   { label: "About", href: "/about" },
@@ -8,7 +9,17 @@ const NAV_LINKS = [
   { label: "Contact", href: "/contact" },
 ];
 
-export default function Footer() {
+type FooterProps = {
+  email?: string;
+  location?: string;
+  copyright?: string;
+};
+
+export default function Footer({
+  email = FALLBACK_SITE_SETTINGS.email,
+  location = FALLBACK_SITE_SETTINGS.location,
+  copyright = FALLBACK_SITE_SETTINGS.copyright,
+}: FooterProps = {}) {
   return (
     <footer className="mt-18 border-t border-black/10">
       <div className="relative w-full overflow-hidden bg-[var(--comte-light-base)] font-[var(--font-neue-haas)] text-[var(--comte-dark-green)]">
@@ -60,19 +71,13 @@ export default function Footer() {
                     Contact
                   </p>
                   <a
-                    href="mailto:hello@comtebureau.com"
+                    href={`mailto:${email}`}
                     className="text-[clamp(0.875rem,1.2vw,1rem)] font-light text-[color-mix(in_srgb,var(--comte-dark-green)_72%,transparent)] no-underline"
                   >
-                    hello@comtebureau.com
-                  </a>
-                  <a
-                    href="tel:+4712345678"
-                    className="text-[clamp(0.875rem,1.2vw,1rem)] font-light text-[color-mix(in_srgb,var(--comte-dark-green)_72%,transparent)] no-underline"
-                  >
-                    +47 123 45 678
+                    {email}
                   </a>
                   <p className="text-[clamp(0.875rem,1.2vw,1rem)] font-light text-[color-mix(in_srgb,var(--comte-dark-green)_50%,transparent)]">
-                    Oslo, Norway
+                    {location}
                   </p>
                 </div>
               </div>
@@ -82,7 +87,7 @@ export default function Footer() {
           {/* Bottom bar */}
           <div className="mx-auto flex max-w-[1280px] flex-wrap items-center justify-between gap-4 border-t border-black/10 px-[clamp(1.5rem,4vw,3rem)] py-6">
             <p className="text-[clamp(0.75rem,1vw,0.8rem)] font-light text-[color-mix(in_srgb,var(--comte-dark-green)_45%,transparent)]">
-              &copy; {new Date().getFullYear()} Comte Bureau. All rights reserved.
+              &copy; {new Date().getFullYear()} {copyright}
             </p>
             <p className="text-[clamp(0.75rem,1vw,0.8rem)] font-light text-[color-mix(in_srgb,var(--comte-dark-green)_45%,transparent)]">
               Org. nr. 917 584 678

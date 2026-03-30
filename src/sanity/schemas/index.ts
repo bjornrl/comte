@@ -10,6 +10,7 @@ import { resource } from "./resource";
 import { article } from "./article";
 import { footerTag } from "./footerTag";
 import { siteSettings } from "./siteSettings";
+import { serviceCategory } from "./serviceCategory";
 
 export const schemaTypes = [
   project,
@@ -24,4 +25,5 @@ export const schemaTypes = [
   article,
   footerTag,
   siteSettings,
+  serviceCategory,
 ];

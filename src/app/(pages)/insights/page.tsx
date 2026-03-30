@@ -1,4 +1,4 @@
-export const dynamic = "force-dynamic";
+export const revalidate = 60;
 
 import BlobNav from "../../components/BlobNav";
 import Footer from "../../components/Footer";
@@ -8,6 +8,7 @@ import ArticlesTable from "@/app/components/ArticlesTable";
 import { client } from "@/sanity/lib/client";
 import {
   INSIGHTS_PAGE_QUERY,
+  INSIGHTS_VIEWS_QUERY,
   RESOURCES_QUERY,
   ARTICLES_QUERY,
 } from "@/sanity/lib/queries";
@@ -38,11 +39,18 @@ function getResourceCtaLabel(resource: any): string {
 }
 
 export default async function InsightsPage() {
-  const [pageData, resources, articles] = await Promise.all([
-    client.fetch(INSIGHTS_PAGE_QUERY),
-    client.fetch(RESOURCES_QUERY),
-    client.fetch(ARTICLES_QUERY),
-  ]);
+  let pageData = null;
+  let insightViews = null;
+  let resources = null;
+  let articles = null;
+  try {
+    [pageData, insightViews, resources, articles] = await Promise.all([
+      client.fetch(INSIGHTS_PAGE_QUERY),
+      client.fetch(INSIGHTS_VIEWS_QUERY),
+      client.fetch(RESOURCES_QUERY),
+      client.fetch(ARTICLES_QUERY),
+    ]);
+  } catch {}
 
   const heading = pageData?.heading ?? "Insights, statistics and resources";
   const subtitle =
@@ -99,7 +107,7 @@ export default async function InsightsPage() {
           </a>
         </div>
         <div id="unitVisualization">
-          <UnitVisualization />
+          <UnitVisualization views={insightViews} />
         </div>
       </div>
 

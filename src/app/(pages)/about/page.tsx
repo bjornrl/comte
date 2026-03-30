@@ -1,4 +1,4 @@
-export const dynamic = "force-dynamic";
+export const revalidate = 60;
 
 import Image from "next/image";
 import BlobNav from "../../components/BlobNav";
@@ -51,11 +51,16 @@ function sanityImageUrl(imageField: any, width = 1600): string | null {
 }
 
 export default async function AboutPage() {
-  const [aboutData, teamMembers, contactData] = await Promise.all([
-    client.fetch(ABOUT_QUERY),
-    client.fetch(TEAM_QUERY),
-    client.fetch(CONTACT_QUERY),
-  ]);
+  let aboutData = null;
+  let teamMembers = null;
+  let contactData = null;
+  try {
+    [aboutData, teamMembers, contactData] = await Promise.all([
+      client.fetch(ABOUT_QUERY),
+      client.fetch(TEAM_QUERY),
+      client.fetch(CONTACT_QUERY),
+    ]);
+  } catch {}
 
   const introText =
     aboutData?.intro
