@@ -1,12 +1,6 @@
 "use client";
 
-import {
-  useRef,
-  useState,
-  useEffect,
-  useCallback,
-  type MutableRefObject,
-} from "react";
+import { useRef, useState, useEffect, useCallback, type MutableRefObject } from "react";
 import Image from "next/image";
 import ProjectNetwork, { type IntroPhase } from "./ProjectNetwork";
 
@@ -63,7 +57,15 @@ function PageOne() {
     return () => window.removeEventListener("resize", measure);
   }, []);
 
-  const phaseIdx = ["dot", "typing-logo", "hold", "springout", "erasing", "typing-headline", "done"].indexOf(phase);
+  const phaseIdx = [
+    "dot",
+    "typing-logo",
+    "hold",
+    "springout",
+    "erasing",
+    "typing-headline",
+    "done",
+  ].indexOf(phase);
   const showLogo = shouldAnimate && phaseIdx >= 1 && phaseIdx <= 4;
   const showDot = shouldAnimate && phaseIdx >= 0 && phaseIdx <= 3;
   const showHeadline = phase === "typing-headline" || phase === "done";
@@ -229,25 +231,16 @@ function PageTwo() {
       >
         <h2 className="text-5xl font-light text-foreground">Section 1</h2>
       </div>
-      <div
-        className="h-full min-h-0"
-        style={{ gridArea: "3 / 2 / 4 / 3" }}
-      >
+      <div className="h-full min-h-0" style={{ gridArea: "3 / 2 / 4 / 3" }}>
         <div className="relative overflow-hidden h-full w-full">
-          <Image
-            src={PLACEHOLDER_IMAGE}
-            alt=""
-            fill
-            className="object-cover"
-            sizes="50vw"
-          />
+          <Image src={PLACEHOLDER_IMAGE} alt="" fill className="object-cover" sizes="50vw" />
         </div>
-
       </div>
       <div
         className="relative overflow-hidden flex items-end justify-start"
         style={{ gridArea: "2 / 3 / 3 / 4" }}
-      ><h2 className="text-2xl font-light text-foreground">Section 3</h2>
+      >
+        <h2 className="text-2xl font-light text-foreground">Section 3</h2>
         {/* <Image
           src={PLACEHOLDER_IMAGE}
           alt=""
@@ -256,17 +249,9 @@ function PageTwo() {
           sizes="50vw"
         /> */}
       </div>
-      <div
-        className="relative overflow-hidden"
-        style={{ gridArea: "3 / 3 / 4 / 4" }}
-      ><h2 className="text-5xl font-light text-foreground">Section 4</h2>
-        <Image
-          src={PLACEHOLDER_IMAGE}
-          alt=""
-          fill
-          className="object-cover"
-          sizes="50vw"
-        />
+      <div className="relative overflow-hidden" style={{ gridArea: "3 / 3 / 4 / 4" }}>
+        <h2 className="text-5xl font-light text-foreground">Section 4</h2>
+        <Image src={PLACEHOLDER_IMAGE} alt="" fill className="object-cover" sizes="50vw" />
       </div>
     </section>
   );
@@ -290,27 +275,12 @@ function PageThree() {
       >
         <h2 className="text-5xl font-light text-foreground">Why &ldquo;Comte&rdquo;?</h2>
       </div>
-      <div
-        className="grid grid-cols-2 gap-1 h-full min-h-0"
-        style={{ gridArea: "3 / 2 / 4 / 3" }}
-      >
+      <div className="grid grid-cols-2 gap-1 h-full min-h-0" style={{ gridArea: "3 / 2 / 4 / 3" }}>
         <div className="relative overflow-hidden min-h-0">
-          <Image
-            src={PLACEHOLDER_IMAGE}
-            alt=""
-            fill
-            className="object-cover"
-            sizes="50vw"
-          />
+          <Image src={PLACEHOLDER_IMAGE} alt="" fill className="object-cover" sizes="50vw" />
         </div>
         <div className="relative overflow-hidden min-h-0">
-          <Image
-            src={PLACEHOLDER_IMAGE}
-            alt=""
-            fill
-            className="object-cover"
-            sizes="50vw"
-          />
+          <Image src={PLACEHOLDER_IMAGE} alt="" fill className="object-cover" sizes="50vw" />
         </div>
       </div>
       <div
@@ -342,40 +312,16 @@ function PageFour() {
       >
         <h2 className="text-5xl font-light text-foreground">Section 1</h2>
       </div>
-      <div
-        className="grid grid-cols-2 gap-1 h-full min-h-0"
-        style={{ gridArea: "3 / 2 / 4 / 3" }}
-      >
+      <div className="grid grid-cols-2 gap-1 h-full min-h-0" style={{ gridArea: "3 / 2 / 4 / 3" }}>
         <div className="relative overflow-hidden min-h-0">
-          <Image
-            src={PLACEHOLDER_IMAGE}
-            alt=""
-            fill
-            className="object-cover"
-            sizes="50vw"
-          />
+          <Image src={PLACEHOLDER_IMAGE} alt="" fill className="object-cover" sizes="50vw" />
         </div>
         <div className="relative overflow-hidden min-h-0">
-          <Image
-            src={PLACEHOLDER_IMAGE}
-            alt=""
-            fill
-            className="object-cover"
-            sizes="50vw"
-          />
+          <Image src={PLACEHOLDER_IMAGE} alt="" fill className="object-cover" sizes="50vw" />
         </div>
       </div>
-      <div
-        className="relative overflow-hidden"
-        style={{ gridArea: "2 / 3 / 4 / 4" }}
-      >
-        <Image
-          src={PLACEHOLDER_IMAGE}
-          alt=""
-          fill
-          className="object-cover"
-          sizes="50vw"
-        />
+      <div className="relative overflow-hidden" style={{ gridArea: "2 / 3 / 4 / 4" }}>
+        <Image src={PLACEHOLDER_IMAGE} alt="" fill className="object-cover" sizes="50vw" />
       </div>
     </section>
   );
@@ -435,9 +381,10 @@ export type HorizontalScrollNavApi = {
 
 type HorizontalScrollProps = {
   navRef?: MutableRefObject<HorizontalScrollNavApi | null>;
+  onActiveIndexChange?: (index: number) => void;
 };
 
-export default function HorizontalScroll({ navRef }: HorizontalScrollProps) {
+export default function HorizontalScroll({ navRef, onActiveIndexChange }: HorizontalScrollProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const isAdjusting = useRef(false);
 
@@ -490,6 +437,16 @@ export default function HorizontalScroll({ navRef }: HorizontalScrollProps) {
     scrollToIndex(1);
   }, [scrollToIndex]);
 
+  const computeActiveIndexFromPanelIndex = useCallback(
+    (panelIndex: number) => {
+      // panels: [clone-last, real(0), real(1), real(2), real(3), real(4), clone-first]
+      if (panelIndex === 0) return PAGES.length - 1; // clone-last -> last real
+      if (panelIndex === panels.length - 1) return 0; // clone-first -> first real
+      return panelIndex - 1; // real panels start at index 1
+    },
+    [panels.length],
+  );
+
   useEffect(() => {
     const el = containerRef.current;
     if (!el) return;
@@ -520,6 +477,8 @@ export default function HorizontalScroll({ navRef }: HorizontalScrollProps) {
           isAdjusting.current = false;
         });
       }
+
+      onActiveIndexChange?.(computeActiveIndexFromPanelIndex(currentIndex));
     };
 
     const onScroll = () => {

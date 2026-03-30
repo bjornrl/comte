@@ -7,6 +7,7 @@ export type InnovationLevel = "incremental" | "transformative";
 
 export type Project = {
   id: string;
+  slug?: string;
   name: string;
   client: string;
   domain: Domain;
@@ -73,7 +74,7 @@ export const INNOVATION_LABELS: Record<InnovationLevel, string> = {
   transformative: "Transformative",
 };
 
-export const PROJECTS: Project[] = [
+export let PROJECTS: Project[] = [
   // Health
   { id: "h1", name: "Redesigning Elderly Care Pathways", client: "Trondheim Kommune", domain: "health", summary: "Rethinking how elderly care is coordinated across home services, GPs, and hospitals.", featured: true, year: 2023, scale: "municipal", methods: ["codesign", "research", "strategy"], innovationLevel: "transformative" },
   { id: "h2", name: "Digital Health Literacy", client: "Helsedirektoratet", domain: "health", summary: "Improving how patients understand and navigate digital health services.", featured: false, year: 2022, scale: "national", methods: ["research", "implementation"], innovationLevel: "incremental" },
@@ -112,7 +113,7 @@ export const PROJECTS: Project[] = [
   { id: "d5", name: "Cross-Agency Case Management", client: "DFØ", domain: "digital", summary: "Redesigning how cases flow across government agencies.", featured: false, year: 2021, scale: "international", methods: ["research", "strategy", "implementation"], innovationLevel: "incremental" },
 ];
 
-export const CONNECTIONS: Connection[] = [
+export let CONNECTIONS: Connection[] = [
   { from: "h1", to: "h2", type: "domain" }, { from: "h1", to: "h4", type: "domain" },
   { from: "h2", to: "h3", type: "domain" }, { from: "h3", to: "h4", type: "domain" },
   { from: "h4", to: "h5", type: "domain" }, { from: "h1", to: "h5", type: "domain" },
@@ -161,4 +162,44 @@ export function hexToRgb(hex: string): { r: number; g: number; b: number } {
   return result
     ? { r: parseInt(result[1], 16), g: parseInt(result[2], 16), b: parseInt(result[3], 16) }
     : { r: 128, g: 128, b: 128 };
+}
+
+/** Generate connections automatically from shared properties between projects */
+export function generateConnections(projects: Project[]): Connection[] {
+  const connections: Connection[] = [];
+  const seen = new Set<string>();
+  const add = (from: string, to: string, type: ConnectionType) => {
+    const key = [from, to].sort().join(":") + ":" + type;
+    if (!seen.has(key)) {
+      seen.add(key);
+      connections.push({ from, to, type });
+    }
+  };
+
+  for (let i = 0; i < projects.length; i++) {
+    for (let j = i + 1; j < projects.length; j++) {
+      const a = projects[i];
+      const b = projects[j];
+      // Domain connections
+      if (a.domain === b.domain) {
+        add(a.id, b.id, "domain");
+      }
+      // Method connections (share at least one method, different domains)
+      if (a.domain !== b.domain && a.methods.some((m) => b.methods.includes(m))) {
+        add(a.id, b.id, "method");
+      }
+      // Scale connections (same scale, different domains)
+      if (a.domain !== b.domain && a.scale === b.scale) {
+        add(a.id, b.id, "scale");
+      }
+    }
+  }
+
+  return connections;
+}
+
+/** Replace the module-level PROJECTS and CONNECTIONS with Sanity data */
+export function setProjectData(projects: Project[], connections?: Connection[]) {
+  PROJECTS = projects;
+  CONNECTIONS = connections ?? generateConnections(projects);
 }

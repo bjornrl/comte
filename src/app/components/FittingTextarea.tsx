@@ -50,17 +50,14 @@ export default function FittingTextarea({
   }, [value]);
 
   return (
-    <div
-      ref={containerRef}
-      className={`h-full w-full overflow-hidden ${containerClassName}`}
-    >
+    <div ref={containerRef} className={`w-full overflow-hidden ${containerClassName}`}>
       <textarea
         ref={textareaRef}
         value={value}
         onChange={onChange}
         placeholder={placeholder}
         style={{ fontSize: `${fontSize}px` }}
-        className={`w-full h-full min-h-0 resize-none border-none bg-transparent font-light text-foreground placeholder:text-foreground/40 outline-none p-6 md:p-8 lg:p-12 ${className}`}
+        className={`w-full h-fit min-h-0 resize-none border-none bg-transparent font-light text-foreground placeholder:text-foreground/40 outline-none p-6 md:p-8 lg:p-12 ${className}`}
         aria-label="Message"
       />
     </div>

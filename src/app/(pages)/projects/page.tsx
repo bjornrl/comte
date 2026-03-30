@@ -1,33 +1,31 @@
-"use client";
+export const dynamic = "force-dynamic";
 
-import { useState } from "react";
-import ProjectNetwork from "../../components/ProjectNetwork";
-import ProjectGrid from "../../components/ProjectGrid";
-import FilterBar from "../../components/FilterBar";
-import BlobNav from "../../components/BlobNav";
-import { type FilterState, NO_FILTERS } from "../../components/projectNetworkData";
-import Footer from "@/app/components/Footer";
+import { client } from "@/sanity/lib/client";
+import { PROJECTS_QUERY } from "@/sanity/lib/queries";
+import { generateConnections } from "@/app/components/projectNetworkData";
+import type { Project, Domain, Scale, Method, InnovationLevel } from "@/app/components/projectNetworkData";
+import ProjectsPageClient from "@/app/components/ProjectsPageClient";
 
-export default function ProjectsPage() {
-  const [filters, setFilters] = useState<FilterState>(NO_FILTERS);
+function mapSanityProject(doc: any): Project {
+  return {
+    id: doc._id,
+    slug: doc.slug?.current,
+    name: doc.title,
+    client: doc.client,
+    domain: (doc.domain ?? "digital") as Domain,
+    summary: doc.summary ?? "",
+    featured: doc.featured ?? false,
+    year: doc.year ?? 2023,
+    scale: (doc.scale ?? "municipal") as Scale,
+    methods: (doc.methods ?? []) as Method[],
+    innovationLevel: (doc.innovationLevel ?? "incremental") as InnovationLevel,
+  };
+}
 
-  return (
-    <div style={{ background: "#F9F9ED", minHeight: "100vh" }}>
-      <BlobNav />
+export default async function ProjectsPage() {
+  const sanityProjects = await client.fetch(PROJECTS_QUERY);
+  const projects: Project[] = (sanityProjects ?? []).map(mapSanityProject);
+  const connections = generateConnections(projects);
 
-      {/* Map section */}
-      <div style={{ height: "100svh", position: "relative" }}>
-        <ProjectNetwork mode="full" filters={filters} onFiltersChange={setFilters} />
-      </div>
-
-      {/* Grid section */}
-      <ProjectGrid filters={filters} />
-
-      {/* Sticky filter bar */}
-      <FilterBar filters={filters} onChange={setFilters} />
-
-      {/* Footer */}
-      <Footer />
-    </div>
-  );
+  return <ProjectsPageClient projects={projects} connections={connections} />;
 }

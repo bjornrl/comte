@@ -207,6 +207,20 @@ html {
   }
 }
 
+/* Comte-themed map treatment (scoped by class on map container) */
+.comte-map .maplibregl-canvas {
+  filter: saturate(0.7) hue-rotate(-18deg) contrast(0.92) brightness(1.02);
+}
+
+.comte-map .maplibregl-ctrl-group {
+  border-color: color-mix(in srgb, var(--comte-dark-green) 22%, transparent);
+  background: color-mix(in srgb, var(--comte-light-base) 92%, transparent);
+}
+
+.comte-map .maplibregl-ctrl-group button {
+  color: var(--comte-dark-green);
+}
+
 .dark {
   --background: var(--comte-near-black);
   --foreground: var(--comte-light-base);

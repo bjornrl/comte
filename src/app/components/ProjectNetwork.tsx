@@ -3,9 +3,17 @@
 import React, { useRef, useEffect, useCallback, useState } from "react";
 import type p5Type from "p5";
 import {
-  type FilterState, type Project, type ConnectionType,
-  DOMAIN_COLORS, DOMAIN_LABELS, PROJECTS, CONNECTIONS,
-  NO_FILTERS, hasActiveFilters, projectMatchesFilters, hexToRgb,
+  type FilterState,
+  type Project,
+  type ConnectionType,
+  DOMAIN_COLORS,
+  DOMAIN_LABELS,
+  PROJECTS,
+  CONNECTIONS,
+  NO_FILTERS,
+  hasActiveFilters,
+  projectMatchesFilters,
+  hexToRgb,
 } from "./projectNetworkData";
 export type { FilterState } from "./projectNetworkData";
 
@@ -41,7 +49,7 @@ function computeNodePositions(
   width: number,
   height: number,
   isMobile = false,
-  excludeCenter = false
+  excludeCenter = false,
 ): Record<string, NodePosition> {
   const positions: Record<string, NodePosition> = {};
   const margin = { x: width * 0.08, y: height * 0.12 };
@@ -54,10 +62,16 @@ function computeNodePositions(
 
     // Center exclusion zone (for teaser mode hero text)
     if (excludeCenter) {
-      const ez = { left: width * 0.25, right: width * 0.75, top: height * 0.35, bottom: height * 0.65 };
+      const ez = {
+        left: width * 0.25,
+        right: width * 0.75,
+        top: height * 0.35,
+        bottom: height * 0.65,
+      };
       if (x > ez.left && x < ez.right && y > ez.top && y < ez.bottom) {
         // Push outward from center
-        const cx = width / 2, cy = height / 2;
+        const cx = width / 2,
+          cy = height / 2;
         const angle = Math.atan2(y - cy, x - cx);
         const radius = Math.max(width * 0.26, height * 0.16);
         x = cx + Math.cos(angle) * radius;
@@ -118,7 +132,14 @@ type Particle = {
 
 /* ───────────── Component ───────────── */
 
-export type IntroPhase = "dot" | "typing-logo" | "hold" | "springout" | "erasing" | "typing-headline" | "done";
+export type IntroPhase =
+  | "dot"
+  | "typing-logo"
+  | "hold"
+  | "springout"
+  | "erasing"
+  | "typing-headline"
+  | "done";
 
 export default function ProjectNetwork({
   className,
@@ -163,12 +184,13 @@ export default function ProjectNetwork({
   const [entranceReady, setEntranceReady] = useState(false);
   // When introPhase is provided, derive entranceReady from it
   const effectiveEntranceReady = introPhase
-    ? (introPhase === "springout" || introPhase === "erasing" || introPhase === "typing-headline" || introPhase === "done")
+    ? introPhase === "springout" ||
+      introPhase === "erasing" ||
+      introPhase === "typing-headline" ||
+      introPhase === "done"
     : entranceReady;
   // Lines should only appear after typing-headline phase (or default entrance)
-  const linesReady = introPhase
-    ? (introPhase === "typing-headline" || introPhase === "done")
-    : true;
+  const linesReady = introPhase ? introPhase === "typing-headline" || introPhase === "done" : true;
 
   // Mouse position for proximity glow
   const mousePosRef = useRef({ x: -1000, y: -1000 });
@@ -218,8 +240,8 @@ export default function ProjectNetwork({
   // Entrance stagger order (deterministic shuffle)
   const entranceOrder = useRef(
     [...Array(PROJECTS.length).keys()].sort(
-      (a, b) => seededRandom("entrance", a) - seededRandom("entrance", b)
-    )
+      (a, b) => seededRandom("entrance", a) - seededRandom("entrance", b),
+    ),
   );
 
   // Reset line entrance timer when lines become ready (for intro-driven mode)
@@ -283,26 +305,29 @@ export default function ProjectNetwork({
   }, [filters]);
 
   /* ── Init particles for a connection ── */
-  const initParticles = useCallback((connIndex: number, fromPos: NodePosition, toPos: NodePosition): Particle[] => {
-    const count = 12;
-    const particles: Particle[] = [];
-    for (let i = 0; i < count; i++) {
-      const seed = connIndex * 100 + i;
-      const ox = (seededRandom(String(seed), 0) - 0.5) * 8;
-      const oy = (seededRandom(String(seed), 1) - 0.5) * 8;
-      particles.push({
-        x: fromPos.x + ox,
-        y: fromPos.y + oy,
-        prevX: fromPos.x + ox,
-        prevY: fromPos.y + oy,
-        progress: seededRandom(String(seed), 2) * 0.1,
-        speed: 0.003 + seededRandom(String(seed), 3) * 0.004,
-        offsetX: (seededRandom(String(seed), 4) - 0.5) * 40,
-        offsetY: (seededRandom(String(seed), 5) - 0.5) * 40,
-      });
-    }
-    return particles;
-  }, []);
+  const initParticles = useCallback(
+    (connIndex: number, fromPos: NodePosition, toPos: NodePosition): Particle[] => {
+      const count = 12;
+      const particles: Particle[] = [];
+      for (let i = 0; i < count; i++) {
+        const seed = connIndex * 100 + i;
+        const ox = (seededRandom(String(seed), 0) - 0.5) * 8;
+        const oy = (seededRandom(String(seed), 1) - 0.5) * 8;
+        particles.push({
+          x: fromPos.x + ox,
+          y: fromPos.y + oy,
+          prevX: fromPos.x + ox,
+          prevY: fromPos.y + oy,
+          progress: seededRandom(String(seed), 2) * 0.1,
+          speed: 0.003 + seededRandom(String(seed), 3) * 0.004,
+          offsetX: (seededRandom(String(seed), 4) - 0.5) * 40,
+          offsetY: (seededRandom(String(seed), 5) - 0.5) * 40,
+        });
+      }
+      return particles;
+    },
+    [],
+  );
 
   /* ── Helper: get connected project ids ── */
   const getConnectedIds = useCallback((projectId: string): Set<string> => {
@@ -316,8 +341,7 @@ export default function ProjectNetwork({
 
   /* ── Helper: get connections for a project ── */
   const getConnectionsFor = useCallback((projectId: string) => {
-    return CONNECTIONS
-      .filter((c) => c.from === projectId || c.to === projectId)
+    return CONNECTIONS.filter((c) => c.from === projectId || c.to === projectId)
       .map((c) => {
         const otherId = c.from === projectId ? c.to : c.from;
         const otherProject = PROJECTS.find((p) => p.id === otherId);
@@ -341,71 +365,74 @@ export default function ProjectNetwork({
   }, []);
 
   /* ── Apply selection styling to HTML nodes ── */
-  const applySelectionStyling = useCallback((selId: string | null) => {
-    const cw = sizeRef.current.width;
-    const mob = cw < 768;
-    const tab = cw >= 768 && cw < 1024;
-    const dotSz = mob ? 12 : tab ? 16 : 20;
-    const cardSz = mob ? dotSz : tab ? 240 : 280; // On mobile, no card — use dot
-    const featuredCollapsed = mob ? 1 : dotSz / cardSz;
-    if (!selId) {
-      // Reset all nodes to default
+  const applySelectionStyling = useCallback(
+    (selId: string | null) => {
+      const cw = sizeRef.current.width;
+      const mob = cw < 768;
+      const tab = cw >= 768 && cw < 1024;
+      const dotSz = mob ? 12 : tab ? 16 : 20;
+      const cardSz = mob ? dotSz : tab ? 240 : 280; // On mobile, no card — use dot
+      const featuredCollapsed = mob ? 1 : dotSz / cardSz;
+      if (!selId) {
+        // Reset all nodes to default
+        for (const p of PROJECTS) {
+          const el = nodeRefsMap.current[p.id];
+          if (el) {
+            // Featured nodes reset to their collapsed scale
+            el.style.transform = p.featured ? `scale(${featuredCollapsed})` : "scale(1)";
+            el.style.opacity = "0.8";
+            el.style.boxShadow = "";
+            el.style.border = "";
+          }
+          const label = labelRefsMap.current[p.id];
+          if (label) label.style.opacity = "0.8";
+        }
+        return;
+      }
+
+      const connectedIds = getConnectedIds(selId);
+      const selProject = PROJECTS.find((pr) => pr.id === selId);
       for (const p of PROJECTS) {
         const el = nodeRefsMap.current[p.id];
-        if (el) {
-          // Featured nodes reset to their collapsed scale
+        if (!el) continue;
+        const rgb = hexToRgb(DOMAIN_COLORS[p.domain]);
+
+        if (p.id === selId) {
+          if (p.featured) {
+            // Featured selected node: expansion is handled by React state, not here
+            // Just set opacity
+            el.style.opacity = "1";
+          } else {
+            el.style.transform = "scale(2)";
+            el.style.opacity = "1";
+            el.style.boxShadow = `0 0 20px rgba(${rgb.r},${rgb.g},${rgb.b},0.6)`;
+            el.style.border = "2px solid rgba(0,0,0,0.5)";
+          }
+        } else if (connectedIds.has(p.id)) {
+          const connScale = p.featured ? featuredCollapsed * 1.3 : 1.2;
+          el.style.transform = `scale(${connScale})`;
+          el.style.opacity = "1";
+          el.style.boxShadow = `0 0 8px rgba(${rgb.r},${rgb.g},${rgb.b},0.3)`;
+          el.style.border = "";
+        } else {
           el.style.transform = p.featured ? `scale(${featuredCollapsed})` : "scale(1)";
-          el.style.opacity = "0.8";
+          el.style.opacity = "0.12";
           el.style.boxShadow = "";
           el.style.border = "";
         }
+
         const label = labelRefsMap.current[p.id];
-        if (label) label.style.opacity = "0.8";
-      }
-      return;
-    }
-
-    const connectedIds = getConnectedIds(selId);
-    const selProject = PROJECTS.find((pr) => pr.id === selId);
-    for (const p of PROJECTS) {
-      const el = nodeRefsMap.current[p.id];
-      if (!el) continue;
-      const rgb = hexToRgb(DOMAIN_COLORS[p.domain]);
-
-      if (p.id === selId) {
-        if (p.featured) {
-          // Featured selected node: expansion is handled by React state, not here
-          // Just set opacity
-          el.style.opacity = "1";
-        } else {
-          el.style.transform = "scale(2)";
-          el.style.opacity = "1";
-          el.style.boxShadow = `0 0 20px rgba(${rgb.r},${rgb.g},${rgb.b},0.6)`;
-          el.style.border = "2px solid rgba(0,0,0,0.5)";
-        }
-      } else if (connectedIds.has(p.id)) {
-        const connScale = p.featured ? featuredCollapsed * 1.3 : 1.2;
-        el.style.transform = `scale(${connScale})`;
-        el.style.opacity = "1";
-        el.style.boxShadow = `0 0 8px rgba(${rgb.r},${rgb.g},${rgb.b},0.3)`;
-        el.style.border = "";
-      } else {
-        el.style.transform = p.featured ? `scale(${featuredCollapsed})` : "scale(1)";
-        el.style.opacity = "0.12";
-        el.style.boxShadow = "";
-        el.style.border = "";
-      }
-
-      const label = labelRefsMap.current[p.id];
-      if (label) {
-        if (p.id === selId || connectedIds.has(p.id)) {
-          label.style.opacity = "1";
-        } else {
-          label.style.opacity = "0.12";
+        if (label) {
+          if (p.id === selId || connectedIds.has(p.id)) {
+            label.style.opacity = "1";
+          } else {
+            label.style.opacity = "0.12";
+          }
         }
       }
-    }
-  }, [getConnectedIds]);
+    },
+    [getConnectedIds],
+  );
 
   /* ── Setup p5 + animation loop ── */
   useEffect(() => {
@@ -415,7 +442,12 @@ export default function ProjectNetwork({
 
     const rect = container.getBoundingClientRect();
     sizeRef.current = { width: rect.width, height: rect.height };
-    positionsRef.current = computeNodePositions(rect.width, rect.height, rect.width < 768, mode === "teaser");
+    positionsRef.current = computeNodePositions(
+      rect.width,
+      rect.height,
+      rect.width < 768,
+      mode === "teaser",
+    );
 
     // Init particles for each connection
     particlesRef.current = CONNECTIONS.map((conn, i) => {
@@ -438,9 +470,7 @@ export default function ProjectNetwork({
           el.style.left = `${pos.x - w / 2}px`;
           el.style.top = `${pos.y - h / 2}px`;
         } else {
-          const s = project.featured
-            ? (mob ? 12 : tab ? 16 : 20)
-            : (mob ? 6 : tab ? 8 : 10);
+          const s = project.featured ? (mob ? 12 : tab ? 16 : 20) : mob ? 6 : tab ? 8 : 10;
           el.style.left = `${pos.x - s / 2}px`;
           el.style.top = `${pos.y - s / 2}px`;
         }
@@ -490,9 +520,7 @@ export default function ProjectNetwork({
 
           // Idle breathing pulse
           const isIdle = !highlighted && !selected && !hasActiveFilters(filtersRef.current);
-          const breathe = isIdle && !reducedMotion
-            ? Math.sin(now * 0.001) * 0.3 + 0.7
-            : 1;
+          const breathe = isIdle && !reducedMotion ? Math.sin(now * 0.001) * 0.3 + 0.7 : 1;
 
           // Drift nodes
           for (const project of PROJECTS) {
@@ -517,8 +545,16 @@ export default function ProjectNetwork({
                 el.style.top = `${pos.y - h / 2}px`;
               } else {
                 const s = project.featured
-                  ? (mob ? 12 : cw < 1024 ? 16 : 20)
-                  : (mob ? 6 : cw < 1024 ? 8 : 10);
+                  ? mob
+                    ? 12
+                    : cw < 1024
+                      ? 16
+                      : 20
+                  : mob
+                    ? 6
+                    : cw < 1024
+                      ? 8
+                      : 10;
                 el.style.left = `${pos.x - s / 2}px`;
                 el.style.top = `${pos.y - s / 2}px`;
               }
@@ -573,10 +609,18 @@ export default function ProjectNetwork({
             // Base alpha varies by type
             let baseAlpha: number;
             switch (conn.type) {
-              case "domain":  baseAlpha = 25; break;
-              case "method":  baseAlpha = 30; break;
-              case "scale":   baseAlpha = 20; break;
-              case "theme":   baseAlpha = 30; break;
+              case "domain":
+                baseAlpha = 25;
+                break;
+              case "method":
+                baseAlpha = 30;
+                break;
+              case "scale":
+                baseAlpha = 20;
+                break;
+              case "theme":
+                baseAlpha = 30;
+                break;
             }
 
             // Determine target alpha: selection > filter > hover > default
@@ -589,10 +633,18 @@ export default function ProjectNetwork({
             if (selected) {
               if (isConnectedToSelected) {
                 switch (conn.type) {
-                  case "domain":  targetAlpha = 45; break;
-                  case "method":  targetAlpha = 50; break;
-                  case "scale":   targetAlpha = 40; break;
-                  case "theme":   targetAlpha = 45; break;
+                  case "domain":
+                    targetAlpha = 45;
+                    break;
+                  case "method":
+                    targetAlpha = 50;
+                    break;
+                  case "scale":
+                    targetAlpha = 40;
+                    break;
+                  case "theme":
+                    targetAlpha = 45;
+                    break;
                 }
               } else {
                 targetAlpha = 1.5;
@@ -760,7 +812,7 @@ export default function ProjectNetwork({
       const filActive = hasActiveFilters(filtersRef.current);
       const matchIds = matchingIdsRef.current;
       const _cw = sizeRef.current.width;
-    const fc = _cw < 768 ? 1 : (_cw < 1024 ? 16 : 20) / (_cw < 1024 ? 240 : 280);
+      const fc = _cw < 768 ? 1 : (_cw < 1024 ? 16 : 20) / (_cw < 1024 ? 240 : 280);
       for (const p of PROJECTS) {
         const el = nodeRefsMap.current[p.id];
         if (!el) continue;
@@ -796,7 +848,7 @@ export default function ProjectNetwork({
         }
       }
     },
-    [getConnectedIds]
+    [getConnectedIds],
   );
 
   const handleNodeLeave = useCallback(() => {
@@ -842,7 +894,7 @@ export default function ProjectNetwork({
         setTooltipPos({ x: e.clientX, y: e.clientY });
       }
     },
-    [hoveredProject]
+    [hoveredProject],
   );
 
   /* ── Click handlers ── */
@@ -851,52 +903,58 @@ export default function ProjectNetwork({
     setExpandedProjectId(null);
   }, []);
 
-  const handleNodeClick = useCallback((projectId: string) => {
-    if (mode === "teaser") {
-      window.location.href = "/projects";
-      return;
-    }
-    const project = PROJECTS.find((p) => p.id === projectId);
+  const handleNodeClick = useCallback(
+    (projectId: string) => {
+      if (mode === "teaser") {
+        window.location.href = "/projects";
+        return;
+      }
+      const project = PROJECTS.find((p) => p.id === projectId);
 
-    // If dimmed by filter, ignore click
-    if (hasActiveFilters(filtersRef.current) && !matchingIdsRef.current.has(projectId)) return;
+      // If dimmed by filter, ignore click
+      if (hasActiveFilters(filtersRef.current) && !matchingIdsRef.current.has(projectId)) return;
 
-    // If clicking the already selected/expanded node, deselect
-    if (selectedProjectId === projectId) {
-      setSelectedProjectId(null);
-      selectedIdRef.current = null;
-      applySelectionStyling(null);
-      collapseExpanded();
-      return;
-    }
+      // If clicking the already selected/expanded node, deselect
+      if (selectedProjectId === projectId) {
+        setSelectedProjectId(null);
+        selectedIdRef.current = null;
+        applySelectionStyling(null);
+        collapseExpanded();
+        return;
+      }
 
-    // Collapse any existing expanded card
-    if (expandedProjectId) {
-      setExpandedContentVisible(false);
-      setExpandedProjectId(null);
-    }
+      // Collapse any existing expanded card
+      if (expandedProjectId) {
+        setExpandedContentVisible(false);
+        setExpandedProjectId(null);
+      }
 
-    // Set selection (illumination)
-    setSelectedProjectId(projectId);
-    selectedIdRef.current = projectId;
-    applySelectionStyling(projectId);
+      // Set selection (illumination)
+      setSelectedProjectId(projectId);
+      selectedIdRef.current = projectId;
+      applySelectionStyling(projectId);
 
-    // Featured nodes expand in-place; non-featured use the detail panel
-    if (project?.featured) {
-      setExpandedProjectId(projectId);
-      // Delay content fade-in until card has expanded ~60%
-      setTimeout(() => setExpandedContentVisible(true), 250);
-    }
-  }, [selectedProjectId, expandedProjectId, applySelectionStyling, collapseExpanded, mode]);
+      // Featured nodes expand in-place; non-featured use the detail panel
+      if (project?.featured) {
+        setExpandedProjectId(projectId);
+        // Delay content fade-in until card has expanded ~60%
+        setTimeout(() => setExpandedContentVisible(true), 250);
+      }
+    },
+    [selectedProjectId, expandedProjectId, applySelectionStyling, collapseExpanded, mode],
+  );
 
-  const handleBackgroundClick = useCallback((e: React.MouseEvent) => {
-    if (e.target === containerRef.current) {
-      setSelectedProjectId(null);
-      selectedIdRef.current = null;
-      applySelectionStyling(null);
-      collapseExpanded();
-    }
-  }, [applySelectionStyling, collapseExpanded]);
+  const handleBackgroundClick = useCallback(
+    (e: React.MouseEvent) => {
+      if (e.target === containerRef.current) {
+        setSelectedProjectId(null);
+        selectedIdRef.current = null;
+        applySelectionStyling(null);
+        collapseExpanded();
+      }
+    },
+    [applySelectionStyling, collapseExpanded],
+  );
 
   const handleDeselectAll = useCallback(() => {
     setSelectedProjectId(null);
@@ -914,7 +972,7 @@ export default function ProjectNetwork({
       style={{
         position: "relative",
         width: "100%",
-        height: isMobile ? "50vh" : "100%",
+        height: "100%",
         background: "#F9F9ED",
         overflow: "hidden",
         ...style,
@@ -931,39 +989,24 @@ export default function ProjectNetwork({
       />
 
       {/* HTML overlay: section heading (hidden in teaser mode — parent handles text) */}
-      {mode !== "teaser" && <div
-        style={{
-          position: "absolute",
-          top: isMobile ? 16 : 32,
-          left: isMobile ? 16 : 32,
-          zIndex: 10,
-          opacity: 0,
-          animation: effectiveEntranceReady ? "headingIn 0.6s ease forwards" : undefined,
-        }}
-      >
-        <style>{`@keyframes headingIn { to { opacity: 1; } }`}</style>
+      {mode !== "teaser" && (
         <div
           style={{
-            fontFamily: "var(--font-geist-mono)",
-            fontSize: "0.7rem",
-            textTransform: "uppercase",
-            letterSpacing: "0.15em",
-            color: "rgba(33,33,33,0.4)",
+            position: "absolute",
+            top: isMobile ? 16 : 32,
+            left: isMobile ? 16 : 32,
+            zIndex: 10,
+            opacity: 0,
+            animation: effectiveEntranceReady ? "headingIn 0.6s ease forwards" : undefined,
           }}
         >
-          Our work
+          <style>{`@keyframes headingIn { to { opacity: 1; } }`}</style>
+
+          <div className="mt-1 font-sans text-base text-[color:var(--comte-near-black)]">
+            Prosjekter
+          </div>
         </div>
-        <div
-          style={{
-            fontFamily: "var(--font-geist-sans)",
-            fontSize: "1rem",
-            color: "rgba(33,33,33,0.5)",
-            marginTop: 4,
-          }}
-        >
-          30 projects across six domains
-        </div>
-      </div>}
+      )}
 
       {/* HTML overlay: project nodes */}
       {PROJECTS.map((project, projectIndex) => {
@@ -991,7 +1034,9 @@ export default function ProjectNetwork({
           onFocus: (e: React.FocusEvent) => {
             handleNodeEnter(project, e as unknown as React.MouseEvent);
           },
-          onBlur: () => { handleNodeLeave(); },
+          onBlur: () => {
+            handleNodeLeave();
+          },
         };
 
         // Responsive sizes
@@ -1020,7 +1065,9 @@ export default function ProjectNetwork({
             <React.Fragment key={project.id}>
               {/* Expandable card wrapper */}
               <div
-                ref={(el) => { nodeRefsMap.current[project.id] = el; }}
+                ref={(el) => {
+                  nodeRefsMap.current[project.id] = el;
+                }}
                 onMouseEnter={!isMobile ? (e) => handleNodeEnter(project, e) : undefined}
                 onMouseLeave={!isMobile ? handleNodeLeave : undefined}
                 onMouseMove={!isMobile ? handleNodeMove : undefined}
@@ -1041,7 +1088,9 @@ export default function ProjectNetwork({
                     : `0 0 8px rgba(${rgb.r},${rgb.g},${rgb.b},0.3)`,
                   cursor: isExpanded ? "default" : "pointer",
                   opacity: effectiveEntranceReady ? 0.8 : 0,
-                  transform: isExpanded ? "scale(1)" : `scale(${effectiveEntranceReady ? collapsedScale : 0})`,
+                  transform: isExpanded
+                    ? "scale(1)"
+                    : `scale(${effectiveEntranceReady ? collapsedScale : 0})`,
                   transformOrigin: "center center",
                   transition: reducedMotion
                     ? "none"
@@ -1064,7 +1113,10 @@ export default function ProjectNetwork({
                 >
                   {/* Close button */}
                   <button
-                    onClick={(e) => { e.stopPropagation(); handleDeselectAll(); }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleDeselectAll();
+                    }}
                     aria-label="Close card"
                     style={{
                       position: "absolute",
@@ -1084,8 +1136,12 @@ export default function ProjectNetwork({
                       justifyContent: "center",
                       zIndex: 2,
                     }}
-                    onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.color = "rgba(0,0,0,0.8)"; }}
-                    onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.color = "rgba(0,0,0,0.4)"; }}
+                    onMouseEnter={(e) => {
+                      (e.currentTarget as HTMLElement).style.color = "rgba(0,0,0,0.8)";
+                    }}
+                    onMouseLeave={(e) => {
+                      (e.currentTarget as HTMLElement).style.color = "rgba(0,0,0,0.4)";
+                    }}
                   >
                     ✕
                   </button>
@@ -1174,8 +1230,12 @@ export default function ProjectNetwork({
                       color: color,
                       textDecoration: "none",
                     }}
-                    onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.textDecoration = "underline"; }}
-                    onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.textDecoration = "none"; }}
+                    onMouseEnter={(e) => {
+                      (e.currentTarget as HTMLElement).style.textDecoration = "underline";
+                    }}
+                    onMouseLeave={(e) => {
+                      (e.currentTarget as HTMLElement).style.textDecoration = "none";
+                    }}
                   >
                     View project →
                   </a>
@@ -1185,7 +1245,9 @@ export default function ProjectNetwork({
               {/* Featured label (hidden when expanded) */}
               {!isExpanded && (
                 <div
-                  ref={(el) => { labelRefsMap.current[project.id] = el; }}
+                  ref={(el) => {
+                    labelRefsMap.current[project.id] = el;
+                  }}
                   style={{
                     position: "absolute",
                     fontFamily: "var(--font-geist-sans)",
@@ -1211,7 +1273,9 @@ export default function ProjectNetwork({
         return (
           <React.Fragment key={project.id}>
             <div
-              ref={(el) => { nodeRefsMap.current[project.id] = el; }}
+              ref={(el) => {
+                nodeRefsMap.current[project.id] = el;
+              }}
               onMouseEnter={!isMobile ? (e) => handleNodeEnter(project, e) : undefined}
               onMouseLeave={!isMobile ? handleNodeLeave : undefined}
               onMouseMove={!isMobile ? handleNodeMove : undefined}
@@ -1238,7 +1302,9 @@ export default function ProjectNetwork({
             />
             {project.featured && (
               <div
-                ref={(el) => { labelRefsMap.current[project.id] = el; }}
+                ref={(el) => {
+                  labelRefsMap.current[project.id] = el;
+                }}
                 style={{
                   position: "absolute",
                   fontFamily: "var(--font-geist-sans)",
@@ -1260,223 +1326,237 @@ export default function ProjectNetwork({
       })}
 
       {/* Detail panel (non-featured nodes only — featured use in-place expansion) */}
-      {selectedProjectId && !expandedProjectId && (() => {
-        const project = PROJECTS.find((p) => p.id === selectedProjectId);
-        if (!project || project.featured) return null;
-        const pos = positionsRef.current[selectedProjectId];
-        if (!pos) return null;
-        const { width: cw, height: ch } = sizeRef.current;
-        const panelWidth = isTablet ? 300 : 340;
-        const panelOnRight = pos.x + panelWidth + 60 < cw;
-        const panelLeft = panelOnRight ? pos.x + 32 : pos.x - panelWidth - 32;
-        const panelTop = Math.max(24, Math.min(pos.y - 60, ch - 480));
-        const domainColor = DOMAIN_COLORS[project.domain];
-        const domainRgb = hexToRgb(domainColor);
-        const connections = getConnectionsFor(project.id);
-        const CONNECTION_TYPE_LABELS: Record<ConnectionType, string> = {
-          domain: "same domain",
-          method: "shared method",
-          scale: "same scale",
-          theme: "shared theme",
-        };
+      {selectedProjectId &&
+        !expandedProjectId &&
+        (() => {
+          const project = PROJECTS.find((p) => p.id === selectedProjectId);
+          if (!project || project.featured) return null;
+          const pos = positionsRef.current[selectedProjectId];
+          if (!pos) return null;
+          const { width: cw, height: ch } = sizeRef.current;
+          const panelWidth = isTablet ? 300 : 340;
+          const panelOnRight = pos.x + panelWidth + 60 < cw;
+          const panelLeft = panelOnRight ? pos.x + 32 : pos.x - panelWidth - 32;
+          const panelTop = Math.max(24, Math.min(pos.y - 60, ch - 480));
+          const domainColor = DOMAIN_COLORS[project.domain];
+          const domainRgb = hexToRgb(domainColor);
+          const connections = getConnectionsFor(project.id);
+          const CONNECTION_TYPE_LABELS: Record<ConnectionType, string> = {
+            domain: "same domain",
+            method: "shared method",
+            scale: "same scale",
+            theme: "shared theme",
+          };
 
-        return (
-          <div
-            onClick={(e) => e.stopPropagation()}
-            style={{
-              position: "absolute",
-              left: panelLeft,
-              top: panelTop,
-              width: panelWidth,
-              background: "rgba(255, 255, 255, 0.95)",
-              border: "1px solid rgba(0,0,0,0.1)",
-              borderRadius: 12,
-              padding: 24,
-              backdropFilter: "blur(12px)",
-              WebkitBackdropFilter: "blur(12px)",
-              zIndex: 50,
-              animation: `panelIn 0.3s cubic-bezier(0.16, 1, 0.3, 1) 0.15s both`,
-            }}
-          >
-            <style>{`
+          return (
+            <div
+              onClick={(e) => e.stopPropagation()}
+              style={{
+                position: "absolute",
+                left: panelLeft,
+                top: panelTop,
+                width: panelWidth,
+                background: "rgba(255, 255, 255, 0.95)",
+                border: "1px solid rgba(0,0,0,0.1)",
+                borderRadius: 12,
+                padding: 24,
+                backdropFilter: "blur(12px)",
+                WebkitBackdropFilter: "blur(12px)",
+                zIndex: 50,
+                animation: `panelIn 0.3s cubic-bezier(0.16, 1, 0.3, 1) 0.15s both`,
+              }}
+            >
+              <style>{`
               @keyframes panelIn {
                 from { opacity: 0; transform: translateX(${panelOnRight ? "-12px" : "12px"}); }
                 to { opacity: 1; transform: translateX(0); }
               }
             `}</style>
 
-            {/* Close button */}
-            <button
-              onClick={handleDeselectAll}
-              aria-label="Close panel"
-              style={{
-                position: "absolute",
-                top: 12,
-                right: 12,
-                background: "none",
-                border: "none",
-                color: "rgba(0,0,0,0.4)",
-                fontSize: "1rem",
-                cursor: "pointer",
-                padding: 8,
-                lineHeight: 1,
-                minWidth: 44,
-                minHeight: 44,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-              }}
-              onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.color = "rgba(0,0,0,0.8)"; }}
-              onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.color = "rgba(0,0,0,0.4)"; }}
-            >
-              ✕
-            </button>
+              {/* Close button */}
+              <button
+                onClick={handleDeselectAll}
+                aria-label="Close panel"
+                style={{
+                  position: "absolute",
+                  top: 12,
+                  right: 12,
+                  background: "none",
+                  border: "none",
+                  color: "rgba(0,0,0,0.4)",
+                  fontSize: "1rem",
+                  cursor: "pointer",
+                  padding: 8,
+                  lineHeight: 1,
+                  minWidth: 44,
+                  minHeight: 44,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+                onMouseEnter={(e) => {
+                  (e.currentTarget as HTMLElement).style.color = "rgba(0,0,0,0.8)";
+                }}
+                onMouseLeave={(e) => {
+                  (e.currentTarget as HTMLElement).style.color = "rgba(0,0,0,0.4)";
+                }}
+              >
+                ✕
+              </button>
 
-            {/* Domain tag */}
-            <div
-              style={{
-                display: "inline-block",
-                background: `rgba(${domainRgb.r},${domainRgb.g},${domainRgb.b},0.2)`,
-                color: domainColor,
-                fontFamily: "var(--font-geist-mono)",
-                fontSize: "0.65rem",
-                letterSpacing: "0.1em",
-                textTransform: "uppercase",
-                padding: "3px 10px",
-                borderRadius: 10,
-              }}
-            >
-              {DOMAIN_LABELS[project.domain]}
-            </div>
-
-            {/* Project name */}
-            <h2
-              style={{
-                fontFamily: "var(--font-geist-sans)",
-                fontSize: "1.25rem",
-                fontWeight: 600,
-                color: "#212121",
-                marginTop: 12,
-                marginBottom: 0,
-                lineHeight: 1.3,
-              }}
-            >
-              {project.name}
-            </h2>
-
-            {/* Client + year */}
-            <div
-              style={{
-                fontFamily: "var(--font-geist-sans)",
-                fontSize: "0.85rem",
-                fontWeight: 400,
-                color: "rgba(33,33,33,0.5)",
-                marginTop: 4,
-              }}
-            >
-              {project.client} · {project.year}
-            </div>
-
-            {/* Summary */}
-            <p
-              style={{
-                fontFamily: "var(--font-geist-sans)",
-                fontSize: "0.9rem",
-                lineHeight: 1.5,
-                color: "rgba(33,33,33,0.7)",
-                marginTop: 16,
-                marginBottom: 0,
-              }}
-            >
-              {project.summary}
-            </p>
-
-            {/* Connected projects */}
-            {connections.length > 0 && (
-              <div style={{ marginTop: 20 }}>
-                <div
-                  style={{
-                    fontFamily: "var(--font-geist-mono)",
-                    fontSize: "0.6rem",
-                    textTransform: "uppercase",
-                    letterSpacing: "0.1em",
-                    color: "rgba(33,33,33,0.3)",
-                    marginBottom: 8,
-                  }}
-                >
-                  Connected to
-                </div>
-                <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                  {connections.map((conn) => {
-                    const other = conn.otherProject!;
-                    const otherColor = DOMAIN_COLORS[other.domain];
-                    return (
-                      <button
-                        key={conn.otherId}
-                        onClick={() => {
-                          setSelectedProjectId(conn.otherId);
-                          selectedIdRef.current = conn.otherId;
-                          applySelectionStyling(conn.otherId);
-                        }}
-                        style={{
-                          background: "none",
-                          border: "none",
-                          padding: "2px 0",
-                          cursor: "pointer",
-                          display: "flex",
-                          alignItems: "center",
-                          gap: 8,
-                          fontFamily: "var(--font-geist-sans)",
-                          fontSize: "0.8rem",
-                          color: "rgba(33,33,33,0.5)",
-                          textAlign: "left",
-                          lineHeight: 1.3,
-                        }}
-                        onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.color = "rgba(33,33,33,0.85)"; }}
-                        onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.color = "rgba(33,33,33,0.5)"; }}
-                      >
-                        <span
-                          style={{
-                            width: 6,
-                            height: 6,
-                            borderRadius: "50%",
-                            backgroundColor: otherColor,
-                            flexShrink: 0,
-                          }}
-                        />
-                        <span>
-                          {other.name}{" "}
-                          <span style={{ color: "rgba(33,33,33,0.3)" }}>
-                            ({CONNECTION_TYPE_LABELS[conn.type]})
-                          </span>
-                        </span>
-                      </button>
-                    );
-                  })}
-                </div>
+              {/* Domain tag */}
+              <div
+                style={{
+                  display: "inline-block",
+                  background: `rgba(${domainRgb.r},${domainRgb.g},${domainRgb.b},0.2)`,
+                  color: domainColor,
+                  fontFamily: "var(--font-geist-mono)",
+                  fontSize: "0.65rem",
+                  letterSpacing: "0.1em",
+                  textTransform: "uppercase",
+                  padding: "3px 10px",
+                  borderRadius: 10,
+                }}
+              >
+                {DOMAIN_LABELS[project.domain]}
               </div>
-            )}
 
-            {/* View full project link */}
-            <a
-              href={`/projects/${project.id}`}
-              style={{
-                display: "inline-block",
-                marginTop: 20,
-                fontFamily: "var(--font-geist-sans)",
-                fontSize: "0.85rem",
-                fontWeight: 500,
-                color: domainColor,
-                textDecoration: "none",
-              }}
-              onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.textDecoration = "underline"; }}
-              onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.textDecoration = "none"; }}
-            >
-              View full project →
-            </a>
-          </div>
-        );
-      })()}
+              {/* Project name */}
+              <h2
+                style={{
+                  fontFamily: "var(--font-geist-sans)",
+                  fontSize: "1.25rem",
+                  fontWeight: 600,
+                  color: "#212121",
+                  marginTop: 12,
+                  marginBottom: 0,
+                  lineHeight: 1.3,
+                }}
+              >
+                {project.name}
+              </h2>
+
+              {/* Client + year */}
+              <div
+                style={{
+                  fontFamily: "var(--font-geist-sans)",
+                  fontSize: "0.85rem",
+                  fontWeight: 400,
+                  color: "rgba(33,33,33,0.5)",
+                  marginTop: 4,
+                }}
+              >
+                {project.client} · {project.year}
+              </div>
+
+              {/* Summary */}
+              <p
+                style={{
+                  fontFamily: "var(--font-geist-sans)",
+                  fontSize: "0.9rem",
+                  lineHeight: 1.5,
+                  color: "rgba(33,33,33,0.7)",
+                  marginTop: 16,
+                  marginBottom: 0,
+                }}
+              >
+                {project.summary}
+              </p>
+
+              {/* Connected projects */}
+              {connections.length > 0 && (
+                <div style={{ marginTop: 20 }}>
+                  <div
+                    style={{
+                      fontFamily: "var(--font-geist-mono)",
+                      fontSize: "0.6rem",
+                      textTransform: "uppercase",
+                      letterSpacing: "0.1em",
+                      color: "rgba(33,33,33,0.3)",
+                      marginBottom: 8,
+                    }}
+                  >
+                    Connected to
+                  </div>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                    {connections.map((conn) => {
+                      const other = conn.otherProject!;
+                      const otherColor = DOMAIN_COLORS[other.domain];
+                      return (
+                        <button
+                          key={conn.otherId}
+                          onClick={() => {
+                            setSelectedProjectId(conn.otherId);
+                            selectedIdRef.current = conn.otherId;
+                            applySelectionStyling(conn.otherId);
+                          }}
+                          style={{
+                            background: "none",
+                            border: "none",
+                            padding: "2px 0",
+                            cursor: "pointer",
+                            display: "flex",
+                            alignItems: "center",
+                            gap: 8,
+                            fontFamily: "var(--font-geist-sans)",
+                            fontSize: "0.8rem",
+                            color: "rgba(33,33,33,0.5)",
+                            textAlign: "left",
+                            lineHeight: 1.3,
+                          }}
+                          onMouseEnter={(e) => {
+                            (e.currentTarget as HTMLElement).style.color = "rgba(33,33,33,0.85)";
+                          }}
+                          onMouseLeave={(e) => {
+                            (e.currentTarget as HTMLElement).style.color = "rgba(33,33,33,0.5)";
+                          }}
+                        >
+                          <span
+                            style={{
+                              width: 6,
+                              height: 6,
+                              borderRadius: "50%",
+                              backgroundColor: otherColor,
+                              flexShrink: 0,
+                            }}
+                          />
+                          <span>
+                            {other.name}{" "}
+                            <span style={{ color: "rgba(33,33,33,0.3)" }}>
+                              ({CONNECTION_TYPE_LABELS[conn.type]})
+                            </span>
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* View full project link */}
+              <a
+                href={`/projects/${project.id}`}
+                style={{
+                  display: "inline-block",
+                  marginTop: 20,
+                  fontFamily: "var(--font-geist-sans)",
+                  fontSize: "0.85rem",
+                  fontWeight: 500,
+                  color: domainColor,
+                  textDecoration: "none",
+                }}
+                onMouseEnter={(e) => {
+                  (e.currentTarget as HTMLElement).style.textDecoration = "underline";
+                }}
+                onMouseLeave={(e) => {
+                  (e.currentTarget as HTMLElement).style.textDecoration = "none";
+                }}
+              >
+                View full project →
+              </a>
+            </div>
+          );
+        })()}
 
       {/* Tooltip (desktop only) */}
       {!isMobile && hoveredProject && (
@@ -1588,13 +1668,39 @@ export default function ProjectNetwork({
               {DOMAIN_LABELS[mobileSheetProject.domain]}
             </div>
 
-            <h2 style={{ fontFamily: "var(--font-geist-sans)", fontSize: "1.25rem", fontWeight: 600, color: "#212121", marginTop: 12, marginBottom: 0, lineHeight: 1.3 }}>
+            <h2
+              style={{
+                fontFamily: "var(--font-geist-sans)",
+                fontSize: "1.25rem",
+                fontWeight: 600,
+                color: "#212121",
+                marginTop: 12,
+                marginBottom: 0,
+                lineHeight: 1.3,
+              }}
+            >
               {mobileSheetProject.name}
             </h2>
-            <div style={{ fontFamily: "var(--font-geist-sans)", fontSize: "0.85rem", color: "rgba(33,33,33,0.5)", marginTop: 4 }}>
+            <div
+              style={{
+                fontFamily: "var(--font-geist-sans)",
+                fontSize: "0.85rem",
+                color: "rgba(33,33,33,0.5)",
+                marginTop: 4,
+              }}
+            >
               {mobileSheetProject.client} · {mobileSheetProject.year}
             </div>
-            <p style={{ fontFamily: "var(--font-geist-sans)", fontSize: "0.9rem", lineHeight: 1.5, color: "rgba(33,33,33,0.7)", marginTop: 16, marginBottom: 0 }}>
+            <p
+              style={{
+                fontFamily: "var(--font-geist-sans)",
+                fontSize: "0.9rem",
+                lineHeight: 1.5,
+                color: "rgba(33,33,33,0.7)",
+                marginTop: 16,
+                marginBottom: 0,
+              }}
+            >
               {mobileSheetProject.summary}
             </p>
             <a

@@ -272,18 +272,6 @@ export default function ProjectCluster() {
       >
         <p
           style={{
-            fontFamily: "var(--font-geist-mono)",
-            fontSize: "0.65rem",
-            textTransform: "uppercase",
-            letterSpacing: "0.15em",
-            color: "rgba(255,255,255,0.5)",
-            margin: 0,
-          }}
-        >
-          Our work
-        </p>
-        <p
-          style={{
             fontFamily: "var(--font-geist-sans)",
             fontSize: "clamp(1rem, 2vw, 1.25rem)",
             color: "rgba(255,255,255,0.7)",
@@ -440,15 +428,17 @@ export default function ProjectCluster() {
           if (hoveredProject && !activeProject) {
             const hovered = PROJECTS.find((p) => p.id === hoveredProject);
             if (hovered) {
-              dotOpacity =
-                project.domain === hovered.domain ? 1.0 : 0.35;
+              dotOpacity = project.domain === hovered.domain ? 1.0 : 0.35;
             }
           }
 
           const scale = isHovered ? 1.3 : activeFilter === project.domain ? 1.1 : 1;
 
           return (
-            <div key={project.id} style={{ position: "absolute", left: 0, top: 0, width: 0, height: 0 }}>
+            <div
+              key={project.id}
+              style={{ position: "absolute", left: 0, top: 0, width: 0, height: 0 }}
+            >
               <button
                 onClick={() => handleDotClick(project.id)}
                 onMouseEnter={() => setHoveredProject(project.id)}

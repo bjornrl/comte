@@ -1,6 +1,5 @@
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
 import { useRef, useState } from "react";
 
@@ -44,34 +43,43 @@ export default function ProductCard({
         onMouseEnter={() => setIsHovering(true)}
         onMouseLeave={() => setIsHovering(false)}
         onMouseMove={handleMove}
-        className={[
-          "group relative min-h-[44vh] overflow-hidden rounded-lg p-1",
-          "flex flex-col justify-start items-start",
-          "transition-colors duration-300",
-        
-          className,
-        ].join(" ")}
+        className={`group relative h-[60vh] min-h-[50vh] overflow-hidden rounded-lg p-6 flex flex-col justify-between bg-cover bg-center cursor-pointer ${className}`}
+        style={imageUrl ? { backgroundImage: `url(${imageUrl})` } : undefined}
       >
-        {/* Image */}
-        <div className="relative mb-4 aspect-[4/3] w-full overflow-hidden rounded-md bg-foreground/5">
-          <Image
-            src={imageUrl ?? "/globe.svg"}
-            alt=""
-            fill
-            className="object-cover transition-transform duration-500 ease-out group-hover:scale-[1.02]"
-            sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 25vw"
-          />
-        </div>
+        {/* gradients for text legibility */}
+        {imageUrl && (
+          <>
+            <div className="pointer-events-none absolute inset-x-0 top-0 h-28 bg-gradient-to-b from-foreground/60 to-transparent transition-opacity duration-500 ease-out group-hover:opacity-0" />
+            <div className="pointer-events-none absolute inset-x-0 bottom-0 h-36 bg-gradient-to-t from-foreground/70 to-transparent transition-opacity duration-500 ease-out group-hover:opacity-0" />
+          </>
+        )}
 
-        <div className="relative z-10">
+        <div className="relative z-10 flex flex-col gap-2 transition-opacity duration-500 ease-out group-hover:opacity-50">
           {meta ? (
-            <div className="mb-2 text-xs font-medium uppercase tracking-[0.08em] text-foreground/50">
+            <span
+              className={[
+                "text-xs font-medium uppercase tracking-[0.08em]",
+                imageUrl ? "text-background/70" : "text-foreground/50",
+              ].join(" ")}
+            >
               {meta}
-            </div>
+            </span>
           ) : null}
-          <h3 className="text-2xl font-light tracking-tight text-foreground">{title}</h3>
+          <span
+            className={[
+              "text-5xl font-light",
+              imageUrl ? "text-background/90" : "text-foreground/70",
+            ].join(" ")}
+          >
+            {title}
+          </span>
           {subtitle ? (
-            <p className="mt-3 text-base font-light leading-relaxed text-foreground/60">
+            <p
+              className={[
+                "text-lg font-light tracking-tight",
+                imageUrl ? "text-background/80" : "text-foreground/60",
+              ].join(" ")}
+            >
               {subtitle}
             </p>
           ) : null}
@@ -88,7 +96,7 @@ export default function ProductCard({
             transform: `translate(${cursorPos.x}px, ${cursorPos.y}px) translate(-50%, -50%)`,
           }}
         >
-          <div className="h-20 w-20 rounded-full border border-background/40 bg-background/90 text-foreground flex items-center justify-center text-sm font-medium tracking-wide shadow-lg">
+          <div className="h-20 w-20 rounded-full bg-background/90 text-foreground flex items-center justify-center text-sm font-medium tracking-wide shadow-lg">
             {ctaLabel}
           </div>
         </div>

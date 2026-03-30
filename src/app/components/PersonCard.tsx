@@ -65,11 +65,15 @@ export default function PersonCard({
 
   const resolvedHref = href ?? (email ? `mailto:${email}` : "#");
   const ariaLabel = href ? `Open ${name}` : email ? `Email ${name}` : name;
+  const isExternal = !!href && !href.startsWith("/") && !href.startsWith("mailto:");
+  const isMailto = resolvedHref.startsWith("mailto:");
 
   const Inner = (
     <a
       href={resolvedHref}
       aria-label={ariaLabel}
+      {...(isExternal ? { target: "_blank", rel: "noopener noreferrer" } : {})}
+      {...(isMailto ? { target: "_blank" } : {})}
       ref={cardRef}
       onMouseEnter={() => setIsHovering(true)}
       onMouseLeave={() => setIsHovering(false)}
@@ -127,7 +131,7 @@ export default function PersonCard({
         className={`pointer-events-none absolute left-0 top-0 z-20 transition-opacity duration-200 ${isHovering ? "opacity-100" : "opacity-0"
           }`}
         style={{
-          transform: `translate(${cursorPos.x}px, ${cursorPos.y}px) translate(-50%, -50%)`,
+          transform: `translate(${cursorPos.x}px, ${cursorPos.y}px) translate(-50%, calc(-100% - 12px))`,
         }}
       >
         {cursor ?? defaultCursor}

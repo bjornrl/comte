@@ -7,7 +7,7 @@ import Image from "next/image";
 const NAV_ITEMS = [
   { label: "Home", href: "/" },
   { label: "Projects", href: "/projects" },
-  { label: "Insights", href: "/insights" },
+  { label: "Insights & resources", href: "/insights" },
   { label: "About", href: "/about" },
 ];
 
@@ -95,7 +95,7 @@ export default function BlobNav() {
     maxWidth: "100%",
     userSelect: "none",
     borderRadius: "8px",
-    background: "rgba(255,255,255,0.45)",
+    background: "var(--comte-light-base)",
     backdropFilter: "blur(40px)",
     WebkitBackdropFilter: "blur(40px)",
     display: "flex",
@@ -220,22 +220,44 @@ export default function BlobNav() {
               onClick={() => setIsOpen(false)}
               onMouseEnter={() => setHoveredIndex(i)}
               onMouseLeave={() => setHoveredIndex(null)}
-              style={{
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                aspectRatio: "1 / 1",
-                borderRadius: "12px",
-                background: hoveredIndex === i ? "rgba(0,0,0,0.08)" : "rgba(0,0,0,0.04)",
-                transition: "background 0.15s ease",
-                fontFamily: "var(--font-neue-haas)",
-                fontSize: "clamp(1rem, 1.5vw, 1.25rem)",
-                fontWeight: 500,
-                color: "var(--comte-near-black)",
-                textDecoration: "none",
-              }}
+              className={[
+                "flex items-center justify-center",
+                "aspect-square rounded-xl",
+                "bg-transparent",
+                "border border-foreground/30",
+                "font-medium tracking-wide",
+                "text-[clamp(1rem,1.5vw,1.25rem)]",
+                "text-foreground no-underline",
+                "transition-[box-shadow,background-color,color] duration-300 ease-out",
+                "focus:outline-none focus:ring-2 focus:ring-inset focus:ring-background/30",
+                "hover:[box-shadow:var(--nav-hover-shadow)]",
+              ].join(" ")}
+              style={
+                {
+                  fontFamily: "var(--font-neue-haas)",
+                  // One hover color per button.
+                  ["--nav-hover-shadow" as any]: [
+                    "inset 0 0 100px 0 rgba(255,82,82,0.85)", // comte red
+                    "inset 0 0 100px 0 rgba(31,58,50,0.70)", // dark green
+                    "inset 0 0 100px 0 rgba(95,124,138,0.75)", // cool blue
+                    "inset 0 0 100px 0 rgba(242,120,135,0.75)", // coral
+                  ][i % 4],
+                } as React.CSSProperties
+              }
             >
-              {item.label}
+              <span
+                style={{
+                  display: "block",
+                  maxWidth: "10ch",
+                  textAlign: "center",
+                  whiteSpace: "normal",
+                  overflowWrap: "anywhere",
+                  wordBreak: "break-word",
+                  lineHeight: 1.15,
+                }}
+              >
+                {item.label}
+              </span>
             </Link>
           ))}
         </div>
