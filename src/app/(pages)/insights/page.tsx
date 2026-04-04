@@ -23,7 +23,7 @@ function sanityImageUrl(imageField: any, width = 800): string | null {
 }
 
 function getResourceHref(resource: any): string {
-  if (resource.slug) return `/ressurser/${resource.slug}`;
+  if (resource.slug) return `/insights/${resource.slug}`;
   return "#";
 }
 
