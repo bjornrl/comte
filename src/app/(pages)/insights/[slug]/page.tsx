@@ -90,20 +90,18 @@ export default async function InsightDetailPage({
         </div>
 
         {/* Description */}
-        {hasPortableTextContent(resource.description) && (
+        {/* {hasPortableTextContent(resource.description) && (
           <div className="w-full bg-background px-6 py-12 md:px-12 lg:px-24 max-w-3xl mx-auto">
             <div className="text-foreground font-light space-y-6 text-lg leading-relaxed [&>p]:mb-0">
               <PortableText value={resource.description} />
             </div>
           </div>
-        )}
+        )} */}
 
         {/* CTA */}
-        <div className="w-full px-2 h-[50vh] flex flex-col items-start justify-end pt-12 bg-background">
-          <h2 className="text-5xl py-12 font-light text-foreground">
-            {isInquiry
-              ? "Interessert i denne ressursen?"
-              : "Klar til å laste ned?"}
+        <div className="w-full px-2 h-fit flex flex-col items-start justify-end pt-12 bg-background">
+          <h2 className="text-5xl py-12 font-light text-black">
+            {isInquiry ? "Interessert i denne ressursen?" : "Klar til å laste ned?"}
           </h2>
         </div>
         <div className="w-full flex flex-col md:flex-row md:items-stretch gap-2 py-2 p-0">
