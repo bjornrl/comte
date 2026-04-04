@@ -23,19 +23,12 @@ function sanityImageUrl(imageField: any, width = 800): string | null {
 }
 
 function getResourceHref(resource: any): string {
-  if (resource.actionType === "download" && resource.fileUrl) {
-    return `${resource.fileUrl}?dl=`;
-  }
-  if (resource.actionType === "inquiry") {
-    const email = resource.inquiryEmail || "contact@comte.no";
-    return `mailto:${email}?subject=Inquiry: ${encodeURIComponent(resource.title)}`;
-  }
+  if (resource.slug) return `/ressurser/${resource.slug}`;
   return "#";
 }
 
 function getResourceCtaLabel(resource: any): string {
-  if (resource.actionType === "inquiry") return "Inquire";
-  return "Download";
+  return "Les mer";
 }
 
 export default async function InsightsPage() {

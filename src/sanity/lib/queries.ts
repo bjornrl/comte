@@ -165,11 +165,33 @@ export const RESOURCES_QUERY = groq`
   *[_type == "resource"] | order(order asc) {
     _id,
     title,
+    "slug": slug.current,
     subtitle,
     meta,
     image {
       asset-> { _id, url },
       alt
+    },
+    actionType,
+    "fileUrl": file.asset->url,
+    inquiryEmail
+  }
+`;
+
+// Single resource (for detail page)
+export const RESOURCE_DETAIL_QUERY = groq`
+  *[_type == "resource" && slug.current == $slug][0] {
+    _id,
+    title,
+    "slug": slug.current,
+    subtitle,
+    description,
+    meta,
+    image {
+      asset-> { _id, url },
+      alt,
+      hotspot,
+      crop
     },
     actionType,
     "fileUrl": file.asset->url,

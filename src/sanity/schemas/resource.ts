@@ -12,10 +12,24 @@ export const resource = defineType({
       validation: (Rule) => Rule.required(),
     }),
     defineField({
+      name: "slug",
+      title: "Slug",
+      type: "slug",
+      options: { source: "title", maxLength: 96 },
+      validation: (Rule) => Rule.required(),
+    }),
+    defineField({
       name: "subtitle",
       title: "Subtitle",
       type: "text",
       rows: 2,
+    }),
+    defineField({
+      name: "description",
+      title: "Description",
+      type: "array",
+      of: [{ type: "block" }],
+      description: "Full description shown on the resource detail page.",
     }),
     defineField({
       name: "meta",
