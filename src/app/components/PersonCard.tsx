@@ -119,7 +119,7 @@ export default function PersonCard({
       {/* hover description */}
       <div className="relative z-10 px-6 pb-6">
         <p
-          className="text-lg font-light leading-relaxed opacity-0 translate-y-2 transition-all duration-500 ease-out group-hover:opacity-100 group-hover:translate-y-0"
+          className="text-md font-light leading-tight opacity-0 translate-y-2 transition-all duration-500 ease-out group-hover:opacity-100 group-hover:translate-y-0"
           style={{ color: isHovering ? hoverTextColor : "rgba(255,255,255,0.9)" }}
         >
           {description}
@@ -128,8 +128,9 @@ export default function PersonCard({
 
       {/* custom cursor (follows pointer; cursor stays pointer) */}
       <div
-        className={`pointer-events-none absolute left-0 top-0 z-20 transition-opacity duration-200 ${isHovering ? "opacity-100" : "opacity-0"
-          }`}
+        className={`pointer-events-none absolute left-0 top-0 z-20 transition-opacity duration-200 ${
+          isHovering ? "opacity-100" : "opacity-0"
+        }`}
         style={{
           transform: `translate(${cursorPos.x}px, ${cursorPos.y}px) translate(-50%, calc(-100% - 12px))`,
         }}
