@@ -17,6 +17,7 @@ export type Project = {
   scale: Scale;
   methods: Method[];
   innovationLevel: InnovationLevel;
+  heroImageUrl?: string;
 };
 
 export type ConnectionType = "domain" | "method" | "scale" | "theme";

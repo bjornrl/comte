@@ -74,7 +74,7 @@ export default function ProjectGrid({ filters }: ProjectGridProps) {
               title={`${project.client} · ${project.year}`}
               name={project.name}
               description={project.summary}
-              imageUrl={PLACEHOLDER_IMAGE}
+              imageUrl={project.heroImageUrl ?? PLACEHOLDER_IMAGE}
               href={`/projects/${project.slug ?? project.id}`}
               hoverTextColor={hoverColors.text}
               hoverMetaTextColor={hoverColors.meta}

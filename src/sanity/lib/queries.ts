@@ -14,7 +14,7 @@ export const PROJECTS_QUERY = groq`
     scale,
     methods,
     innovationLevel,
-    heroImage,
+    "heroImageUrl": heroImage.asset->url,
     "relatedProjectIds": relatedProjects[]->_id,
     order
   }

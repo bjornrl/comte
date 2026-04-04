@@ -20,6 +20,7 @@ function mapSanityProject(doc: any): Project {
     scale: (doc.scale ?? "municipal") as Scale,
     methods: (doc.methods ?? []) as Method[],
     innovationLevel: (doc.innovationLevel ?? "incremental") as InnovationLevel,
+    heroImageUrl: doc.heroImageUrl ?? undefined,
   };
 }
 
