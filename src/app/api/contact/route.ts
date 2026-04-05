@@ -23,7 +23,7 @@ export async function POST(req: NextRequest) {
 
   try {
     await resend.emails.send({
-      from: "Comte Website <onboarding@resend.dev>",
+      from: "Comte Bureau <noreply@comte.no>",
       to: "contact@comte.no",
       replyTo: email,
       subject: `New message from ${name}`,
