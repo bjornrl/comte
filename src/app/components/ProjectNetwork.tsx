@@ -1219,7 +1219,7 @@ export default function ProjectNetwork({
 
                   {/* View project link */}
                   <a
-                    href={`/projects/${project.id}`}
+                    href={`/projects/${project.slug ?? project.id}`}
                     onClick={(e) => e.stopPropagation()}
                     style={{
                       display: "inline-block",
@@ -1535,7 +1535,7 @@ export default function ProjectNetwork({
 
               {/* View full project link */}
               <a
-                href={`/projects/${project.id}`}
+                href={`/projects/${project.slug ?? project.id}`}
                 style={{
                   display: "inline-block",
                   marginTop: 20,
@@ -1704,7 +1704,7 @@ export default function ProjectNetwork({
               {mobileSheetProject.summary}
             </p>
             <a
-              href={`/projects/${mobileSheetProject.id}`}
+              href={`/projects/${mobileSheetProject.slug ?? mobileSheetProject.id}`}
               style={{
                 display: "inline-block",
                 marginTop: 20,
