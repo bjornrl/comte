@@ -72,9 +72,7 @@ export default async function InsightsPage() {
       <div className="relative px-2 pt-24 pb-8">
         <div className="mx-auto max-w-[1800px] min-h-[50vh] flex flex-col items-start justify-end pb-8">
           <h1 className="text-5xl font-light text-foreground">{heading}</h1>
-          <p className="mt-3 max-w-[600px] text-lg font-light text-foreground/50">
-            {subtitle}
-          </p>
+          <p className="mt-3 max-w-[600px] text-lg font-light text-foreground/50">{subtitle}</p>
         </div>
         <div className="flex gap-2 w-full justify-center mb-4">
           <a
@@ -86,7 +84,7 @@ export default async function InsightsPage() {
           </a>
           <a
             href="#resources"
-            className="flex h-8 w-30 items-center justify-center rounded-full border border-foreground bg-foreground text-xl font-light tracking-wide text-background transition-colors hover:cursor-pointer hover:bg-foreground/90 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-background/30"
+            className="flex h-8 w-30 items-center justify-center rounded-full border border-foreground bg-background text-xl font-light tracking-wide text-background transition-colors hover:cursor-pointer hover:bg-foreground/90 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-background/30"
             aria-label="Go to resources section"
           >
             Resources
@@ -138,9 +136,7 @@ export default async function InsightsPage() {
         className="flex h-fit w-full flex-shrink-0 flex-col items-center justify-center bg-[var(--comte-light-base)] p-2 md:p-12 lg:p-24"
       >
         <div className="mx-auto w-full max-w-[1800px]">
-          <h2 className="pb-8 text-5xl font-light text-foreground">
-            {articlesHeading}
-          </h2>
+          <h2 className="pb-8 text-5xl font-light text-foreground">{articlesHeading}</h2>
           <ArticlesTable articles={mappedArticles} />
         </div>
       </section>
