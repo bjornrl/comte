@@ -325,14 +325,28 @@ const EASE = (t: number) =>
 const TRANSITION_DURATION = 800;
 
 /* ───────── component ───────── */
+function dedupeViewsByKey(views: ViewDef[]): ViewDef[] {
+  const seen = new Set<ViewKey>();
+  const out: ViewDef[] = [];
+  for (const v of views) {
+    if (seen.has(v.key)) continue;
+    seen.add(v.key);
+    out.push(v);
+  }
+  return out;
+}
+
 export default function UnitVisualization({ views: viewsProp }: { views?: { key: string; title: string; description: string }[] } = {}) {
-  const VIEWS: ViewDef[] = viewsProp?.length
-    ? viewsProp.map((v) => ({
-        key: v.key as ViewKey,
-        label: v.title,
-        description: v.description,
-      }))
-    : DEFAULT_VIEWS;
+  const VIEWS: ViewDef[] = useMemo(() => {
+    const raw: ViewDef[] = viewsProp?.length
+      ? viewsProp.map((v) => ({
+          key: v.key as ViewKey,
+          label: v.title,
+          description: v.description ?? "",
+        }))
+      : DEFAULT_VIEWS;
+    return dedupeViewsByKey(raw);
+  }, [viewsProp]);
   const containerRef = useRef<HTMLDivElement>(null);
   const dotRefs = useRef<(HTMLDivElement | null)[]>([]);
   const currentPositions = useRef<DotTarget[]>([]);
