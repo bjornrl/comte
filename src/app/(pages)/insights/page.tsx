@@ -84,7 +84,7 @@ export default async function InsightsPage() {
           </a>
           <a
             href="#resources"
-            className="flex h-8 w-30 items-center justify-center rounded-full border border-foreground bg-background text-xl font-light tracking-wide text-background transition-colors hover:cursor-pointer hover:bg-foreground/90 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-background/30"
+            className="flex h-8 w-30 items-center justify-center rounded-full border border-foreground bg-background text-xl font-light tracking-wide text-foreground transition-colors hover:cursor-pointer hover:bg-foreground/10 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-background/30"
             aria-label="Go to resources section"
           >
             Resources
