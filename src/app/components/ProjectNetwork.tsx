@@ -117,19 +117,6 @@ function computeNodePositions(
   return positions;
 }
 
-/* ───────────── Particle type ───────────── */
-
-type Particle = {
-  x: number;
-  y: number;
-  prevX: number;
-  prevY: number;
-  progress: number;
-  speed: number;
-  offsetX: number;
-  offsetY: number;
-};
-
 /* ───────────── Component ───────────── */
 
 export type IntroPhase =
@@ -166,7 +153,6 @@ export default function ProjectNetwork({
   const positionsRef = useRef<Record<string, NodePosition>>({});
   const highlightedRef = useRef<string | null>(null);
   const sizeRef = useRef({ width: 0, height: 0 });
-  const particlesRef = useRef<Particle[][]>([]);
   const frameRef = useRef(0);
 
   const [hoveredProject, setHoveredProject] = useState<Project | null>(null);
@@ -304,31 +290,6 @@ export default function ProjectNetwork({
     }
   }, [filters]);
 
-  /* ── Init particles for a connection ── */
-  const initParticles = useCallback(
-    (connIndex: number, fromPos: NodePosition, toPos: NodePosition): Particle[] => {
-      const count = 12;
-      const particles: Particle[] = [];
-      for (let i = 0; i < count; i++) {
-        const seed = connIndex * 100 + i;
-        const ox = (seededRandom(String(seed), 0) - 0.5) * 8;
-        const oy = (seededRandom(String(seed), 1) - 0.5) * 8;
-        particles.push({
-          x: fromPos.x + ox,
-          y: fromPos.y + oy,
-          prevX: fromPos.x + ox,
-          prevY: fromPos.y + oy,
-          progress: seededRandom(String(seed), 2) * 0.1,
-          speed: 0.003 + seededRandom(String(seed), 3) * 0.004,
-          offsetX: (seededRandom(String(seed), 4) - 0.5) * 40,
-          offsetY: (seededRandom(String(seed), 5) - 0.5) * 40,
-        });
-      }
-      return particles;
-    },
-    [],
-  );
-
   /* ── Helper: get connected project ids ── */
   const getConnectedIds = useCallback((projectId: string): Set<string> => {
     const ids = new Set<string>();
@@ -448,14 +409,6 @@ export default function ProjectNetwork({
       rect.width < 768,
       mode === "teaser",
     );
-
-    // Init particles for each connection
-    particlesRef.current = CONNECTIONS.map((conn, i) => {
-      const from = positionsRef.current[conn.from];
-      const to = positionsRef.current[conn.to];
-      if (!from || !to) return [];
-      return initParticles(i, from, to);
-    });
 
     // Position node divs initially
     const mob = rect.width < 768;
@@ -589,24 +542,15 @@ export default function ProjectNetwork({
             const toPos = positions[conn.to];
             if (!fromPos || !toPos) continue;
 
-            const particles = particlesRef.current[ci];
-            if (!particles) continue;
-
             const isConnectedToHover = highlighted
               ? conn.from === highlighted || conn.to === highlighted
               : false;
             const isConnectedToSelected = selected
               ? conn.from === selected || conn.to === selected
               : false;
-            const fromProject = PROJECTS.find((pr) => pr.id === conn.from);
-            const domainColor = fromProject
-              ? hexToRgb(DOMAIN_COLORS[fromProject.domain])
-              : { r: 128, g: 128, b: 128 };
 
-            // Use theme color for "theme" connections, domain color for others
             const color = conn.type === "theme" ? THEME_LINE_COLOR : DARK_LINE_COLOR;
 
-            // Base alpha varies by type
             let baseAlpha: number;
             switch (conn.type) {
               case "domain":
@@ -623,7 +567,6 @@ export default function ProjectNetwork({
                 break;
             }
 
-            // Determine target alpha: selection > filter > hover > default
             const matchIds = matchingIdsRef.current;
             const filtersActive = matchIds.size < PROJECTS.length;
             const bothMatch = matchIds.has(conn.from) && matchIds.has(conn.to);
@@ -657,7 +600,6 @@ export default function ProjectNetwork({
               } else {
                 targetAlpha = 1.5;
               }
-              // Layer hover on top of filter
               if (highlighted && isConnectedToHover && bothMatch) {
                 targetAlpha = baseAlpha * 4;
               }
@@ -667,83 +609,48 @@ export default function ProjectNetwork({
               targetAlpha = baseAlpha;
             }
 
-            // Lerp toward target for smooth transitions
             opacities[ci] = opacities[ci] + (targetAlpha - opacities[ci]) * 0.08;
             const alpha = opacities[ci] * entranceMul * breathe;
 
-            // Advance all particles for this connection
-            for (const particle of particles) {
-              particle.prevX = particle.x;
-              particle.prevY = particle.y;
-              particle.progress += particle.speed;
+            // Static curved path (control point fixed per edge — only moves with node drift)
+            const bend = 48;
+            const ox = (seededRandom(`edge:${ci}`, 0) - 0.5) * bend * 2;
+            const oy = (seededRandom(`edge:${ci}`, 1) - 0.5) * bend * 2;
+            const midX = (fromPos.x + toPos.x) / 2 + ox;
+            const midY = (fromPos.y + toPos.y) / 2 + oy;
 
-              if (particle.progress >= 1) {
-                particle.progress = 0;
-                particle.x = fromPos.x + (seededRandom(String(ci), 0) - 0.5) * 6;
-                particle.y = fromPos.y + (seededRandom(String(ci), 1) - 0.5) * 6;
-                particle.prevX = particle.x;
-                particle.prevY = particle.y;
-              }
+            const ctx = p.drawingContext as CanvasRenderingContext2D;
+            ctx.save();
 
-              const t = particle.progress;
-              const midX = (fromPos.x + toPos.x) / 2 + particle.offsetX;
-              const midY = (fromPos.y + toPos.y) / 2 + particle.offsetY;
-              const t1 = 1 - t;
-              particle.x = t1 * t1 * fromPos.x + 2 * t1 * t * midX + t * t * toPos.x;
-              particle.y = t1 * t1 * fromPos.y + 2 * t1 * t * midY + t * t * toPos.y;
-            }
-
-            // Render based on connection type
+            let strokeW = 1;
             switch (conn.type) {
-              case "domain": {
-                // Solid continuous lines
-                p.stroke(color.r, color.g, color.b, alpha);
-                p.strokeWeight(1);
-                for (const particle of particles) {
-                  p.line(particle.prevX, particle.prevY, particle.x, particle.y);
-                }
+              case "domain":
+                ctx.setLineDash([]);
+                strokeW = 1;
                 break;
-              }
-              case "method": {
-                // Dotted / stippled paths
-                p.stroke(color.r, color.g, color.b, alpha);
-                p.strokeWeight(2);
-                p.strokeCap(p.ROUND);
-                for (const particle of particles) {
-                  const segLen = p.dist(particle.prevX, particle.prevY, particle.x, particle.y);
-                  const dotSpacing = 6;
-                  const steps = Math.max(1, Math.floor(segLen / dotSpacing));
-                  for (let s = 0; s < steps; s += 2) {
-                    const st = s / steps;
-                    const dx = p.lerp(particle.prevX, particle.x, st);
-                    const dy = p.lerp(particle.prevY, particle.y, st);
-                    p.point(dx, dy);
-                  }
-                }
+              case "method":
+                ctx.setLineDash([6, 8]);
+                strokeW = 1.5;
                 break;
-              }
-              case "scale": {
-                // Thin dashed paths — draw every other particle's line
-                p.stroke(color.r, color.g, color.b, alpha);
-                p.strokeWeight(0.5);
-                for (let pi = 0; pi < particles.length; pi++) {
-                  if (pi % 2 === 0) {
-                    const particle = particles[pi];
-                    p.line(particle.prevX, particle.prevY, particle.x, particle.y);
-                  }
-                }
+              case "scale":
+                ctx.setLineDash([3, 10]);
+                strokeW = 0.75;
                 break;
-              }
-              case "theme": {
-                // Warm-tinted continuous lines
-                p.stroke(color.r, color.g, color.b, alpha);
-                p.strokeWeight(1);
-                for (const particle of particles) {
-                  p.line(particle.prevX, particle.prevY, particle.x, particle.y);
-                }
+              case "theme":
+                ctx.setLineDash([]);
+                strokeW = 1;
                 break;
-              }
             }
+
+            ctx.lineWidth = strokeW;
+            ctx.lineCap = "round";
+            ctx.lineJoin = "round";
+            ctx.strokeStyle = `rgba(${color.r},${color.g},${color.b},${alpha / 255})`;
+            ctx.beginPath();
+            ctx.moveTo(fromPos.x, fromPos.y);
+            ctx.quadraticCurveTo(midX, midY, toPos.x, toPos.y);
+            ctx.stroke();
+            ctx.restore();
           }
         };
       };
@@ -760,14 +667,6 @@ export default function ProjectNetwork({
         sizeRef.current = { width, height };
         positionsRef.current = computeNodePositions(width, height, width < 768, mode === "teaser");
 
-        // Reinit particles
-        particlesRef.current = CONNECTIONS.map((conn, i) => {
-          const from = positionsRef.current[conn.from];
-          const to = positionsRef.current[conn.to];
-          if (!from || !to) return [];
-          return initParticles(i, from, to);
-        });
-
         if (p5Ref.current) {
           p5Ref.current.resizeCanvas(width, height);
         }
@@ -783,7 +682,7 @@ export default function ProjectNetwork({
         p5Ref.current = null;
       }
     };
-  }, [initParticles, mode]);
+  }, [mode]);
 
   /* ── Hover handlers ── */
   const handleNodeEnter = useCallback(
@@ -906,7 +805,8 @@ export default function ProjectNetwork({
   const handleNodeClick = useCallback(
     (projectId: string) => {
       if (mode === "teaser") {
-        window.location.href = "/projects";
+        const project = PROJECTS.find((p) => p.id === projectId);
+        window.location.href = `/projects/${project?.slug ?? projectId}`;
         return;
       }
       const project = PROJECTS.find((p) => p.id === projectId);

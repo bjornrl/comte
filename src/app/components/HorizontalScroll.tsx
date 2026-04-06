@@ -4,6 +4,7 @@ import { useRef, useState, useEffect, useCallback, type MutableRefObject } from 
 import Image from "next/image";
 import ProjectNetwork, { type IntroPhase } from "./ProjectNetwork";
 import type { Project } from "./projectNetworkData";
+import StatCard from "./StatCard";
 
 const PLACEHOLDER_IMAGE =
   "https://images.unsplash.com/photo-1773558058134-9ff1a3212ef0?q=80&w=1572&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D";
@@ -228,21 +229,29 @@ function PageTwo() {
       }}
     >
       <div
-        className="relative overflow-hidden flex items-end justify-start"
+        className="relative overflow-hidden flex items-center justify-start"
         style={{ gridArea: "2 / 2 / 3 / 3" }}
       >
-        <h2 className="text-5xl font-light text-foreground">Section 1</h2>
+        <h2 className="text-5xl font-light text-foreground">We are Comte.</h2>
       </div>
       <div className="h-full min-h-0" style={{ gridArea: "3 / 2 / 4 / 3" }}>
-        <div className="relative overflow-hidden h-full w-full">
-          <Image src={PLACEHOLDER_IMAGE} alt="" fill className="object-cover" sizes="50vw" />
-        </div>
+        <h2 className="text-2xl font-light text-foreground">
+          A multidisciplinary innovation agency that designs the human-centered services, products,
+          organizations, physical environments and experiences of the future.
+          <br /> <br />
+          We work with national departments, ministries, municipalities, private companies and
+          organizations, in Norway and internationally, achieving societal impact, innovation, and
+          wellbeing in all facets of society.
+        </h2>
       </div>
       <div
         className="relative overflow-hidden flex items-end justify-start"
         style={{ gridArea: "2 / 3 / 3 / 4" }}
       >
-        <h2 className="text-2xl font-light text-foreground">Section 3</h2>
+        <div className="relative overflow-hidden h-full w-full">
+          <Image src={PLACEHOLDER_IMAGE} alt="" fill className="object-cover" sizes="50vw" />
+        </div>
+
         {/* <Image
           src={PLACEHOLDER_IMAGE}
           alt=""
@@ -272,25 +281,67 @@ function PageThree() {
       }}
     >
       <div
-        className="relative overflow-hidden flex items-end justify-start"
+        className="relative overflow-hidden flex items-center justify-start"
         style={{ gridArea: "2 / 2 / 3 / 3" }}
       >
-        <h2 className="text-5xl font-light text-foreground">Why &ldquo;Comte&rdquo;?</h2>
-      </div>
-      <div className="grid grid-cols-2 gap-1 h-full min-h-0" style={{ gridArea: "3 / 2 / 4 / 3" }}>
-        <div className="relative overflow-hidden min-h-0">
-          <Image src={PLACEHOLDER_IMAGE} alt="" fill className="object-cover" sizes="50vw" />
-        </div>
-        <div className="relative overflow-hidden min-h-0">
-          <Image src={PLACEHOLDER_IMAGE} alt="" fill className="object-cover" sizes="50vw" />
-        </div>
+        <h2 className="text-5xl font-light text-foreground">
+          Since 2012 we have becomeone of Norways most experienced innovation agencies.
+        </h2>
       </div>
       <div
-        className="relative overflow-hidden grid grid-cols-2"
-        style={{ gridArea: "2 / 3 / 4 / 4" }}
+        className="grid h-full min-h-0 min-w-0 grid-cols-2 gap-2"
+        style={{ gridArea: "3 / 2 / 4 / 3" }}
       >
-        <p>aijwdbaodw</p>
-        <p>aijwdbaodw</p>
+        {/* Brand pairings: domain palette — forest / coral / gold / slate + canvas or ink */}
+        <StatCard
+          value="250+"
+          description="Projects completed"
+          bgColorClass="bg-transparent"
+          backgroundColor="#1F3A32"
+          textColor="#F9F9ED"
+        />
+        <StatCard
+          value="32"
+          description="Different municiplaities, counites, public departemnts collaborated and worked with us."
+          bgColorClass="bg-transparent"
+          backgroundColor="#F27887"
+          textColor="#212121"
+        />
+      </div>
+      <div
+        className="relative overflow-hidden flex items-end justify-start"
+        style={{ gridArea: "2 / 3 / 3 / 4" }}
+      >
+        <div className="relative overflow-hidden h-full w-full">
+          {/* <Image src={PLACEHOLDER_IMAGE} alt="" fill className="object-cover" sizes="50vw" /> */}
+        </div>
+
+        {/* <Image
+          src={PLACEHOLDER_IMAGE}
+          alt=""
+          fill
+          className="object-cover"
+          sizes="50vw"
+        /> */}
+      </div>
+      <div
+        className="grid h-full min-h-0 min-w-0 grid-cols-2 gap-2"
+        style={{ gridArea: "3 / 3 / 4 / 4" }}
+      >
+        <StatCard
+          value="3500+"
+          description="People talked to as interview-subjects"
+          bgColorClass="bg-transparent"
+          backgroundColor="#D6B84C"
+          textColor="#212121"
+        />
+        <StatCard
+          value="18"
+          description="Ongoing years of experience"
+          bgColorClass="bg-transparent"
+          backgroundColor="#5F7C8A"
+          textColor="#F9F9ED"
+        />
       </div>
     </section>
   );
@@ -302,56 +353,97 @@ function PageFour() {
       className="h-screen w-screen flex-shrink-0 bg-background"
       style={{
         display: "grid",
-        gridTemplateColumns: ".1fr repeat(2, 1fr) .1fr",
-        gridTemplateRows: ".2fr repeat(2, 1fr) .2fr",
+        gridTemplateColumns: ".1fr repeat(2, minmax(0, 1fr)) .1fr",
+        gridTemplateRows: ".2fr minmax(0, 1fr) .2fr",
         columnGap: 2,
         rowGap: 2,
       }}
     >
+      {/* Left half: headline */}
       <div
-        className="relative overflow-hidden flex items-end justify-start"
+        className="relative flex min-h-0 min-w-0 items-center justify-start overflow-hidden pr-2 md:pr-4"
         style={{ gridArea: "2 / 2 / 3 / 3" }}
       >
-        <h2 className="text-5xl font-light text-foreground">Section 1</h2>
+        <h2 className="max-w-[42ch] text-pretty text-5xl font-light text-foreground">
+          We focus on projects that are both challenging and impactful, with a scope that enables us
+          to see development through from beginning to end.
+        </h2>
       </div>
-      <div className="grid grid-cols-2 gap-1 h-full min-h-0" style={{ gridArea: "3 / 2 / 4 / 3" }}>
-        <div className="relative overflow-hidden min-h-0">
-          <Image src={PLACEHOLDER_IMAGE} alt="" fill className="object-cover" sizes="50vw" />
-        </div>
-        <div className="relative overflow-hidden min-h-0">
-          <Image src={PLACEHOLDER_IMAGE} alt="" fill className="object-cover" sizes="50vw" />
-        </div>
-      </div>
-      <div className="relative overflow-hidden" style={{ gridArea: "2 / 3 / 4 / 4" }}>
-        <Image src={PLACEHOLDER_IMAGE} alt="" fill className="object-cover" sizes="50vw" />
+      {/* Right half: 2×2 stat cards (Comte domain palette) */}
+      <div
+        className="grid min-h-0 min-w-0 grid-cols-2 grid-rows-2 gap-1 md:gap-2"
+        style={{ gridArea: "2 / 3 / 3 / 4" }}
+      >
+        <StatCard
+          value="50+"
+          description="Projects taken from insight to impact"
+          bgColorClass="bg-transparent"
+          backgroundColor="#1F3A32"
+          textColor="#F9F9ED"
+        />
+        <StatCard
+          value="12"
+          description="Sectors and policy domains"
+          bgColorClass="bg-transparent"
+          backgroundColor="#F27887"
+          textColor="#212121"
+        />
+        <StatCard
+          value="360°"
+          description="Research, design, and implementation"
+          bgColorClass="bg-transparent"
+          backgroundColor="#D6B84C"
+          textColor="#212121"
+        />
+        <StatCard
+          value="100%"
+          description="Dedicated in-house delivery"
+          bgColorClass="bg-transparent"
+          backgroundColor="#5F7C8A"
+          textColor="#F9F9ED"
+        />
       </div>
     </section>
   );
 }
 
-function PageFive({ projects }: { projects?: Project[] }) {
-  const displayProjects = (projects ?? []).map((p) => ({
-    year: String(p.year),
-    customer: p.client,
-    achievement: p.name,
-    slug: p.slug ?? p.id,
-  }));
+function PageFive({ projects: _projects }: { projects?: Project[] }) {
   return (
-    <section className="flex h-screen w-screen flex-shrink-0 items-center justify-center bg-background min-pt:18 p-6 md:p-12 lg:p-24">
-      <div className="rounded-xl border border-foreground/30 bg-[#EEEEEE] w-full h-full overflow-y-auto">
-        <div className="sticky top-0 z-10 grid grid-cols-3 gap-x-4 border-b border-foreground/30 bg-[#EEEEEE] px-4 py-3 text-left text-sm font-medium text-foreground/70">
-          <span>Year</span>
-          <span>Customer</span>
-          <span>Achievement</span>
-        </div>
-        {displayProjects.map((p, i) => (
-          <div
-            key={i}
-            className="grid grid-cols-3 gap-x-4 border-b border-foreground/20 px-4 py-4 text-left"
-          >
-            <p className="text-lg font-light">{p.year}</p>
-            <p className="text-lg font-light">{p.customer}</p>
-            <p className="text-lg font-light">{p.achievement}</p>
+    <section
+      className="h-screen w-screen flex-shrink-0 bg-background"
+      style={{
+        display: "grid",
+        gridTemplateColumns: ".1fr repeat(2, minmax(0, 1fr)) .1fr",
+        gridTemplateRows: ".2fr minmax(0, 1fr) .2fr",
+        columnGap: 2,
+        rowGap: 2,
+      }}
+    >
+      {/* Left half: headline */}
+      <div
+        className="relative flex min-h-0 min-w-0 items-center flex flex-col justify-center items-start overflow-hidden pr-2 md:pr-4"
+        style={{ gridArea: "2 / 2 / 3 / 3" }}
+      >
+        <h3 className="text-2xl font-light text-foreground">Our ambition:</h3>
+        <br /> <br />
+        <h2 className="max-w-[42ch] text-pretty text-5xl font-light text-foreground">
+          Develop solutions that contribute to a sustainable, healthy and happy society.
+        </h2>
+      </div>
+      {/* Right half: 2×2 images */}
+      <div
+        className="grid min-h-0 min-w-0 grid-cols-2 grid-rows-2 gap-1 md:gap-2"
+        style={{ gridArea: "2 / 3 / 3 / 4" }}
+      >
+        {[0, 1, 2, 3].map((i) => (
+          <div key={i} className="relative min-h-0 min-w-0 overflow-hidden rounded-sm">
+            <Image
+              src={PLACEHOLDER_IMAGE}
+              alt=""
+              fill
+              className="object-cover"
+              sizes="(max-width: 768px) 40vw, 25vw"
+            />
           </div>
         ))}
       </div>

@@ -36,7 +36,10 @@ export default function StatCard({
     textColor,
 }: StatCardProps) {
     return (
-        <div className={`relative overflow-hidden min-h-0 rounded-lg ${bgColorClass}`} style={backgroundColor ? { backgroundColor } : undefined}>
+        <div
+            className={`relative h-full min-h-0 w-full min-w-0 overflow-hidden rounded-lg ${bgColorClass}`}
+            style={backgroundColor ? { backgroundColor } : undefined}
+        >
             <span
                 className={`absolute inset-0 flex items-start justify-start p-6 text-6xl font-light ${textColorClass}`}
                 style={textColor ? { color: textColor } : undefined}
