@@ -50,7 +50,7 @@ export default function ContactForm() {
 
   return (
     <section className="relative z-20 w-full bg-background">
-      <div className="flex min-h-[10vh] w-full flex-col items-start justify-end bg-background pb-4 pt-8 md:min-h-0 md:pb-6 md:pt-12">
+      <div className="flex h-[40vh] w-full flex-col items-start justify-end bg-background pb-4 pt-8 md:min-h-0 md:pb-6 md:pt-12">
         <h1 className="text-5xl font-light text-foreground">Si hei!</h1>
       </div>
 

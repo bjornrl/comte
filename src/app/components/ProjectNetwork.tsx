@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useRef, useEffect, useCallback, useState } from "react";
+import Image from "next/image";
 import type p5Type from "p5";
 import {
   type FilterState,
@@ -186,6 +187,7 @@ export default function ProjectNetwork({
   const [isTablet, setIsTablet] = useState(false);
   const prefersReducedMotionRef = useRef(false);
   const [mobileSheetProject, setMobileSheetProject] = useState<Project | null>(null);
+  const [teaserPreview, setTeaserPreview] = useState<{ project: Project; x: number; y: number } | null>(null);
 
   const [internalFilters, setInternalFilters] = useState<FilterState>(NO_FILTERS);
   const filters = externalFilters ?? internalFilters;
@@ -806,7 +808,15 @@ export default function ProjectNetwork({
     (projectId: string) => {
       if (mode === "teaser") {
         const project = PROJECTS.find((p) => p.id === projectId);
-        window.location.href = `/projects/${project?.slug ?? projectId}`;
+        if (!project) return;
+        const pos = positionsRef.current[projectId];
+        if (pos) {
+          if (isMobile) {
+            setMobileSheetProject(project);
+          } else {
+            setTeaserPreview({ project, x: pos.x, y: pos.y });
+          }
+        }
         return;
       }
       const project = PROJECTS.find((p) => p.id === projectId);
@@ -841,7 +851,7 @@ export default function ProjectNetwork({
         setTimeout(() => setExpandedContentVisible(true), 250);
       }
     },
-    [selectedProjectId, expandedProjectId, applySelectionStyling, collapseExpanded, mode],
+    [selectedProjectId, expandedProjectId, applySelectionStyling, collapseExpanded, mode, isMobile],
   );
 
   const handleBackgroundClick = useCallback(
@@ -851,6 +861,7 @@ export default function ProjectNetwork({
         selectedIdRef.current = null;
         applySelectionStyling(null);
         collapseExpanded();
+        setTeaserPreview(null);
       }
     },
     [applySelectionStyling, collapseExpanded],
@@ -939,9 +950,10 @@ export default function ProjectNetwork({
           },
         };
 
-        // Responsive sizes
-        const featuredDotSize = isMobile ? 12 : isTablet ? 16 : 20;
-        const regularDotSize = isMobile ? 6 : isTablet ? 8 : 10;
+        // Responsive sizes — teaser mode uses slightly larger dots for better tap targets
+        const isTeaser = mode === "teaser";
+        const featuredDotSize = isMobile ? 14 : isTablet ? 18 : isTeaser ? 22 : 20;
+        const regularDotSize = isMobile ? 8 : isTablet ? 10 : isTeaser ? 12 : 10;
         const cardW = isMobile ? 280 : isTablet ? 240 : 280;
         const cardH = isMobile ? 260 : isTablet ? 220 : 260;
 
@@ -1459,43 +1471,259 @@ export default function ProjectNetwork({
         })()}
 
       {/* Tooltip (desktop only) */}
-      {!isMobile && hoveredProject && (
-        <div
-          style={{
-            position: "fixed",
-            left: tooltipPos.x + 16,
-            top: tooltipPos.y - 8,
-            background: "#212121",
-            border: "1px solid rgba(0,0,0,0.1)",
-            borderRadius: 8,
-            padding: "8px 12px",
-            pointerEvents: "none",
-            zIndex: 100,
-            transition: "opacity 0.15s ease",
-          }}
-        >
-          <div
-            style={{
-              fontFamily: "var(--font-geist-sans)",
-              fontSize: "0.85rem",
-              fontWeight: 600,
-              color: "#fff",
-            }}
-          >
-            {hoveredProject.name}
-          </div>
-          <div
-            style={{
-              fontFamily: "var(--font-geist-sans)",
-              fontSize: "0.75rem",
-              color: "rgba(255,255,255,0.6)",
-              marginTop: 2,
-            }}
-          >
-            {hoveredProject.client}
-          </div>
-        </div>
+      {!isMobile && hoveredProject && !teaserPreview && (
+        (() => {
+          const tColor = DOMAIN_COLORS[hoveredProject.domain];
+          return (
+            <div
+              style={{
+                position: "fixed",
+                left: tooltipPos.x + 16,
+                top: tooltipPos.y - 8,
+                background: "#212121",
+                borderRadius: 10,
+                padding: 0,
+                overflow: "hidden",
+                pointerEvents: "none",
+                zIndex: 100,
+                boxShadow: "0 4px 16px rgba(0,0,0,0.2)",
+                animation: "tooltipIn 0.12s ease-out forwards",
+              }}
+            >
+              <style>{`@keyframes tooltipIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }`}</style>
+              {/* Domain accent bar */}
+              <div style={{ height: 3, background: tColor }} />
+              <div style={{ padding: "8px 14px 10px" }}>
+                <div
+                  style={{
+                    fontFamily: "var(--font-neue-haas), var(--font-geist-sans)",
+                    fontSize: "0.85rem",
+                    fontWeight: 500,
+                    color: "#fff",
+                    letterSpacing: "-0.01em",
+                  }}
+                >
+                  {hoveredProject.name}
+                </div>
+                <div
+                  style={{
+                    fontFamily: "var(--font-geist-sans)",
+                    fontSize: "0.7rem",
+                    color: "rgba(255,255,255,0.5)",
+                    marginTop: 3,
+                  }}
+                >
+                  {hoveredProject.client} · {hoveredProject.year}
+                </div>
+              </div>
+            </div>
+          );
+        })()
       )}
+
+      {/* Teaser preview card (desktop, teaser mode only) */}
+      {mode === "teaser" && teaserPreview && !isMobile && (() => {
+        const { project, x, y } = teaserPreview;
+        const { width: cw, height: ch } = sizeRef.current;
+        const cardW = 320;
+        const onRight = x + cardW + 48 < cw;
+        const cardLeft = onRight ? x + 24 : x - cardW - 24;
+        const cardTop = Math.max(24, Math.min(y - 80, ch - 400));
+        const domainColor = DOMAIN_COLORS[project.domain];
+        const domainRgb = hexToRgb(domainColor);
+
+        return (
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              position: "absolute",
+              left: cardLeft,
+              top: cardTop,
+              width: cardW,
+              background: "rgba(255, 255, 255, 0.97)",
+              borderRadius: 16,
+              overflow: "hidden",
+              backdropFilter: "blur(16px)",
+              WebkitBackdropFilter: "blur(16px)",
+              boxShadow: "0 4px 24px rgba(0,0,0,0.12), 0 1px 3px rgba(0,0,0,0.06)",
+              border: "1px solid rgba(0,0,0,0.06)",
+              zIndex: 60,
+              animation: `teaserCardIn 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards`,
+            }}
+          >
+            <style>{`
+              @keyframes teaserCardIn {
+                from { opacity: 0; transform: translateY(8px) scale(0.97); }
+                to { opacity: 1; transform: translateY(0) scale(1); }
+              }
+            `}</style>
+
+            {/* Hero image or colored band */}
+            {project.heroImageUrl ? (
+              <div style={{ position: "relative", width: "100%", aspectRatio: "16 / 9" }}>
+                <Image
+                  src={project.heroImageUrl}
+                  alt={project.name}
+                  fill
+                  className="object-cover"
+                  sizes="320px"
+                />
+                {/* Gradient overlay for readability */}
+                <div
+                  style={{
+                    position: "absolute",
+                    inset: 0,
+                    background: "linear-gradient(to top, rgba(0,0,0,0.25) 0%, transparent 50%)",
+                  }}
+                />
+              </div>
+            ) : (
+              <div
+                style={{
+                  width: "100%",
+                  height: 6,
+                  background: `linear-gradient(90deg, ${domainColor}, ${domainColor}88)`,
+                }}
+              />
+            )}
+
+            <div style={{ padding: "16px 20px 20px" }}>
+              {/* Close button */}
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setTeaserPreview(null);
+                }}
+                aria-label="Close preview"
+                style={{
+                  position: "absolute",
+                  top: project.heroImageUrl ? 8 : 8,
+                  right: 8,
+                  background: project.heroImageUrl ? "rgba(0,0,0,0.3)" : "none",
+                  border: "none",
+                  color: project.heroImageUrl ? "#fff" : "rgba(0,0,0,0.4)",
+                  fontSize: "0.85rem",
+                  cursor: "pointer",
+                  padding: 6,
+                  lineHeight: 1,
+                  minWidth: 44,
+                  minHeight: 44,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  borderRadius: 8,
+                  zIndex: 2,
+                  transition: "background 0.15s ease, color 0.15s ease",
+                }}
+                onMouseEnter={(e) => {
+                  if (project.heroImageUrl) {
+                    (e.currentTarget as HTMLElement).style.background = "rgba(0,0,0,0.5)";
+                  } else {
+                    (e.currentTarget as HTMLElement).style.color = "rgba(0,0,0,0.8)";
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (project.heroImageUrl) {
+                    (e.currentTarget as HTMLElement).style.background = "rgba(0,0,0,0.3)";
+                  } else {
+                    (e.currentTarget as HTMLElement).style.color = "rgba(0,0,0,0.4)";
+                  }
+                }}
+              >
+                ✕
+              </button>
+
+              {/* Domain pill */}
+              <div
+                style={{
+                  display: "inline-block",
+                  background: `rgba(${domainRgb.r},${domainRgb.g},${domainRgb.b},0.12)`,
+                  color: domainColor,
+                  fontFamily: "var(--font-geist-mono)",
+                  fontSize: "0.6rem",
+                  letterSpacing: "0.1em",
+                  textTransform: "uppercase",
+                  padding: "3px 10px",
+                  borderRadius: 10,
+                }}
+              >
+                {DOMAIN_LABELS[project.domain]}
+              </div>
+
+              {/* Project name */}
+              <h3
+                style={{
+                  fontFamily: "var(--font-neue-haas), var(--font-geist-sans)",
+                  fontSize: "1.15rem",
+                  fontWeight: 500,
+                  color: "#212121",
+                  marginTop: 10,
+                  marginBottom: 0,
+                  lineHeight: 1.3,
+                  letterSpacing: "-0.01em",
+                }}
+              >
+                {project.name}
+              </h3>
+
+              {/* Client + year */}
+              <div
+                style={{
+                  fontFamily: "var(--font-geist-sans)",
+                  fontSize: "0.8rem",
+                  color: "rgba(33,33,33,0.45)",
+                  marginTop: 4,
+                }}
+              >
+                {project.client} · {project.year}
+              </div>
+
+              {/* Summary */}
+              <p
+                style={{
+                  fontFamily: "var(--font-geist-sans)",
+                  fontSize: "0.85rem",
+                  lineHeight: 1.5,
+                  color: "rgba(33,33,33,0.6)",
+                  marginTop: 10,
+                  marginBottom: 0,
+                  overflow: "hidden",
+                  display: "-webkit-box",
+                  WebkitLineClamp: 3,
+                  WebkitBoxOrient: "vertical",
+                }}
+              >
+                {project.summary}
+              </p>
+
+              {/* View project CTA */}
+              <a
+                href={`/projects/${project.slug ?? project.id}`}
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 6,
+                  marginTop: 16,
+                  fontFamily: "var(--font-geist-sans)",
+                  fontSize: "0.85rem",
+                  fontWeight: 500,
+                  color: domainColor,
+                  textDecoration: "none",
+                  transition: "gap 0.2s ease",
+                }}
+                onMouseEnter={(e) => {
+                  (e.currentTarget as HTMLElement).style.gap = "10px";
+                }}
+                onMouseLeave={(e) => {
+                  (e.currentTarget as HTMLElement).style.gap = "6px";
+                }}
+              >
+                View project <span aria-hidden="true">→</span>
+              </a>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* Mobile bottom sheet */}
       {isMobile && mobileSheetProject && (
@@ -1516,107 +1744,128 @@ export default function ProjectNetwork({
               bottom: 0,
               left: 0,
               right: 0,
-              maxHeight: "60vh",
+              maxHeight: "70vh",
               overflowY: "auto",
               borderRadius: "16px 16px 0 0",
               background: "rgba(255, 255, 255, 0.97)",
-              padding: 24,
               zIndex: 100,
               animation: "sheetUp 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards",
+              boxShadow: "0 -4px 32px rgba(0,0,0,0.15)",
             }}
           >
             <style>{`@keyframes sheetUp { from { transform: translateY(100%); } to { transform: translateY(0); } }`}</style>
 
-            {/* Close button */}
-            <button
-              onClick={() => setMobileSheetProject(null)}
-              aria-label="Close"
-              style={{
-                position: "absolute",
-                top: 12,
-                right: 12,
-                background: "none",
-                border: "none",
-                color: "rgba(0,0,0,0.4)",
-                fontSize: "1.2rem",
-                cursor: "pointer",
-                padding: 8,
-                minWidth: 44,
-                minHeight: 44,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-              }}
-            >
-              ✕
-            </button>
+            {/* Hero image */}
+            {mobileSheetProject.heroImageUrl && (
+              <div style={{ position: "relative", width: "100%", aspectRatio: "16 / 9", borderRadius: "16px 16px 0 0", overflow: "hidden" }}>
+                <Image
+                  src={mobileSheetProject.heroImageUrl}
+                  alt={mobileSheetProject.name}
+                  fill
+                  className="object-cover"
+                  sizes="100vw"
+                />
+                <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to top, rgba(0,0,0,0.2) 0%, transparent 50%)" }} />
+              </div>
+            )}
 
-            {/* Domain pill */}
-            <div
-              style={{
-                display: "inline-block",
-                background: `rgba(${hexToRgb(DOMAIN_COLORS[mobileSheetProject.domain]).r},${hexToRgb(DOMAIN_COLORS[mobileSheetProject.domain]).g},${hexToRgb(DOMAIN_COLORS[mobileSheetProject.domain]).b},0.2)`,
-                color: DOMAIN_COLORS[mobileSheetProject.domain],
-                fontFamily: "var(--font-geist-mono)",
-                fontSize: "0.65rem",
-                letterSpacing: "0.1em",
-                textTransform: "uppercase",
-                padding: "3px 10px",
-                borderRadius: 10,
-              }}
-            >
-              {DOMAIN_LABELS[mobileSheetProject.domain]}
-            </div>
+            <div style={{ padding: 24 }}>
+              {/* Close button */}
+              <button
+                onClick={() => setMobileSheetProject(null)}
+                aria-label="Close"
+                style={{
+                  position: "absolute",
+                  top: mobileSheetProject.heroImageUrl ? 12 : 12,
+                  right: 12,
+                  background: mobileSheetProject.heroImageUrl ? "rgba(0,0,0,0.3)" : "none",
+                  border: "none",
+                  color: mobileSheetProject.heroImageUrl ? "#fff" : "rgba(0,0,0,0.4)",
+                  fontSize: "1.2rem",
+                  cursor: "pointer",
+                  padding: 8,
+                  minWidth: 44,
+                  minHeight: 44,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  borderRadius: 8,
+                  zIndex: 2,
+                }}
+              >
+                ✕
+              </button>
 
-            <h2
-              style={{
-                fontFamily: "var(--font-geist-sans)",
-                fontSize: "1.25rem",
-                fontWeight: 600,
-                color: "#212121",
-                marginTop: 12,
-                marginBottom: 0,
-                lineHeight: 1.3,
-              }}
-            >
-              {mobileSheetProject.name}
-            </h2>
-            <div
-              style={{
-                fontFamily: "var(--font-geist-sans)",
-                fontSize: "0.85rem",
-                color: "rgba(33,33,33,0.5)",
-                marginTop: 4,
-              }}
-            >
-              {mobileSheetProject.client} · {mobileSheetProject.year}
+              {/* Domain pill */}
+              <div
+                style={{
+                  display: "inline-block",
+                  background: `rgba(${hexToRgb(DOMAIN_COLORS[mobileSheetProject.domain]).r},${hexToRgb(DOMAIN_COLORS[mobileSheetProject.domain]).g},${hexToRgb(DOMAIN_COLORS[mobileSheetProject.domain]).b},0.12)`,
+                  color: DOMAIN_COLORS[mobileSheetProject.domain],
+                  fontFamily: "var(--font-geist-mono)",
+                  fontSize: "0.6rem",
+                  letterSpacing: "0.1em",
+                  textTransform: "uppercase",
+                  padding: "3px 10px",
+                  borderRadius: 10,
+                }}
+              >
+                {DOMAIN_LABELS[mobileSheetProject.domain]}
+              </div>
+
+              <h2
+                style={{
+                  fontFamily: "var(--font-neue-haas), var(--font-geist-sans)",
+                  fontSize: "1.25rem",
+                  fontWeight: 500,
+                  color: "#212121",
+                  marginTop: 10,
+                  marginBottom: 0,
+                  lineHeight: 1.3,
+                  letterSpacing: "-0.01em",
+                }}
+              >
+                {mobileSheetProject.name}
+              </h2>
+              <div
+                style={{
+                  fontFamily: "var(--font-geist-sans)",
+                  fontSize: "0.85rem",
+                  color: "rgba(33,33,33,0.45)",
+                  marginTop: 4,
+                }}
+              >
+                {mobileSheetProject.client} · {mobileSheetProject.year}
+              </div>
+              <p
+                style={{
+                  fontFamily: "var(--font-geist-sans)",
+                  fontSize: "0.9rem",
+                  lineHeight: 1.5,
+                  color: "rgba(33,33,33,0.6)",
+                  marginTop: 12,
+                  marginBottom: 0,
+                }}
+              >
+                {mobileSheetProject.summary}
+              </p>
+              <a
+                href={`/projects/${mobileSheetProject.slug ?? mobileSheetProject.id}`}
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 6,
+                  marginTop: 20,
+                  fontFamily: "var(--font-geist-sans)",
+                  fontSize: "0.9rem",
+                  fontWeight: 500,
+                  color: DOMAIN_COLORS[mobileSheetProject.domain],
+                  textDecoration: "none",
+                }}
+              >
+                View project <span aria-hidden="true">→</span>
+              </a>
             </div>
-            <p
-              style={{
-                fontFamily: "var(--font-geist-sans)",
-                fontSize: "0.9rem",
-                lineHeight: 1.5,
-                color: "rgba(33,33,33,0.7)",
-                marginTop: 16,
-                marginBottom: 0,
-              }}
-            >
-              {mobileSheetProject.summary}
-            </p>
-            <a
-              href={`/projects/${mobileSheetProject.slug ?? mobileSheetProject.id}`}
-              style={{
-                display: "inline-block",
-                marginTop: 20,
-                fontFamily: "var(--font-geist-sans)",
-                fontSize: "0.85rem",
-                fontWeight: 500,
-                color: DOMAIN_COLORS[mobileSheetProject.domain],
-                textDecoration: "none",
-              }}
-            >
-              View full project →
-            </a>
           </div>
         </>
       )}

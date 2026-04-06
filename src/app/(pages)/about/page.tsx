@@ -199,7 +199,7 @@ export default async function AboutPage() {
 
       {/* Contact section */}
       <section id="aboutContact" className="relative z-20 w-full bg-background px-2">
-        <div className="w-full h-[60vh] flex flex-col items-start justify-end pt-12 bg-background">
+        <div className="w-full h-[40vh] flex flex-col items-start justify-end pt-12 bg-background">
           <h1 className="text-5xl font-light text-foreground">Contact</h1>
         </div>
         <div className="relative z-0 grid h-auto w-full grid-cols-1 gap-2 pt-2 pb-2 md:h-[50vh] md:grid-cols-2 lg:grid-cols-4">
