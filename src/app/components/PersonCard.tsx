@@ -119,7 +119,7 @@ export default function PersonCard({
       {/* hover description */}
       <div className="relative z-10 px-6 pb-6">
         <p
-          className="text-md font-light leading-tight opacity-0 translate-y-2 transition-all duration-500 ease-out group-hover:opacity-100 group-hover:translate-y-0"
+          className="text-lg font-light leading-normal opacity-0 translate-y-2 transition-all duration-500 ease-out group-hover:opacity-100 group-hover:translate-y-0"
           style={{ color: isHovering ? hoverTextColor : "rgba(255,255,255,0.9)" }}
         >
           {description}

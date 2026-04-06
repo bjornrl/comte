@@ -87,11 +87,11 @@ export default function ContactPageClient({ contact }: { contact: ContactInfo })
             </div>
 
             <section className="relative z-20 w-full bg-background">
-                <div className="flex h-[30vh] w-full flex-col items-start justify-end bg-background pt-12">
+                <div className="flex min-h-[10vh] w-full flex-col items-start justify-end bg-background pb-4 pt-8 md:min-h-0 md:pb-6 md:pt-12">
                     <h1 className="text-5xl font-light text-foreground">Si hei!</h1>
                 </div>
 
-                <div className="relative z-20 h-[65vh] min-h-[320px] w-full border-y border-foreground/10 bg-background md:h-[85vh] md:max-h-[800px]">
+                <div className="relative z-20 min-h-[220px] w-full border-y border-foreground/10 bg-background h-[42vh] max-h-[520px] md:h-[48vh] md:max-h-[600px]">
                     <FittingTextarea
                         value={message}
                         onChange={(e) => setMessage(e.target.value)}

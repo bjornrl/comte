@@ -249,7 +249,13 @@ function PageTwo() {
         style={{ gridArea: "2 / 3 / 3 / 4" }}
       >
         <div className="relative overflow-hidden h-full w-full">
-          <Image src={PLACEHOLDER_IMAGE} alt="" fill className="object-cover" sizes="50vw" />
+          <Image
+            src="/social-images/comte-social-8.jpg"
+            alt=""
+            fill
+            className="object-cover rounded-lg"
+            sizes="50vw"
+          />
         </div>
 
         {/* <Image
@@ -261,8 +267,13 @@ function PageTwo() {
         /> */}
       </div>
       <div className="relative overflow-hidden" style={{ gridArea: "3 / 3 / 4 / 4" }}>
-        <h2 className="text-5xl font-light text-foreground">Section 4</h2>
-        <Image src={PLACEHOLDER_IMAGE} alt="" fill className="object-cover" sizes="50vw" />
+        <Image
+          src="/social-images/comte-social-9.jpg"
+          alt=""
+          fill
+          className="object-cover rounded-lg"
+          sizes="50vw"
+        />
       </div>
     </section>
   );
@@ -375,32 +386,40 @@ function PageFour() {
         style={{ gridArea: "2 / 3 / 3 / 4" }}
       >
         <StatCard
-          value="50+"
-          description="Projects taken from insight to impact"
+          value="186 → 10"
+          description="People in the municipal housing queue"
           bgColorClass="bg-transparent"
           backgroundColor="#1F3A32"
           textColor="#F9F9ED"
+          href="/projects/hjemveien"
+          linkLabel="View project"
         />
         <StatCard
-          value="12"
-          description="Sectors and policy domains"
+          value="60%"
+          description="Increase in STI testing"
           bgColorClass="bg-transparent"
           backgroundColor="#F27887"
           textColor="#212121"
+          href="/projects/hjemveien"
+          linkLabel="View project"
         />
         <StatCard
-          value="360°"
-          description="Research, design, and implementation"
+          value="50%"
+          description="Reduction in sick leave"
           bgColorClass="bg-transparent"
           backgroundColor="#D6B84C"
           textColor="#212121"
+          href="/projects/kindergarten-meals-trondheim"
+          linkLabel="View project"
         />
         <StatCard
-          value="100%"
-          description="Dedicated in-house delivery"
+          value="55,000"
+          description="Surgeries per year optimised with new control tower"
           bgColorClass="bg-transparent"
           backgroundColor="#5F7C8A"
           textColor="#F9F9ED"
+          href="/projects/ous-control-tower"
+          linkLabel="View project"
         />
       </div>
     </section>
@@ -435,17 +454,42 @@ function PageFive({ projects: _projects }: { projects?: Project[] }) {
         className="grid min-h-0 min-w-0 grid-cols-2 grid-rows-2 gap-1 md:gap-2"
         style={{ gridArea: "2 / 3 / 3 / 4" }}
       >
-        {[0, 1, 2, 3].map((i) => (
-          <div key={i} className="relative min-h-0 min-w-0 overflow-hidden rounded-sm">
-            <Image
-              src={PLACEHOLDER_IMAGE}
-              alt=""
-              fill
-              className="object-cover"
-              sizes="(max-width: 768px) 40vw, 25vw"
-            />
-          </div>
-        ))}
+        <div className="relative min-h-0 min-w-0 overflow-hidden rounded-sm">
+          <Image
+            src="/social-images/comte-social-3.jpg"
+            alt=""
+            fill
+            className="object-cover"
+            sizes="(max-width: 768px) 40vw, 25vw"
+          />
+        </div>
+        <div className="relative min-h-0 min-w-0 overflow-hidden rounded-sm">
+          <Image
+            src="/social-images/comte-social-7.jpg"
+            alt=""
+            fill
+            className="object-cover"
+            sizes="(max-width: 768px) 40vw, 25vw"
+          />
+        </div>
+        <div className="relative min-h-0 min-w-0 overflow-hidden rounded-sm">
+          <Image
+            src="/social-images/comte-social-8.jpg"
+            alt=""
+            fill
+            className="object-cover"
+            sizes="(max-width: 768px) 40vw, 25vw"
+          />
+        </div>
+        <div className="relative min-h-0 min-w-0 overflow-hidden rounded-sm">
+          <Image
+            src="/social-images/comte-social-9.jpg"
+            alt=""
+            fill
+            className="object-cover"
+            sizes="(max-width: 768px) 40vw, 25vw"
+          />
+        </div>
       </div>
     </section>
   );
