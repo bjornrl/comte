@@ -8,13 +8,10 @@ import { usePathname, useRouter } from "next/navigation";
 export type NavItem = { label: string; sectionId: string };
 
 export const NAV_ITEMS: NavItem[] = [
-  { label: "Home", sectionId: "home" },
   { label: "About", sectionId: "about-intro" },
-  { label: "What do we do?", sectionId: "what-we-do" },
   { label: "Projects", sectionId: "projects" },
   { label: "Team", sectionId: "team" },
-  { label: "Publications", sectionId: "publications" },
-  { label: "Ventures", sectionId: "ventures" },
+  { label: "Publications and ventures", sectionId: "publications" },
 ];
 
 const RED = "#FF5252";
