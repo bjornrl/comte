@@ -29,11 +29,13 @@ type Props = {
 
 /**
  * Team section laid out as a horizontal 2-row grid with ~4.5 cards visible at
- * a time. The container side-scrolls (no scroll-snap inside, so it lands
- * wherever the user releases) and uses `overscroll-behavior-x: contain` — so
- * the outer horizontal scroll only starts moving once the inner has reached
- * one of its edges. That gives the desired "threshold before snapping into the
- * next section" behaviour.
+ * a time. The container side-scrolls and has `scroll-snap-type: none`, so it
+ * lands wherever the user releases — no snapping within team.
+ *
+ * The outer scroll-snap container only starts moving once this inner scroller
+ * reaches its left or right edge (default browser scroll-chaining), which
+ * provides the "user must scroll through the employees before snapping to the
+ * next section" threshold.
  */
 export default function SectionTeam({ backgroundColor, heading, teamMembers }: Props) {
   return (
@@ -54,7 +56,7 @@ export default function SectionTeam({ backgroundColor, heading, teamMembers }: P
 
         <div
           className="flex-1 min-h-0 overflow-x-auto overflow-y-hidden"
-          style={{ overscrollBehaviorX: "contain", scrollSnapType: "none" }}
+          style={{ scrollSnapType: "none" }}
         >
           <div
             className="grid h-full gap-2 pb-6"
@@ -64,8 +66,7 @@ export default function SectionTeam({ backgroundColor, heading, teamMembers }: P
               // 4.5 cards visible per viewport width.
               gridAutoColumns: "calc((100vw - 1rem) / 4.5)",
               paddingLeft: "0.5rem",
-              // Tail-space so the last cards can scroll fully into view.
-              paddingRight: "50vw",
+              paddingRight: "0.5rem",
             }}
           >
             {teamMembers.map((member: any, i: number) => {
