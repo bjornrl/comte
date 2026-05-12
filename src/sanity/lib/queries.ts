@@ -11,6 +11,8 @@ export const PROJECTS_QUERY = groq`
     year,
     tags,
     "heroImageUrl": gallery[0].asset->url,
+    "galleryUrls": gallery[].asset->url,
+    links[] { label, url },
     order
   }
 `;

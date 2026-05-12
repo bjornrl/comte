@@ -65,7 +65,7 @@ export default function HomePageClient({ data, projects, connections }: Props) {
     { id: "about-intro", content: <SectionAboutIntro {...data.aboutIntro} /> },
     { id: "about-office", content: <SectionAboutOffice {...data.aboutOffice} /> },
     { id: "what-we-do", content: <SectionWhatWeDo {...data.whatWeDo} /> },
-    { id: "projects", content: <SectionProjects {...data.projects} /> },
+    { id: "projects", content: <SectionProjects {...data.projects} projects={projects} /> },
     {
       id: "team",
       content: (
@@ -102,8 +102,9 @@ export default function HomePageClient({ data, projects, connections }: Props) {
     },
   ];
 
-  // Pick nav text colour: white on dark Home, otherwise dark.
-  const navTextColor = activeSection === "home" ? "#FFFFFF" : "#212121";
+  // Sections with dark backgrounds want a light nav.
+  const DARK_BG_SECTIONS = new Set(["home", "projects"]);
+  const navTextColor = DARK_BG_SECTIONS.has(activeSection) ? "#FFFFFF" : "#212121";
 
   return (
     <div className="h-svh overflow-hidden">

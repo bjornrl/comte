@@ -1,54 +1,32 @@
 "use client";
 
-import { useState } from "react";
-import SectionShell from "./SectionShell";
-import ProjectNetwork from "../ProjectNetwork";
-import ProjectGrid from "../ProjectGrid";
-import FilterBar from "../FilterBar";
-import { type FilterState, NO_FILTERS } from "../projectNetworkData";
+import ProjectCluster from "../ProjectCluster";
+import type { Project } from "../projectNetworkData";
 
-const DEFAULT_BG = "#F9F9ED";
+const DEFAULT_BG = "#1F3A32";
 
 type Props = {
   backgroundColor?: string;
   heading?: string;
+  projects?: Project[];
 };
 
 /**
- * Projects section for the horizontal scroll.
- * The panel itself is 100svh wide; internally it scrolls vertically
- * through Network → Grid → Filter bar.
+ * Projects section for the horizontal scroll: a single full-viewport
+ * cluster of dots grouped by tag/domain. Not vertically scrollable.
  */
-export default function SectionProjects({ backgroundColor, heading }: Props) {
-  const [filters, setFilters] = useState<FilterState>(NO_FILTERS);
-
+export default function SectionProjects({ backgroundColor, heading, projects }: Props) {
   return (
-    <SectionShell id="projects" bgColor={backgroundColor ?? DEFAULT_BG} style={{ padding: 0 }}>
-      <div className="h-full w-full overflow-y-auto overscroll-contain">
-        {/* Map / network section */}
-        <div className="relative h-svh w-full">
-          {heading && (
-            <h2
-              className="pointer-events-none absolute z-10 font-[family-name:var(--font-manrope)] font-bold text-foreground"
-              style={{
-                top: "clamp(2rem, 5vw, 5rem)",
-                left: "clamp(2rem, 5vw, 5rem)",
-                fontSize: "clamp(1.5rem, 3vw, 2.5rem)",
-                maxWidth: "20ch",
-              }}
-            >
-              {heading}
-            </h2>
-          )}
-          <ProjectNetwork mode="full" filters={filters} onFiltersChange={setFilters} />
-        </div>
-
-        {/* Grid section */}
-        <ProjectGrid filters={filters} />
-
-        {/* Sticky filter bar */}
-        <FilterBar filters={filters} onChange={setFilters} />
-      </div>
-    </SectionShell>
+    <section
+      id="projects"
+      data-section-id="projects"
+      className="relative h-svh w-screen flex-shrink-0 overflow-hidden"
+    >
+      <ProjectCluster
+        projects={projects}
+        backgroundColor={backgroundColor ?? DEFAULT_BG}
+        heading={heading}
+      />
+    </section>
   );
 }

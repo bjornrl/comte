@@ -25,6 +25,9 @@ export type Project = {
   methods: Method[];
   innovationLevel: InnovationLevel;
   heroImageUrl?: string;
+  galleryUrls?: string[];
+  cardLinks?: { label: string; url: string }[];
+  displayTags?: { id: string; label: string; color?: string }[];
 };
 
 export type ConnectionType = "domain" | "method" | "scale" | "theme";

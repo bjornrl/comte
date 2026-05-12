@@ -14,7 +14,13 @@ import {
   PUBLICATIONS_QUERY,
   VENTURES_QUERY,
 } from "@/sanity/lib/queries";
-import { firstTagAsDomain, generateConnections } from "@/app/components/projectNetworkData";
+import {
+  firstTagAsDomain,
+  generateConnections,
+  DOMAIN_LABELS,
+  DOMAIN_COLORS,
+  type Domain,
+} from "@/app/components/projectNetworkData";
 import type { Project } from "@/app/components/projectNetworkData";
 import HomePageClient, { type HomeData } from "@/app/components/HomePageClient";
 import { urlFor } from "@/sanity/lib/image";
@@ -28,6 +34,15 @@ function sanityImageUrl(imageField: any, width = 1600): string | undefined {
 }
 
 function mapSanityProject(doc: any): Project {
+  const tags: string[] = doc.tags ?? [];
+  const displayTags = tags
+    .filter((t): t is Domain => t in DOMAIN_LABELS)
+    .map((t) => ({ id: t, label: DOMAIN_LABELS[t], color: DOMAIN_COLORS[t] }));
+  const galleryUrls = (doc.galleryUrls ?? []).filter(Boolean) as string[];
+  const cardLinks = (doc.links ?? []).map((l: any) => ({
+    label: l?.label ?? "",
+    url: l?.url ?? "",
+  }));
   return {
     id: doc._id,
     slug: doc.slug,
@@ -41,6 +56,9 @@ function mapSanityProject(doc: any): Project {
     methods: [],
     innovationLevel: "incremental",
     heroImageUrl: doc.heroImageUrl ?? undefined,
+    galleryUrls,
+    cardLinks,
+    displayTags,
   };
 }
 
