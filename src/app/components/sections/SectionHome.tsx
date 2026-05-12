@@ -9,6 +9,10 @@ type Props = {
 };
 
 export default function SectionHome({ heroText, backgroundColor, backgroundVideoUrl }: Props) {
+  const text = heroText ?? "Innovation for societal impact";
+  const [firstWord, ...restWords] = text.split(" ");
+  const remainder = restWords.join(" ");
+
   return (
     <SectionShell id="home" bgColor={backgroundColor ?? DEFAULT_BG} style={{ padding: 0 }}>
       {/* Background video */}
@@ -38,11 +42,17 @@ export default function SectionHome({ heroText, backgroundColor, backgroundVideo
           className="font-[family-name:var(--font-manrope)] font-bold text-white max-w-[14ch]"
           style={{
             fontSize: "clamp(2rem, 6vw, 5rem)",
-            lineHeight: 1.15,
+            lineHeight: 1.4,
             letterSpacing: "-0.02em",
           }}
         >
-          {heroText ?? "Innovation for societal impact"}
+          {firstWord}
+          {remainder ? (
+            <>
+              <br />
+              {remainder}
+            </>
+          ) : null}
           <span
             aria-hidden="true"
             className="inline-block align-baseline"
