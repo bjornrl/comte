@@ -43,3 +43,6 @@ next-env.d.ts
 
 # claude
 .claude
+
+# nested duplicate project folder (legacy, can be deleted)
+/Comte/
