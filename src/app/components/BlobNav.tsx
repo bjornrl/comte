@@ -19,7 +19,8 @@ const BOX_HEIGHT = 48; // every red box (logo, hamburger, nav items, contact) sh
 const GAP = 4;
 // Matches PANEL_PADDING in SectionShell so the logo/nav line up with the hero text.
 const SIDE_MARGIN = "clamp(2rem, 5vw, 5rem)";
-const TOP_MARGIN = "clamp(0.75rem, 1.5vw, 1.25rem)";
+// Half of SIDE_MARGIN at every viewport width.
+const TOP_MARGIN = "clamp(1rem, 2.5vw, 2.5rem)";
 
 // Logo SVG viewBox is 247×71, so width follows height by this ratio.
 const LOGO_ASPECT = 247 / 71;
