@@ -41,7 +41,7 @@ export default function SectionHome({ heroText, backgroundColor, backgroundVideo
         <h1
           className="font-[family-name:var(--font-manrope)] font-bold text-white max-w-[14ch]"
           style={{
-            fontSize: "clamp(2rem, 6vw, 5rem)",
+            fontSize: "clamp(2.5rem, 7.25vw, 6rem)",
             lineHeight: 1.4,
             letterSpacing: "-0.02em",
           }}
