@@ -18,7 +18,8 @@ const RED = "#FF5252";
 const BOX_HEIGHT = 48; // every red box (logo, hamburger, nav items, contact) shares this height
 const GAP = 4;
 // Matches PANEL_PADDING in SectionShell so the logo/nav line up with the hero text.
-const EDGE_MARGIN = "clamp(2rem, 5vw, 5rem)";
+const SIDE_MARGIN = "clamp(2rem, 5vw, 5rem)";
+const TOP_MARGIN = "clamp(0.75rem, 1.5vw, 1.25rem)";
 
 // Logo SVG viewBox is 247×71, so width follows height by this ratio.
 const LOGO_ASPECT = 247 / 71;
@@ -116,8 +117,8 @@ export default function BlobNav({ onNavigate, activeSection }: Props) {
         role="navigation"
         style={{
           position: "fixed",
-          top: EDGE_MARGIN,
-          left: EDGE_MARGIN,
+          top: TOP_MARGIN,
+          left: SIDE_MARGIN,
           zIndex: 100,
           display: "flex",
           alignItems: "center",
@@ -213,8 +214,8 @@ export default function BlobNav({ onNavigate, activeSection }: Props) {
       <div
         style={{
           position: "fixed",
-          top: EDGE_MARGIN,
-          right: EDGE_MARGIN,
+          top: TOP_MARGIN,
+          right: SIDE_MARGIN,
           zIndex: 100,
           pointerEvents: "auto",
         }}
