@@ -10,9 +10,11 @@ import type {
   Method,
 } from "./projectNetworkData";
 
-// Domains shown in the cluster view (Culture intentionally excluded).
+// Domains rendered in the cluster view.
+// Health & Care uses a brighter sage here so it remains visible against
+// the dark-green panel background (#1F3A32 in DOMAIN_COLORS clashes).
 const DOMAIN_COLORS: Record<Domain, string> = {
-  health: "#1F3A32",
+  health: "#88C9A6",
   education: "#F27887",
   integration: "#D6B84C",
   urban: "#5F7C8A",
