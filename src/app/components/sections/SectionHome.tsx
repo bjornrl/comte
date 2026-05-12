@@ -35,10 +35,10 @@ export default function SectionHome({ heroText, backgroundColor, backgroundVideo
         style={{ left: PANEL_PADDING, bottom: PANEL_PADDING, right: PANEL_PADDING }}
       >
         <h1
-          className="font-[family-name:var(--font-manrope)] font-bold text-white max-w-[20ch]"
+          className="font-[family-name:var(--font-manrope)] font-bold text-white max-w-[14ch]"
           style={{
-            fontSize: "clamp(2.5rem, 8vw, 6.5rem)",
-            lineHeight: 1.05,
+            fontSize: "clamp(2rem, 6vw, 5rem)",
+            lineHeight: 1.15,
             letterSpacing: "-0.02em",
           }}
         >
