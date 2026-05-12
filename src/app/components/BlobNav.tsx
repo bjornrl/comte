@@ -32,6 +32,8 @@ const LOGO_WIDTH = Math.round(BOX_HEIGHT * LOGO_ASPECT);
 type Props = {
   onNavigate?: (sectionId: string) => void;
   activeSection?: string;
+  /** When true, the nav forces itself closed regardless of activeSection. */
+  isScrolling?: boolean;
 };
 
 function HamburgerIcon({ open }: { open: boolean }) {
@@ -91,17 +93,16 @@ const boxStyle = (extra?: React.CSSProperties): React.CSSProperties => ({
   ...extra,
 });
 
-export default function BlobNav({ onNavigate, activeSection }: Props) {
+export default function BlobNav({ onNavigate, activeSection, isScrolling }: Props) {
   const [open, setOpen] = useState(true); // page starts with menu open (we land on Home)
   const pathname = usePathname();
   const router = useRouter();
 
-  // Auto-collapse when the user scrolls off the landing section; auto-open
-  // again whenever they come back to it. Manual toggles are respected
-  // until the next time the active section changes.
+  // The nav is only open when the page is stationary on the landing section.
+  // Any active scroll, or any active section other than "home", collapses it.
   useEffect(() => {
-    setOpen(activeSection === "home");
-  }, [activeSection]);
+    setOpen(activeSection === "home" && !isScrolling);
+  }, [activeSection, isScrolling]);
 
   const navigate = useCallback(
     (sectionId: string) => {
@@ -235,7 +236,7 @@ export default function BlobNav({ onNavigate, activeSection }: Props) {
           type="button"
           onClick={() => navigate("team")}
           aria-label="Contact – go to Team section"
-          style={boxStyle({ background: WHITE, color: BLACK })}
+          style={boxStyle()}
           onMouseEnter={(e) => {
             (e.currentTarget as HTMLElement).style.filter = "brightness(0.92)";
           }}

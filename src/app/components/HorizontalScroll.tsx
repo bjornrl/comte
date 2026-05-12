@@ -17,9 +17,17 @@ type Props = {
   sections: Section[];
   navRef?: React.MutableRefObject<HorizontalScrollNavApi | null>;
   onActiveSectionChange?: (id: string) => void;
+  /** Fires true on the first scroll event, false after scrolling has been
+   * idle for ~200ms. Lets parents reflect a transient "scrolling now" state. */
+  onScrollingChange?: (scrolling: boolean) => void;
 };
 
-export default function HorizontalScroll({ sections, navRef, onActiveSectionChange }: Props) {
+export default function HorizontalScroll({
+  sections,
+  navRef,
+  onActiveSectionChange,
+  onScrollingChange,
+}: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const sectionsRef = useRef(sections);
   sectionsRef.current = sections;
@@ -60,26 +68,36 @@ export default function HorizontalScroll({ sections, navRef, onActiveSectionChan
     };
   }, [navRef, goNext, goPrev, scrollToSection]);
 
-  // Track active section
+  // Track active section + transient "scrolling" state
   useEffect(() => {
     const el = containerRef.current;
-    if (!el || !onActiveSectionChange) return;
-    let timeout: ReturnType<typeof setTimeout>;
+    if (!el) return;
+    let stopTimeout: ReturnType<typeof setTimeout>;
+    let scrolling = false;
     const handleScroll = () => {
-      clearTimeout(timeout);
-      timeout = setTimeout(() => {
+      if (!scrolling) {
+        scrolling = true;
+        onScrollingChange?.(true);
+      }
+      clearTimeout(stopTimeout);
+      stopTimeout = setTimeout(() => {
+        scrolling = false;
+        onScrollingChange?.(false);
         const idx = Math.round(el.scrollLeft / el.clientWidth);
         const section = sectionsRef.current[idx];
-        if (section) onActiveSectionChange(section.id);
-      }, 80);
+        if (section) onActiveSectionChange?.(section.id);
+      }, 200);
     };
     el.addEventListener("scroll", handleScroll, { passive: true });
-    handleScroll();
+    // Initial active-section report (no scroll yet → not "scrolling")
+    const idx = Math.round(el.scrollLeft / el.clientWidth);
+    const initial = sectionsRef.current[idx];
+    if (initial) onActiveSectionChange?.(initial.id);
     return () => {
       el.removeEventListener("scroll", handleScroll);
-      clearTimeout(timeout);
+      clearTimeout(stopTimeout);
     };
-  }, [onActiveSectionChange]);
+  }, [onActiveSectionChange, onScrollingChange]);
 
   // Listen for nav events from the fallback BlobNav dispatcher
   useEffect(() => {

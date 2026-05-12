@@ -52,6 +52,7 @@ type Props = {
 export default function HomePageClient({ data, projects, connections }: Props) {
   const scrollNavRef = useRef<HorizontalScrollNavApi | null>(null);
   const [activeSection, setActiveSection] = useState<string>("home");
+  const [isScrolling, setIsScrolling] = useState(false);
 
   const initialized = useRef(false);
   if (!initialized.current) {
@@ -107,11 +108,13 @@ export default function HomePageClient({ data, projects, connections }: Props) {
       <BlobNav
         onNavigate={(id) => scrollNavRef.current?.scrollToSection(id)}
         activeSection={activeSection}
+        isScrolling={isScrolling}
       />
       <HorizontalScroll
         sections={sections}
         navRef={scrollNavRef}
         onActiveSectionChange={setActiveSection}
+        onScrollingChange={setIsScrolling}
       />
     </div>
   );
