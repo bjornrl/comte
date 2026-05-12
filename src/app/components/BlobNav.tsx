@@ -15,6 +15,9 @@ export const NAV_ITEMS: NavItem[] = [
 ];
 
 const RED = "#FF5252";
+const CREAM = "#F5F5E9"; // foreground on the red boxes
+const BLACK = "#1F3A32"; // foreground on the white Contact button
+const WHITE = "#FFFFFF";
 const BOX_HEIGHT = 48; // every red box (logo, hamburger, nav items, contact) shares this height
 const GAP = 4;
 // Matches PANEL_PADDING in SectionShell so the logo/nav line up with the hero text.
@@ -33,9 +36,9 @@ type Props = {
 
 function HamburgerIcon({ open }: { open: boolean }) {
   // Open state → chevron pointing left (collapses the menu).
-  // Closed state → two horizontal white lines, close together, no rounded ends.
+  // Closed state → two horizontal cream lines, close together, no rounded ends.
   if (open) {
-    return <ChevronLeft size={22} strokeWidth={2.5} color="#FFFFFF" />;
+    return <ChevronLeft size={22} strokeWidth={2.5} color={CREAM} />;
   }
   return (
     <span
@@ -49,7 +52,7 @@ function HamburgerIcon({ open }: { open: boolean }) {
           top: 1,
           width: "100%",
           height: 2,
-          background: "#FFFFFF",
+          background: CREAM,
           borderRadius: 0,
         }}
       />
@@ -60,7 +63,7 @@ function HamburgerIcon({ open }: { open: boolean }) {
           bottom: 1,
           width: "100%",
           height: 2,
-          background: "#FFFFFF",
+          background: CREAM,
           borderRadius: 0,
         }}
       />
@@ -71,7 +74,7 @@ function HamburgerIcon({ open }: { open: boolean }) {
 const boxStyle = (extra?: React.CSSProperties): React.CSSProperties => ({
   height: BOX_HEIGHT,
   background: RED,
-  color: "#FFFFFF",
+  color: CREAM,
   borderRadius: 0,
   border: "none",
   padding: "0 14px",
@@ -232,7 +235,7 @@ export default function BlobNav({ onNavigate, activeSection }: Props) {
           type="button"
           onClick={() => navigate("team")}
           aria-label="Contact – go to Team section"
-          style={boxStyle()}
+          style={boxStyle({ background: WHITE, color: BLACK })}
           onMouseEnter={(e) => {
             (e.currentTarget as HTMLElement).style.filter = "brightness(0.92)";
           }}
