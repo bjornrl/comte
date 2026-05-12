@@ -1,6 +1,13 @@
 /* ───────────── Shared types & data for the Project Network ───────────── */
 
-export type Domain = "health" | "education" | "integration" | "urban" | "climate" | "digital";
+export type Domain =
+  | "health"
+  | "education"
+  | "integration"
+  | "urban"
+  | "climate"
+  | "digital"
+  | "culture";
 export type Scale = "municipal" | "regional" | "national" | "international";
 export type Method = "research" | "codesign" | "implementation" | "strategy" | "foresight";
 export type InnovationLevel = "incremental" | "transformative";
@@ -44,6 +51,7 @@ export const DOMAIN_COLORS: Record<Domain, string> = {
   urban: "#5F7C8A",
   climate: "#4F7C6C",
   digital: "#FF5252",
+  culture: "#B47AC9",
 };
 
 export const DOMAIN_LABELS: Record<Domain, string> = {
@@ -53,7 +61,23 @@ export const DOMAIN_LABELS: Record<Domain, string> = {
   urban: "Urban Development",
   climate: "Climate & Sustainability",
   digital: "Digital Transformation",
+  culture: "Culture",
 };
+
+const TAG_VALUES = new Set<Domain>([
+  "health",
+  "education",
+  "integration",
+  "urban",
+  "climate",
+  "digital",
+  "culture",
+]);
+
+export function firstTagAsDomain(tags: readonly string[] | undefined | null): Domain {
+  const match = tags?.find((t): t is Domain => TAG_VALUES.has(t as Domain));
+  return match ?? "digital";
+}
 
 export const SCALE_LABELS: Record<Scale, string> = {
   municipal: "Municipal",

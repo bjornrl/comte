@@ -1,29 +1,38 @@
 import { project } from "./project";
 import { teamMember } from "./teamMember";
-import { aboutPage } from "./aboutPage";
-import { howWeWorkPage } from "./howWeWorkPage";
-import { contactPage } from "./contactPage";
-import { homePage } from "./homePage";
-import { insightsView } from "./insightsView";
-import { insightsPage } from "./insightsPage";
-import { resource } from "./resource";
-import { article } from "./article";
-import { footerTag } from "./footerTag";
+import { homeSection } from "./homeSection";
+import { mottoSection } from "./mottoSection";
+import { aboutIntro } from "./aboutIntro";
+import { aboutOffice } from "./aboutOffice";
+import { whatWeDo } from "./whatWeDo";
+import { projectsSection } from "./projectsSection";
+import { teamSection } from "./teamSection";
+import { publicationsSection } from "./publicationsSection";
+import { venturesSection } from "./venturesSection";
+import { publication } from "./publication";
+import { venture } from "./venture";
 import { siteSettings } from "./siteSettings";
 import { serviceCategory } from "./serviceCategory";
 
 export const schemaTypes = [
+  // Page-section singletons
+  homeSection,
+  mottoSection,
+  aboutIntro,
+  aboutOffice,
+  whatWeDo,
+  projectsSection,
+  teamSection,
+  publicationsSection,
+  venturesSection,
+  siteSettings,
+
+  // Document lists
   project,
   teamMember,
-  aboutPage,
-  howWeWorkPage,
-  contactPage,
-  homePage,
-  insightsView,
-  insightsPage,
-  resource,
-  article,
-  footerTag,
-  siteSettings,
+  publication,
+  venture,
+
+  // Internal
   serviceCategory,
 ];

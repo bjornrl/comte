@@ -5,8 +5,9 @@ import { FALLBACK_SITE_SETTINGS } from "@/lib/fallbacks";
 const NAV_LINKS = [
   { label: "About", href: "/about" },
   { label: "Projects", href: "/projects" },
-  { label: "Insights", href: "/insights" },
-  { label: "Contact", href: "/contact" },
+  { label: "Team", href: "/team" },
+  { label: "Publications", href: "/publications" },
+  { label: "Ventures", href: "/ventures" },
 ];
 
 type FooterProps = {

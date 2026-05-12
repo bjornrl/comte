@@ -1,45 +1,30 @@
 import { groq } from "next-sanity";
 
-// All projects (for network map and grid)
+// All projects
 export const PROJECTS_QUERY = groq`
   *[_type == "project"] | order(order asc, year desc) {
     _id,
     title,
     "slug": slug.current,
     client,
-    domain,
     summary,
     year,
-    featured,
-    scale,
-    methods,
-    innovationLevel,
-    "heroImageUrl": heroImage.asset->url,
-    "relatedProjectIds": relatedProjects[]->_id,
+    tags,
+    "heroImageUrl": gallery[0].asset->url,
     order
   }
 `;
 
-// Single project (for detail page)
+// Single project (overlay/detail)
 export const PROJECT_DETAIL_QUERY = groq`
   *[_type == "project" && slug.current == $slug][0] {
     _id,
     title,
     slug,
     client,
-    domain,
     summary,
     year,
-    featured,
-    scale,
-    methods,
-    innovationLevel,
-    heroImage {
-      asset-> { _id, url },
-      alt,
-      hotspot,
-      crop
-    },
+    tags,
     gallery[] {
       asset-> { _id, url },
       alt,
@@ -47,82 +32,76 @@ export const PROJECT_DETAIL_QUERY = groq`
       hotspot,
       crop
     },
-    // New 6-section structure
-    societalIssue,
-    solution,
-    whyItWorked,
-    impact,
-    scalability,
-    valueCreation,
-    // Legacy fields (fallback)
-    challenge,
-    approach,
-    outcome,
-    // Other
-    clientQuote,
-    collaborators,
-    "relatedProjects": relatedProjects[]-> {
-      _id, title, "slug": slug.current, client, domain, summary,
-      heroImage { asset-> { _id, url }, alt }
-    }
+    links[] { label, url }
   }
 `;
 
-// Home page
-export const HOME_QUERY = groq`
-  *[_type == "homePage"][0] {
+// Page-section singletons
+export const HOME_SECTION_QUERY = groq`
+  *[_type == "homeSection"][0] {
     heroText,
-    "featuredProjects": featuredProjects[]-> {
-      _id, title, slug, client, domain, summary, year, heroImage
-    }
+    backgroundColor,
+    "backgroundVideoUrl": backgroundVideo.asset->url
   }
 `;
 
-// About page
-export const ABOUT_QUERY = groq`
-  *[_type == "aboutPage"][0] {
-    heading,
-    intro,
-    heroImage {
+export const MOTTO_SECTION_QUERY = groq`
+  *[_type == "mottoSection"][0] { heroText, backgroundColor }
+`;
+
+export const ABOUT_INTRO_QUERY = groq`
+  *[_type == "aboutIntro"][0] {
+    backgroundColor,
+    whoIsComteTitle,
+    whoIsComte,
+    whoAreWeTitle,
+    whoAreWe,
+    image {
       asset-> { _id, url },
       alt,
       hotspot,
       crop
-    },
-    sections[] {
-      _key,
-      heading,
-      body,
-      image {
-        asset-> { _id, url },
-        alt,
-        hotspot,
-        crop
-      }
-    },
-    teamHeading
+    }
   }
 `;
 
-// How we work page
-export const HOW_WE_WORK_QUERY = groq`
-  *[_type == "howWeWorkPage"][0] {
-    heading,
-    intro,
-    capabilities,
-    processSteps
+export const ABOUT_OFFICE_QUERY = groq`
+  *[_type == "aboutOffice"][0] {
+    backgroundColor,
+    locations[] {
+      title,
+      description,
+      longitude,
+      latitude,
+      zoom
+    }
   }
 `;
 
-// Contact page
-export const CONTACT_QUERY = groq`
-  *[_type == "contactPage"][0] {
-    heading,
-    email,
-    phone,
-    address,
-    content
+export const WHAT_WE_DO_QUERY = groq`
+  *[_type == "whatWeDo"][0] {
+    backgroundColor,
+    textbox,
+    datapoint1,
+    datapoint2,
+    datapoint3
   }
+`;
+
+export const PROJECTS_SECTION_QUERY = groq`
+  *[_type == "projectsSection"][0] { backgroundColor, heading }
+`;
+
+export const TEAM_SECTION_QUERY = groq`
+  *[_type == "teamSection"][0] { backgroundColor, heading }
+`;
+
+export const PUBLICATIONS_SECTION_QUERY = groq`
+  *[_type == "publicationsSection"][0] { backgroundColor, heading }
+`;
+
+export const VENTURES_SECTION_QUERY = groq`
+  *[_type == "venturesSection"][0] { backgroundColor, heading }
 `;
 
 // Team members
@@ -141,133 +120,64 @@ export const TEAM_QUERY = groq`
   }
 `;
 
-// Insights views
-export const INSIGHTS_VIEWS_QUERY = groq`
-  *[_type == "insightsView"] | order(order asc) {
+// Publications
+export const PUBLICATIONS_QUERY = groq`
+  *[_type == "publication"] | order(order asc) {
     _id,
     title,
-    key,
-    description
-  }
-`;
-
-// Insights page (singleton)
-export const INSIGHTS_PAGE_QUERY = groq`
-  *[_type == "insightsPage"][0] {
-    heading,
-    subtitle,
-    articlesHeading
-  }
-`;
-
-// Resources
-export const RESOURCES_QUERY = groq`
-  *[_type == "resource"] | order(order asc) {
-    _id,
-    title,
-    "slug": slug.current,
-    subtitle,
-    meta,
-    image {
-      asset-> { _id, url },
-      alt
-    },
-    actionType,
-    "fileUrl": file.asset->url,
-    inquiryEmail
-  }
-`;
-
-// Single resource (for detail page)
-export const RESOURCE_DETAIL_QUERY = groq`
-  *[_type == "resource" && slug.current == $slug][0] {
-    _id,
-    title,
-    "slug": slug.current,
-    subtitle,
     description,
-    meta,
     image {
       asset-> { _id, url },
       alt,
       hotspot,
       crop
-    },
-    actionType,
-    "fileUrl": file.asset->url,
-    inquiryEmail
-  }
-`;
-
-// Articles
-export const ARTICLES_QUERY = groq`
-  *[_type == "article"] | order(year desc, order asc) {
-    _id,
-    title,
-    year,
-    forum,
-    image {
-      asset-> { _id, url },
-      alt
-    },
-    linkType,
-    externalUrl,
-    slug
-  }
-`;
-
-// Single article (for internal blog posts)
-export const ARTICLE_DETAIL_QUERY = groq`
-  *[_type == "article" && slug.current == $slug][0] {
-    _id,
-    title,
-    year,
-    forum,
-    image {
-      asset-> { _id, url },
-      alt
-    },
-    body[] {
-      ...,
-      _type == "image" => {
-        asset-> { _id, url },
-        alt,
-        caption
-      }
     }
   }
 `;
 
-// Footer tags
-export const FOOTER_TAGS_QUERY = groq`
-  *[_type == "footerTag"] | order(order asc) {
+// Ventures
+export const VENTURES_QUERY = groq`
+  *[_type == "venture"] | order(order asc) {
     _id,
-    label,
-    category,
-    color
+    title,
+    description,
+    image {
+      asset-> { _id, url },
+      alt,
+      hotspot,
+      crop
+    }
   }
 `;
 
-// Presentation tool: projects with presentation-specific fields
+// Site settings
+export const SITE_SETTINGS_QUERY = groq`
+  *[_type == "siteSettings"][0] {
+    siteName,
+    siteDescription,
+    email,
+    location,
+    copyright
+  }
+`;
+
+// Presentation tool (internal)
 export const PRESENTATION_PROJECTS_QUERY = groq`
   *[_type == "project"] | order(order asc) {
     _id,
     title,
     "slug": slug.current,
     client,
-    domain,
     summary,
     year,
-    heroImage,
     gallery,
-    methods,
+    tags,
     "presentationData": presentationData {
       stat1, stat2, bulletPoints, location, industry
     }
   }
 `;
 
-// Presentation tool: service categories
 export const SERVICE_CATEGORIES_QUERY = groq`
   *[_type == "serviceCategory"] | order(order asc) {
     _id,
@@ -285,16 +195,5 @@ export const SERVICE_CATEGORIES_QUERY = groq`
       crop
     },
     order
-  }
-`;
-
-// Site settings
-export const SITE_SETTINGS_QUERY = groq`
-  *[_type == "siteSettings"][0] {
-    siteName,
-    siteDescription,
-    email,
-    location,
-    copyright
   }
 `;

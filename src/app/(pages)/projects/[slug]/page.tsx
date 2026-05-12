@@ -9,21 +9,14 @@ import FittingHeadline from "@/app/components/FittingHeadline";
 import { client } from "@/sanity/lib/client";
 import { PROJECT_DETAIL_QUERY } from "@/sanity/lib/queries";
 import { urlFor } from "@/sanity/lib/image";
-import { PortableText } from "@portabletext/react";
+import { DOMAIN_LABELS, type Domain } from "@/app/components/projectNetworkData";
+
 const PLACEHOLDER_IMAGE =
   "https://images.unsplash.com/photo-1773558058134-9ff1a3212ef0?q=80&w=1572&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D";
 
 function sanityImageUrl(imageField: any, width = 1600): string | null {
   if (!imageField?.asset) return null;
   return urlFor(imageField).width(width).auto("format").quality(80).url();
-}
-
-function hasPortableTextContent(blocks: any): boolean {
-  if (!blocks || !Array.isArray(blocks) || blocks.length === 0) return false;
-  return blocks.some(
-    (block: any) =>
-      block.children?.some((child: any) => child.text && child.text.trim().length > 0)
-  );
 }
 
 export default async function ProjectPage({
@@ -39,32 +32,13 @@ export default async function ProjectPage({
 
   if (!project) return notFound();
 
-  const heroUrl = sanityImageUrl(project.heroImage) ?? PLACEHOLDER_IMAGE;
-  const heroAlt = project.heroImage?.alt ?? project.title ?? "";
+  const gallery: any[] = project.gallery ?? [];
+  const heroImage = gallery[0];
+  const heroUrl = sanityImageUrl(heroImage) ?? PLACEHOLDER_IMAGE;
+  const heroAlt = heroImage?.alt ?? project.title ?? "";
 
-  const hasQuote = project.clientQuote?.text;
-  const hasGallery = project.gallery && project.gallery.length > 0;
-
-  // Determine which content structure to use (new 6-section or legacy 3-section)
-  const hasNewStructure =
-    hasPortableTextContent(project.societalIssue) ||
-    hasPortableTextContent(project.solution) ||
-    hasPortableTextContent(project.impact);
-
-  const contentSections = hasNewStructure
-    ? [
-        { title: "The Societal Issue", content: project.societalIssue },
-        { title: "The Solution", content: project.solution },
-        { title: "Why This Approach Worked", content: project.whyItWorked },
-        { title: "Impact", content: project.impact },
-        { title: "Scalability", content: project.scalability },
-        { title: "Value Creation", content: project.valueCreation },
-      ]
-    : [
-        { title: "The Challenge", content: project.challenge },
-        { title: "The Approach", content: project.approach },
-        { title: "What Changed", content: project.outcome },
-      ];
+  const tags: string[] = project.tags ?? [];
+  const links: { label: string; url: string }[] = project.links ?? [];
 
   return (
     <div style={{ minHeight: "100svh", overflowY: "auto", height: "100vh" }}>
@@ -91,98 +65,68 @@ export default async function ProjectPage({
         </div>
       </div>
 
-      {/* Content sections (6-section or legacy 3-section) */}
-      {contentSections
-        .filter((s) => hasPortableTextContent(s.content))
-        .map((section, i) => (
-          <div key={i} className="w-full bg-background px-6 py-12 md:px-12 lg:px-24 max-w-3xl mx-auto">
-            <div className="text-foreground font-light space-y-6 text-lg leading-relaxed [&>p]:mb-0">
-              <p className="text-2xl font-bold text-center">{section.title}</p>
-              <PortableText value={section.content} />
-            </div>
-          </div>
-        ))}
-
-      {/* Client quote */}
-      {hasQuote && (
-        <div className="w-full bg-background px-6 py-8 md:px-12 lg:px-24 max-w-3xl mx-auto">
-          <blockquote className="border-l-4 border-foreground/20 pl-6 py-2">
-            <p className="text-xl font-light italic text-foreground/80 leading-relaxed">
-              &ldquo;{project.clientQuote.text}&rdquo;
-            </p>
-            {(project.clientQuote.author || project.clientQuote.role) && (
-              <footer className="mt-3 text-sm text-foreground/50">
-                {project.clientQuote.author}
-                {project.clientQuote.role && `, ${project.clientQuote.role}`}
-              </footer>
-            )}
-          </blockquote>
+      {/* Description */}
+      {project.summary && (
+        <div className="mx-auto w-full max-w-3xl bg-background px-6 py-12 md:px-12">
+          <p className="text-foreground/85 text-lg font-light leading-relaxed whitespace-pre-line">
+            {project.summary}
+          </p>
         </div>
       )}
 
-      {/* Collaborators */}
-      {project.collaborators && project.collaborators.length > 0 && (
-        <div className="w-full bg-background px-6 py-8 md:px-12 lg:px-24 max-w-3xl mx-auto">
-          <div className="text-center">
-            <span className="text-sm text-foreground/50">In collaboration with </span>
-            <span className="text-sm text-foreground/80">{project.collaborators.join(", ")}</span>
+      {/* Tags */}
+      {tags.length > 0 && (
+        <div className="mx-auto w-full max-w-3xl bg-background px-6 pb-8 md:px-12">
+          <div className="flex flex-wrap gap-2">
+            {tags.map((tag) => (
+              <span
+                key={tag}
+                className="rounded-full border border-foreground/20 px-3 py-1 text-sm font-light text-foreground/70"
+              >
+                {DOMAIN_LABELS[tag as Domain] ?? tag}
+              </span>
+            ))}
           </div>
         </div>
       )}
 
-      {/* Gallery */}
-      {hasGallery && (
+      {/* Links */}
+      {links.length > 0 && (
+        <div className="mx-auto w-full max-w-3xl bg-background px-6 pb-12 md:px-12">
+          <div className="flex flex-col gap-2">
+            {links.map((link) => (
+              <a
+                key={link.url}
+                href={link.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-foreground/70 underline-offset-4 hover:underline"
+              >
+                {link.label}
+              </a>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Remaining gallery */}
+      {gallery.length > 1 && (
         <div className="w-full bg-background px-6 py-8 md:px-12 lg:px-24">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-            {project.gallery.map((img: any, i: number) => {
+            {gallery.slice(1).map((img: any, i: number) => {
               const imgUrl = sanityImageUrl(img, 1200) ?? PLACEHOLDER_IMAGE;
               return (
-                <div key={img.asset?._id ?? i} className="relative aspect-[4/3] overflow-hidden rounded-lg bg-gray-100">
-                  <Image
-                    src={imgUrl}
-                    alt={img.alt ?? ""}
-                    fill
-                    className="object-cover"
-                    sizes="(max-width: 768px) 100vw, 50vw"
-                  />
+                <div
+                  key={img.asset?._id ?? i}
+                  className="relative aspect-[4/3] overflow-hidden rounded-lg bg-gray-100"
+                >
+                  <Image src={imgUrl} alt={img.alt ?? ""} fill className="object-cover" sizes="(max-width: 768px) 100vw, 50vw" />
                   {img.caption && (
-                    <p className="absolute bottom-0 left-0 right-0 bg-black/40 text-white text-sm px-4 py-2">
+                    <p className="absolute bottom-0 left-0 right-0 bg-black/40 px-4 py-2 text-sm text-white">
                       {img.caption}
                     </p>
                   )}
                 </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
-
-      {/* Related projects */}
-      {project.relatedProjects && project.relatedProjects.length > 0 && (
-        <div className="w-full bg-background px-6 py-12 md:px-12 lg:px-24">
-          <h2 className="text-2xl font-bold text-center mb-8">Related projects</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 max-w-5xl mx-auto">
-            {project.relatedProjects.map((rp: any) => {
-              const rpImg = sanityImageUrl(rp.heroImage, 800) ?? PLACEHOLDER_IMAGE;
-              return (
-                <Link
-                  key={rp._id}
-                  href={`/projects/${rp.slug}`}
-                  className="group relative aspect-[4/3] overflow-hidden rounded-lg bg-gray-100"
-                >
-                  <Image
-                    src={rpImg}
-                    alt={rp.heroImage?.alt ?? rp.title}
-                    fill
-                    className="object-cover transition-transform duration-500 group-hover:scale-[1.03]"
-                    sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 33vw"
-                  />
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
-                  <div className="absolute bottom-0 left-0 right-0 p-4">
-                    <p className="text-xs uppercase tracking-wider text-white/70">{rp.client}</p>
-                    <p className="text-lg font-light text-white">{rp.title}</p>
-                  </div>
-                </Link>
               );
             })}
           </div>
@@ -197,11 +141,11 @@ export default async function ProjectPage({
       </div>
       <div className="w-full flex flex-col md:flex-row md:items-stretch gap-2 py-2 p-0">
         <Link
-          href="/about#aboutContact"
+          href="/about"
           className="w-full rounded-full md:w-1/2 h-[30vh] md:h-[50vh] flex items-center justify-center border border-foreground text-foreground font-light text-2xl md:text-3xl tracking-wide transition-[box-shadow,background-color,color] duration-300 ease-out focus:outline-none focus:ring-2 focus:ring-inset focus:ring-background/30 shrink-0 hover:[box-shadow:inset_0_0_100px_0_rgba(255,82,82,0.85)]"
-          aria-label="Contact us"
+          aria-label="Get in touch"
         >
-          Contact us
+          Get in touch
         </Link>
         <div className="flex flex-col gap-1 justify-center text-foreground/70 font-light text-lg px-6 py-8 md:px-0 md:py-0 md:w-1/2">
           <div className="relative overflow-hidden rounded-lg h-full w-full">

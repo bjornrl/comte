@@ -27,7 +27,7 @@ function groupLabelStyle(isMobile: boolean): React.CSSProperties {
   return {
     width: isMobile ? "100%" : 80,
     flexShrink: isMobile ? 1 : 0,
-    fontFamily: "var(--font-geist-mono)",
+    fontFamily: "var(--font-manrope), system-ui, sans-serif",
     fontSize: isMobile ? "0.55rem" : "0.6rem",
     textTransform: "uppercase",
     letterSpacing: "0.1em",
@@ -53,7 +53,7 @@ function pillStyle(active: boolean, isMobile: boolean, activeColor?: string): Re
       border: `1px solid ${activeColor || "#212121"}`,
       borderRadius: 16,
       padding: isMobile ? "4px 10px" : "5px 14px",
-      fontFamily: "var(--font-geist-sans)",
+      fontFamily: "var(--font-manrope), system-ui, sans-serif",
       fontSize: isMobile ? "0.65rem" : "0.7rem",
       fontWeight: 500,
       color: activeColor ? "#212121" : "#F9F9ED",
@@ -67,7 +67,7 @@ function pillStyle(active: boolean, isMobile: boolean, activeColor?: string): Re
     border: "1px solid rgba(0,0,0,0.1)",
     borderRadius: 16,
     padding: isMobile ? "4px 10px" : "5px 14px",
-    fontFamily: "var(--font-geist-sans)",
+    fontFamily: "var(--font-manrope), system-ui, sans-serif",
     fontSize: isMobile ? "0.65rem" : "0.7rem",
     fontWeight: 450,
     color: "rgba(0,0,0,0.5)",
@@ -107,9 +107,9 @@ export default function FilterBar({ filters, onChange }: FilterBarProps) {
       }}
     >
       <div style={{ maxWidth: 900, margin: "0 auto" }}>
-        {/* Domain row */}
+        {/* Tag (Domain) row */}
         <div style={rowStyle(isMobile)}>
-          <span style={groupLabelStyle(isMobile)}>Domain</span>
+          <span style={groupLabelStyle(isMobile)}>Tag</span>
           {(Object.keys(DOMAIN_LABELS) as Domain[]).map((d) => {
             const active = filters.domain === d;
             return (
@@ -117,20 +117,6 @@ export default function FilterBar({ filters, onChange }: FilterBarProps) {
                 key={d}
                 onClick={() => onChange({ ...filters, domain: filters.domain === d ? null : d })}
                 style={pillStyle(active, isMobile, active ? DOMAIN_COLORS[d] : undefined)}
-                onMouseEnter={(e) => {
-                  if (!active) {
-                    const t = e.currentTarget;
-                    t.style.background = "rgba(0,0,0,0.08)";
-                    t.style.color = "rgba(0,0,0,0.7)";
-                  }
-                }}
-                onMouseLeave={(e) => {
-                  if (!active) {
-                    const t = e.currentTarget;
-                    t.style.background = "rgba(0,0,0,0.04)";
-                    t.style.color = "rgba(0,0,0,0.5)";
-                  }
-                }}
               >
                 {DOMAIN_LABELS[d]}
               </button>
@@ -148,20 +134,6 @@ export default function FilterBar({ filters, onChange }: FilterBarProps) {
                 key={s}
                 onClick={() => onChange({ ...filters, scale: filters.scale === s ? null : s })}
                 style={pillStyle(active, isMobile)}
-                onMouseEnter={(e) => {
-                  if (!active) {
-                    const t = e.currentTarget;
-                    t.style.background = "rgba(0,0,0,0.08)";
-                    t.style.color = "rgba(0,0,0,0.7)";
-                  }
-                }}
-                onMouseLeave={(e) => {
-                  if (!active) {
-                    const t = e.currentTarget;
-                    t.style.background = "rgba(0,0,0,0.04)";
-                    t.style.color = "rgba(0,0,0,0.5)";
-                  }
-                }}
               >
                 {SCALE_LABELS[s]}
               </button>
@@ -179,20 +151,6 @@ export default function FilterBar({ filters, onChange }: FilterBarProps) {
                 key={m}
                 onClick={() => onChange({ ...filters, method: filters.method === m ? null : m })}
                 style={pillStyle(active, isMobile)}
-                onMouseEnter={(e) => {
-                  if (!active) {
-                    const t = e.currentTarget;
-                    t.style.background = "rgba(0,0,0,0.08)";
-                    t.style.color = "rgba(0,0,0,0.7)";
-                  }
-                }}
-                onMouseLeave={(e) => {
-                  if (!active) {
-                    const t = e.currentTarget;
-                    t.style.background = "rgba(0,0,0,0.04)";
-                    t.style.color = "rgba(0,0,0,0.5)";
-                  }
-                }}
               >
                 {METHOD_LABELS[m]}
               </button>
@@ -215,20 +173,6 @@ export default function FilterBar({ filters, onChange }: FilterBarProps) {
                   })
                 }
                 style={pillStyle(active, isMobile)}
-                onMouseEnter={(e) => {
-                  if (!active) {
-                    const t = e.currentTarget;
-                    t.style.background = "rgba(0,0,0,0.08)";
-                    t.style.color = "rgba(0,0,0,0.7)";
-                  }
-                }}
-                onMouseLeave={(e) => {
-                  if (!active) {
-                    const t = e.currentTarget;
-                    t.style.background = "rgba(0,0,0,0.04)";
-                    t.style.color = "rgba(0,0,0,0.5)";
-                  }
-                }}
               >
                 {INNOVATION_LABELS[il]}
               </button>
@@ -240,7 +184,7 @@ export default function FilterBar({ filters, onChange }: FilterBarProps) {
             style={{
               background: "none",
               border: "none",
-              fontFamily: "var(--font-geist-sans)",
+              fontFamily: "var(--font-manrope), system-ui, sans-serif",
               fontSize: isMobile ? "0.65rem" : "0.7rem",
               color: "rgba(0,0,0,0.4)",
               cursor: "pointer",
@@ -250,12 +194,6 @@ export default function FilterBar({ filters, onChange }: FilterBarProps) {
               transition: "opacity 0.2s ease, color 0.2s ease",
               whiteSpace: "nowrap",
               marginLeft: isMobile ? 0 : "auto",
-            }}
-            onMouseEnter={(e) => {
-              (e.currentTarget as HTMLElement).style.color = "rgba(0,0,0,0.7)";
-            }}
-            onMouseLeave={(e) => {
-              (e.currentTarget as HTMLElement).style.color = "rgba(0,0,0,0.4)";
             }}
           >
             Clear{hasActiveFilters(filters) ? ` (${matchCount})` : ""}
