@@ -1,7 +1,6 @@
 import SectionShell, { PANEL_PADDING } from "./SectionShell";
 
 const DEFAULT_BG = "#1F3A32";
-const LOGO_RED = "#FF5252";
 
 type Props = {
   heroText?: string;
@@ -29,19 +28,6 @@ export default function SectionHome({ heroText, backgroundColor, backgroundVideo
       {backgroundVideoUrl && (
         <div aria-hidden="true" className="absolute inset-0 z-0 bg-black/30" />
       )}
-
-      {/* Top-left logo box */}
-      <div
-        className="absolute z-10"
-        style={{ top: PANEL_PADDING, left: PANEL_PADDING }}
-      >
-        <div
-          className="inline-flex items-center justify-center rounded-md px-4 py-2 font-[family-name:var(--font-manrope)] text-2xl font-bold text-white"
-          style={{ background: LOGO_RED }}
-        >
-          comte
-        </div>
-      </div>
 
       {/* Bottom-left hero text */}
       <div

@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Manrope, Abhaya_Libre } from "next/font/google";
+import { Manrope, Abhaya_Libre, Work_Sans } from "next/font/google";
 import "./globals.css";
 import { client } from "@/sanity/lib/client";
 import { SITE_SETTINGS_QUERY } from "@/sanity/lib/queries";
@@ -15,6 +15,12 @@ const abhayaLibre = Abhaya_Libre({
   variable: "--font-abhaya-libre",
   subsets: ["latin"],
   weight: ["400", "500", "600", "700", "800"],
+});
+
+const workSans = Work_Sans({
+  variable: "--font-work-sans",
+  subsets: ["latin"],
+  weight: ["400", "500", "600", "700"],
 });
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -37,7 +43,9 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className={`${manrope.variable} ${abhayaLibre.variable} antialiased`}>
+      <body
+        className={`${manrope.variable} ${abhayaLibre.variable} ${workSans.variable} antialiased`}
+      >
         {children}
       </body>
     </html>

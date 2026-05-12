@@ -102,16 +102,11 @@ export default function HomePageClient({ data, projects, connections }: Props) {
     },
   ];
 
-  // Sections with dark backgrounds want a light nav.
-  const DARK_BG_SECTIONS = new Set(["home", "projects"]);
-  const navTextColor = DARK_BG_SECTIONS.has(activeSection) ? "#FFFFFF" : "#212121";
-
   return (
     <div className="h-svh overflow-hidden">
       <BlobNav
         onNavigate={(id) => scrollNavRef.current?.scrollToSection(id)}
         activeSection={activeSection}
-        textColor={navTextColor}
       />
       <HorizontalScroll
         sections={sections}
