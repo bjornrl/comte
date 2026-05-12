@@ -33,23 +33,23 @@ const DOMAIN_LABELS: Record<Domain, string> = {
 
 const VISIBLE_DOMAINS: Domain[] = [
   "education",
+  "culture",
   "health",
   "climate",
   "digital",
-  "urban",
   "integration",
+  "urban",
 ];
 
 // Cluster centres in normalised (0..1) coordinates.
 const CLUSTER_CENTERS: Record<Domain, { x: number; y: number }> = {
-  education: { x: 0.22, y: 0.28 },
-  health: { x: 0.72, y: 0.24 },
-  climate: { x: 0.15, y: 0.62 },
-  digital: { x: 0.52, y: 0.55 },
-  urban: { x: 0.32, y: 0.76 },
-  integration: { x: 0.78, y: 0.7 },
-  // Culture is hidden from this view but kept here so the type stays exhaustive.
-  culture: { x: 0.5, y: 0.5 },
+  education: { x: 0.18, y: 0.26 },
+  culture: { x: 0.5, y: 0.18 },
+  health: { x: 0.82, y: 0.26 },
+  climate: { x: 0.15, y: 0.58 },
+  digital: { x: 0.5, y: 0.5 },
+  integration: { x: 0.85, y: 0.62 },
+  urban: { x: 0.5, y: 0.82 },
 };
 
 // Fallback seed projects (used when Sanity has no projects yet).
