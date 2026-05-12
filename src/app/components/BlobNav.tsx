@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Image from "next/image";
 import { ChevronLeft } from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
@@ -89,9 +89,16 @@ const boxStyle = (extra?: React.CSSProperties): React.CSSProperties => ({
 });
 
 export default function BlobNav({ onNavigate, activeSection }: Props) {
-  const [open, setOpen] = useState(true); // page starts with menu open
+  const [open, setOpen] = useState(true); // page starts with menu open (we land on Home)
   const pathname = usePathname();
   const router = useRouter();
+
+  // Auto-collapse when the user scrolls off the landing section; auto-open
+  // again whenever they come back to it. Manual toggles are respected
+  // until the next time the active section changes.
+  useEffect(() => {
+    setOpen(activeSection === "home");
+  }, [activeSection]);
 
   const navigate = useCallback(
     (sectionId: string) => {
