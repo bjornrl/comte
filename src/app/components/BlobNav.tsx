@@ -268,14 +268,22 @@ export default function BlobNav({ onNavigate, activeSection, isScrolling }: Prop
                   style={{
                     ...boxStyle({
                       filter: isActive ? "brightness(0.92)" : undefined,
+                      // clip-path eats the rightmost ITEM_GAP_PX including
+                      // the right padding. Pad the right by the same amount
+                      // so the visible inner padding stays symmetrical with
+                      // the left (matches boxStyle's 14px).
+                      paddingLeft: 14,
+                      paddingRight: 14 + ITEM_GAP_PX,
                     }),
                     position: "relative",
                     flexShrink: 0,
                     // clip-path knocks the right ITEM_GAP_PX of each item to
-                    // transparency. In the open state this is the visible gap
-                    // between items. While they overlap during the collapse,
-                    // every layer keeps its own transparent slit, so the deck
-                    // stays readable without needing a solid stroke divider.
+                    // transparency (alpha 0). In the open state this is the
+                    // visible gap between items. While they overlap during
+                    // the collapse, every layer keeps its own transparent
+                    // slit, so the deck stays readable without a colored
+                    // stroke and whatever sits behind the nav (section bg,
+                    // future video) shows through every gap.
                     clipPath: `inset(0 ${ITEM_GAP_PX}px 0 0)`,
                     transform: open
                       ? "translateX(0)"
