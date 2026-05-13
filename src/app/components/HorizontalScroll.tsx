@@ -167,6 +167,49 @@ export default function HorizontalScroll({
     return () => window.removeEventListener("comte:navigate", onNavigate as EventListener);
   }, [scrollToSection]);
 
+  // Vertical wheel → horizontal section advance. Trackpad horizontal swipes
+  // (where |deltaX| > |deltaY|) are left alone so the native horizontal
+  // scroll still works.
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    let lastTriggerAt = 0;
+    const COOLDOWN_MS = 500;
+
+    const handleWheel = (e: WheelEvent) => {
+      // Trackpad horizontal scroll — let the browser handle it natively.
+      if (Math.abs(e.deltaX) > Math.abs(e.deltaY)) return;
+      // No vertical intent → nothing to translate.
+      if (e.deltaY === 0) return;
+
+      // If the wheel event originated inside an inner horizontally-scrollable
+      // element (e.g. the team panel's inner scroller), let that element keep
+      // the event — don't hijack into a section advance.
+      let node: Element | null = e.target as Element;
+      while (node && node !== el) {
+        if (node instanceof HTMLElement) {
+          const overflowX = getComputedStyle(node).overflowX;
+          if (overflowX === "auto" || overflowX === "scroll") {
+            const hasOverflow = node.scrollWidth > node.clientWidth + 1;
+            if (hasOverflow) return;
+          }
+        }
+        node = node.parentElement;
+      }
+
+      e.preventDefault();
+      const now = performance.now();
+      if (now - lastTriggerAt < COOLDOWN_MS) return;
+      lastTriggerAt = now;
+
+      if (e.deltaY > 0) goNext();
+      else goPrev();
+    };
+
+    el.addEventListener("wheel", handleWheel, { passive: false });
+    return () => el.removeEventListener("wheel", handleWheel);
+  }, [goNext, goPrev]);
+
   // Honour initial hash (e.g. /#projects) on mount.
   useEffect(() => {
     const hash = typeof window !== "undefined" ? window.location.hash.replace(/^#/, "") : "";
