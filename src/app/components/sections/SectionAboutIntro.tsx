@@ -11,10 +11,13 @@ const LOGO_ASPECT = 71 / 247;
 
 // LOGO_SCALE > 1 oversizes the SVG so the artwork (which has whitespace
 // around it inside the SVG's own viewBox) reaches the column's top and
-// bottom edges. The SVG box itself overshoots and is clipped by the
-// column's overflow-hidden — the section background is the same pink, so
-// nothing visible is lost.
-const LOGO_SCALE = 1.3;
+// bottom edges. ~1.23 puts the "comte" letters flush against the top of
+// the page and the dot flush against the bottom — that's the maximum
+// scale before the artwork starts falling off-screen on both ends and
+// the visible portion becomes the SVG's empty middle. The pink box
+// overshoots both edges and is clipped by overflow-hidden; the section
+// background is the same pink so nothing visible is lost.
+const LOGO_SCALE = 1.23;
 
 type Props = {
   imageUrl?: string;
