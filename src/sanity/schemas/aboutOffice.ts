@@ -26,22 +26,17 @@ export const aboutOffice = defineType({
               rows: 4,
             }),
             defineField({
-              name: "longitude",
-              title: "Longitude",
-              type: "number",
-              description: "Map centre longitude, e.g. 10.7361 for Oslo",
-            }),
-            defineField({
-              name: "latitude",
-              title: "Latitude",
-              type: "number",
-              description: "Map centre latitude, e.g. 59.9202 for Oslo",
+              name: "address",
+              title: "Address",
+              type: "string",
+              description:
+                'Street address used to centre the map, e.g. "Pilestredet 31, Oslo, Norway". Looked up server-side via OpenStreetMap.',
             }),
             defineField({
               name: "zoom",
               title: "Map Zoom",
               type: "number",
-              initialValue: 12,
+              initialValue: 14,
             }),
           ],
           preview: { select: { title: "title" } },

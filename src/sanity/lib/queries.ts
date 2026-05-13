@@ -87,8 +87,7 @@ export const ABOUT_OFFICE_QUERY = groq`
     locations[] {
       title,
       description,
-      longitude,
-      latitude,
+      address,
       zoom
     },
     ${INTERSTITIAL_FIELDS}

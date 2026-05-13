@@ -33,6 +33,71 @@ function sanityImageUrl(imageField: any, width = 1600): string | undefined {
   return urlFor(imageField).width(width).auto("format").quality(80).url();
 }
 
+/**
+ * Resolve an address string to { lng, lat } via OpenStreetMap's free
+ * Nominatim service. Server-side only; cached for one day by Next.js so
+ * we don't hit Nominatim more than once per address per day.
+ */
+async function geocodeAddress(address: string): Promise<{ lng: number; lat: number } | null> {
+  const q = address.trim();
+  if (!q) return null;
+  try {
+    const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(q)}&format=json&limit=1`;
+    const res = await fetch(url, {
+      headers: {
+        // Nominatim's usage policy asks for an identifying User-Agent.
+        "User-Agent": "Comte Bureau (https://comtebureau.com)",
+        Accept: "application/json",
+      },
+      next: { revalidate: 60 * 60 * 24 },
+    });
+    if (!res.ok) return null;
+    const data = (await res.json()) as Array<{ lat?: string; lon?: string }>;
+    const hit = data?.[0];
+    if (!hit?.lat || !hit?.lon) return null;
+    const lat = parseFloat(hit.lat);
+    const lng = parseFloat(hit.lon);
+    if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
+    return { lng, lat };
+  } catch {
+    return null;
+  }
+}
+
+// Last-resort default centre used when an office address can't be resolved.
+const FALLBACK_OFFICE_COORDS = { lng: 10.736, lat: 59.9202 };
+
+async function resolveOfficeLocations(rawLocations: any[]): Promise<
+  Array<{
+    title?: string;
+    description?: string;
+    longitude: number;
+    latitude: number;
+    zoom?: number;
+  }>
+> {
+  const items = Array.isArray(rawLocations) ? rawLocations : [];
+  // Sequential geocoding keeps us under Nominatim's 1 req/sec policy.
+  const out: Array<{
+    title?: string;
+    description?: string;
+    longitude: number;
+    latitude: number;
+    zoom?: number;
+  }> = [];
+  for (const loc of items) {
+    const geo = (loc?.address && (await geocodeAddress(loc.address))) || FALLBACK_OFFICE_COORDS;
+    out.push({
+      title: loc?.title,
+      description: loc?.description,
+      longitude: geo.lng,
+      latitude: geo.lat,
+      zoom: loc?.zoom,
+    });
+  }
+  return out;
+}
+
 function mapInterstitial(raw: any) {
   if (!raw) return undefined;
   const hasContent = !!(raw.text || raw.image || raw.videoUrl);
@@ -126,6 +191,9 @@ export default async function Home() {
     : FALLBACK_PROJECTS;
   const connections = generateConnections(projects);
 
+  // Resolve each office's address → { longitude, latitude } before render.
+  const aboutOfficeLocations = await resolveOfficeLocations(aboutOffice?.locations ?? []);
+
   const data: HomeData = {
     home: {
       heroText: home?.heroText,
@@ -147,7 +215,7 @@ export default async function Home() {
       interstitial: mapInterstitial(aboutIntro?.interstitial),
     },
     aboutOffice: {
-      locations: aboutOffice?.locations ?? [],
+      locations: aboutOfficeLocations,
       interstitial: mapInterstitial(aboutOffice?.interstitial),
     },
     whatWeDo: {
