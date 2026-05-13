@@ -20,21 +20,43 @@ type Props = {
   sections: Section[];
   navRef?: React.MutableRefObject<HorizontalScrollNavApi | null>;
   onActiveSectionChange?: (id: string) => void;
-  /** True on the first scroll event, false ~200ms after the last. */
+  /** True the moment scroll motion begins, false only after the snap
+   * animation (if any) completes. */
   onScrollingChange?: (scrolling: boolean) => void;
 };
+
+// ---------- Tuning constants ----------
+
+// Distance from a snap point (as a fraction of the viewport width) within which
+// the page snaps to that point on scroll-end. 0.30 means the outer 30% on each
+// side of every snap target snaps; the 40% in the middle is a "free zone" where
+// the user can leave the page resting between two sections.
+const SNAP_THRESHOLD = 0.3;
+
+// Smooth-scroll duration when we snap to a section. Higher = more graceful.
+const SNAP_DURATION_MS = 700;
+
+// How long the container must be idle before we consider a scroll "ended".
+// Trackpad inertia keeps firing scroll events for ~80–120ms after a swipe, so
+// 150ms gives the user's "roll" room to play out before snap kicks in.
+const SCROLL_IDLE_MS = 150;
+
+// Cap on how far a single wheel tick can move the page, expressed as a fraction
+// of viewport width. Stops a single mousewheel click from blasting past 2+
+// panels.
+const MAX_WHEEL_DELTA_FRACTION = 1.1;
+
+// ---------- Component ----------
 
 /**
  * Horizontally scrolling section list with infinite-loop behaviour and
  * optional non-snap interstitial panels between sections.
  *
- * DOM order:
- *   [clone-of-last] [int? + real section]... [clone-of-first]
- *
- * Only main panels carry scroll-snap-align: start. Interstitials are
- * passed through during scroll motion. We track section identity via
- * data-snap-id (instead of fixed panel indices) because interstitials
- * make panel-index arithmetic unreliable.
+ * Uses custom JS for snap (no CSS scroll-snap) so we can:
+ *   - keep scroll position 1:1 with input,
+ *   - only snap when the user has crossed a threshold into the next section,
+ *   - run a slower easing curve on the snap animation,
+ *   - allow trackpad inertia to roll for a frame or two without overshooting.
  */
 export default function HorizontalScroll({
   sections,
@@ -45,9 +67,13 @@ export default function HorizontalScroll({
   const containerRef = useRef<HTMLDivElement>(null);
   const sectionsRef = useRef(sections);
   sectionsRef.current = sections;
-  const isAdjusting = useRef(false);
 
-  // -- helpers that work via DOM lookup so they're robust to interstitials --
+  // True while a programmatic smooth-scroll is in flight. Scroll events fired
+  // during that time should not be treated as user motion.
+  const isAdjusting = useRef(false);
+  const animFrameId = useRef<number | null>(null);
+
+  // ---- helpers --------------------------------------------------------------
 
   const getSnapPanels = useCallback((): HTMLElement[] => {
     const el = containerRef.current;
@@ -55,11 +81,14 @@ export default function HorizontalScroll({
     return Array.from(el.querySelectorAll<HTMLElement>("[data-snap-id]"));
   }, []);
 
-  const getActiveSnapIndex = useCallback((): number => {
+  const findNearestSnapIndex = useCallback((): {
+    index: number;
+    distance: number;
+  } => {
     const el = containerRef.current;
-    if (!el) return -1;
+    if (!el) return { index: -1, distance: Infinity };
     const panels = getSnapPanels();
-    if (panels.length === 0) return -1;
+    if (!panels.length) return { index: -1, distance: Infinity };
     const scrollLeft = el.scrollLeft;
     let bestIdx = 0;
     let bestDist = Infinity;
@@ -70,55 +99,109 @@ export default function HorizontalScroll({
         bestIdx = i;
       }
     });
-    return bestIdx;
+    return { index: bestIdx, distance: bestDist };
   }, [getSnapPanels]);
 
-  const scrollToSnapIndex = useCallback(
-    (snapIdx: number, smooth = true) => {
+  const stopAnimation = useCallback(() => {
+    if (animFrameId.current != null) {
+      cancelAnimationFrame(animFrameId.current);
+      animFrameId.current = null;
+    }
+  }, []);
+
+  /** RAF-driven smooth scroll with easeOutCubic. Replaces the native
+   * scrollTo({ behavior: 'smooth' }) so duration is fully under our control. */
+  const smoothScrollTo = useCallback(
+    (targetX: number, duration: number, onComplete?: () => void) => {
       const el = containerRef.current;
       if (!el) return;
-      const panels = getSnapPanels();
-      const target = panels[snapIdx];
-      if (!target) return;
-      el.scrollTo({ left: target.offsetLeft, behavior: smooth ? "smooth" : "auto" });
+      stopAnimation();
+      const startX = el.scrollLeft;
+      const distance = targetX - startX;
+      if (Math.abs(distance) < 0.5) {
+        onComplete?.();
+        return;
+      }
+      isAdjusting.current = true;
+      const startTime = performance.now();
+      const tick = (now: number) => {
+        const t = Math.min(1, (now - startTime) / duration);
+        const eased = 1 - Math.pow(1 - t, 3); // easeOutCubic — graceful settle
+        el.scrollLeft = startX + distance * eased;
+        if (t < 1) {
+          animFrameId.current = requestAnimationFrame(tick);
+        } else {
+          animFrameId.current = null;
+          // Give the browser two frames to flush the final scroll event before
+          // we hand control back to the user; otherwise the trailing event can
+          // re-trigger our handler and look like user input.
+          requestAnimationFrame(() => {
+            requestAnimationFrame(() => {
+              isAdjusting.current = false;
+              onComplete?.();
+            });
+          });
+        }
+      };
+      animFrameId.current = requestAnimationFrame(tick);
     },
-    [getSnapPanels],
+    [stopAnimation],
   );
 
-  const adjustScrollToSnapIndex = useCallback(
-    (snapIdx: number) => {
+  /** Instant scroll (no animation) used for the loop teleport. */
+  const jumpToScrollLeft = useCallback(
+    (targetX: number) => {
+      const el = containerRef.current;
+      if (!el) return;
+      stopAnimation();
       isAdjusting.current = true;
-      scrollToSnapIndex(snapIdx, false);
+      el.scrollLeft = targetX;
       requestAnimationFrame(() => {
         requestAnimationFrame(() => {
           isAdjusting.current = false;
         });
       });
     },
-    [scrollToSnapIndex],
+    [stopAnimation],
+  );
+
+  // ---- nav API --------------------------------------------------------------
+
+  const scrollToSnapIndex = useCallback(
+    (snapIdx: number, smooth: boolean) => {
+      const panels = getSnapPanels();
+      const target = panels[snapIdx];
+      if (!target) return;
+      if (smooth) {
+        smoothScrollTo(target.offsetLeft, SNAP_DURATION_MS);
+      } else {
+        jumpToScrollLeft(target.offsetLeft);
+      }
+    },
+    [getSnapPanels, smoothScrollTo, jumpToScrollLeft],
   );
 
   const scrollToSection = useCallback(
     (id: string) => {
       const realIdx = sectionsRef.current.findIndex((s) => s.id === id);
       if (realIdx < 0) return;
-      // snap-id index: [clone-last, real-0..real-N-1, clone-first]
+      // snap-id index 0 is clone-last; real sections start at 1.
       scrollToSnapIndex(realIdx + 1, true);
     },
     [scrollToSnapIndex],
   );
 
   const goNext = useCallback(() => {
-    const idx = getActiveSnapIndex();
-    if (idx < 0) return;
-    scrollToSnapIndex(idx + 1, true);
-  }, [getActiveSnapIndex, scrollToSnapIndex]);
+    const { index } = findNearestSnapIndex();
+    if (index < 0) return;
+    scrollToSnapIndex(index + 1, true);
+  }, [findNearestSnapIndex, scrollToSnapIndex]);
 
   const goPrev = useCallback(() => {
-    const idx = getActiveSnapIndex();
-    if (idx < 0) return;
-    scrollToSnapIndex(idx - 1, true);
-  }, [getActiveSnapIndex, scrollToSnapIndex]);
+    const { index } = findNearestSnapIndex();
+    if (index < 0) return;
+    scrollToSnapIndex(index - 1, true);
+  }, [findNearestSnapIndex, scrollToSnapIndex]);
 
   useEffect(() => {
     if (!navRef) return;
@@ -128,17 +211,80 @@ export default function HorizontalScroll({
     };
   }, [navRef, goNext, goPrev, scrollToSection]);
 
-  // Park silently on the first real panel on mount.
-  useEffect(() => {
-    adjustScrollToSnapIndex(1);
-  }, [adjustScrollToSnapIndex]);
+  // ---- mount: park silently on the first real panel -------------------------
 
-  // Scroll tracking, teleport handling, and scrolling-state callback.
+  useEffect(() => {
+    scrollToSnapIndex(1, false);
+  }, [scrollToSnapIndex]);
+
+  // ---- scroll-end snap + active-section tracking ----------------------------
+
   useEffect(() => {
     const el = containerRef.current;
     if (!el) return;
-    let stopTimeout: ReturnType<typeof setTimeout>;
+
+    let idleTimeout: ReturnType<typeof setTimeout>;
     let scrolling = false;
+
+    const numReal = () => sectionsRef.current.length;
+    const isCloneIndex = (snapIdx: number) =>
+      snapIdx === 0 || snapIdx === numReal() + 1;
+
+    const updateActiveSection = (snapIdx: number) => {
+      const n = numReal();
+      let section: Section | undefined;
+      if (snapIdx === 0) section = sectionsRef.current[n - 1];
+      else if (snapIdx === n + 1) section = sectionsRef.current[0];
+      else section = sectionsRef.current[snapIdx - 1];
+      if (section) onActiveSectionChange?.(section.id);
+    };
+
+    const handleIdle = () => {
+      if (isAdjusting.current) return;
+
+      const panels = getSnapPanels();
+      if (!panels.length) {
+        scrolling = false;
+        onScrollingChange?.(false);
+        return;
+      }
+      const panelWidth = el.clientWidth;
+      const { index: nearestIdx, distance: nearestDist } = findNearestSnapIndex();
+      const nearest = panels[nearestIdx];
+      if (!nearest) {
+        scrolling = false;
+        onScrollingChange?.(false);
+        return;
+      }
+
+      // Loop seam: clones are always snapped to so we can teleport seamlessly.
+      if (isCloneIndex(nearestIdx)) {
+        smoothScrollTo(nearest.offsetLeft, SNAP_DURATION_MS, () => {
+          const targetIdx = nearestIdx === 0 ? numReal() : 1;
+          jumpToScrollLeft(panels[targetIdx].offsetLeft);
+          updateActiveSection(targetIdx);
+          scrolling = false;
+          onScrollingChange?.(false);
+        });
+        return;
+      }
+
+      // Within the threshold of a real snap point → snap to it.
+      if (nearestDist <= panelWidth * SNAP_THRESHOLD) {
+        smoothScrollTo(nearest.offsetLeft, SNAP_DURATION_MS, () => {
+          updateActiveSection(nearestIdx);
+          scrolling = false;
+          onScrollingChange?.(false);
+        });
+        return;
+      }
+
+      // Free zone: stay where we are, just report which section is the
+      // dominant one in the viewport.
+      updateActiveSection(nearestIdx);
+      scrolling = false;
+      onScrollingChange?.(false);
+    };
 
     const handleScroll = () => {
       if (isAdjusting.current) return;
@@ -146,58 +292,44 @@ export default function HorizontalScroll({
         scrolling = true;
         onScrollingChange?.(true);
       }
-      clearTimeout(stopTimeout);
-      stopTimeout = setTimeout(() => {
-        scrolling = false;
-        onScrollingChange?.(false);
-
-        const snapIdx = getActiveSnapIndex();
-        if (snapIdx < 0) return;
-        const numReal = sectionsRef.current.length;
-
-        // Teleport on landing on a clone (snap-id index 0 or numReal+1).
-        if (snapIdx === 0) {
-          adjustScrollToSnapIndex(numReal);
-          const last = sectionsRef.current[numReal - 1];
-          if (last) onActiveSectionChange?.(last.id);
-          return;
-        }
-        if (snapIdx === numReal + 1) {
-          adjustScrollToSnapIndex(1);
-          const first = sectionsRef.current[0];
-          if (first) onActiveSectionChange?.(first.id);
-          return;
-        }
-
-        const realIdx = snapIdx - 1;
-        const section = sectionsRef.current[realIdx];
-        if (section) onActiveSectionChange?.(section.id);
-      }, 200);
+      clearTimeout(idleTimeout);
+      idleTimeout = setTimeout(handleIdle, SCROLL_IDLE_MS);
     };
 
     el.addEventListener("scroll", handleScroll, { passive: true });
 
     // Initial active-section report.
-    const first = sectionsRef.current[0];
-    if (first) onActiveSectionChange?.(first.id);
+    const { index: initialIdx } = findNearestSnapIndex();
+    if (initialIdx >= 0) updateActiveSection(initialIdx);
 
     return () => {
       el.removeEventListener("scroll", handleScroll);
-      clearTimeout(stopTimeout);
+      clearTimeout(idleTimeout);
+      stopAnimation();
     };
-  }, [onActiveSectionChange, onScrollingChange, adjustScrollToSnapIndex, getActiveSnapIndex]);
+  }, [
+    findNearestSnapIndex,
+    getSnapPanels,
+    jumpToScrollLeft,
+    onActiveSectionChange,
+    onScrollingChange,
+    smoothScrollTo,
+    stopAnimation,
+  ]);
 
-  // Vertical wheel → horizontal section advance, plus inner-scroll respect.
+  // ---- wheel: 1:1 vertical-to-horizontal translation ------------------------
+
   useEffect(() => {
     const el = containerRef.current;
     if (!el) return;
-    let lastTriggerAt = 0;
-    const COOLDOWN_MS = 500;
 
     const handleWheel = (e: WheelEvent) => {
+      // Trackpad horizontal gestures → let native scroll handle them.
       if (Math.abs(e.deltaX) > Math.abs(e.deltaY)) return;
       if (e.deltaY === 0) return;
 
+      // If the event originated inside an inner horizontal scroller (e.g. the
+      // team-card row), let that handle the wheel.
       let node: Element | null = e.target as Element;
       while (node && node !== el) {
         if (node instanceof HTMLElement) {
@@ -211,19 +343,24 @@ export default function HorizontalScroll({
       }
 
       e.preventDefault();
-      const now = performance.now();
-      if (now - lastTriggerAt < COOLDOWN_MS) return;
-      lastTriggerAt = now;
 
-      if (e.deltaY > 0) goNext();
-      else goPrev();
+      // Cancel any running snap so user input takes precedence immediately.
+      stopAnimation();
+      isAdjusting.current = false;
+
+      // Cap per-tick delta so one outsized mouse wheel click can't blast past
+      // multiple panels.
+      const maxDelta = el.clientWidth * MAX_WHEEL_DELTA_FRACTION;
+      const delta = Math.max(-maxDelta, Math.min(maxDelta, e.deltaY));
+      el.scrollLeft += delta;
     };
 
     el.addEventListener("wheel", handleWheel, { passive: false });
     return () => el.removeEventListener("wheel", handleWheel);
-  }, [goNext, goPrev]);
+  }, [stopAnimation]);
 
-  // BlobNav fallback dispatcher.
+  // ---- BlobNav fallback nav events ------------------------------------------
+
   useEffect(() => {
     const onNavigate = (e: Event) => {
       const detail = (e as CustomEvent<{ sectionId: string }>).detail;
@@ -233,19 +370,20 @@ export default function HorizontalScroll({
     return () => window.removeEventListener("comte:navigate", onNavigate as EventListener);
   }, [scrollToSection]);
 
-  // Initial hash (/#projects) on mount.
+  // ---- initial hash (/#projects, /#team, …) ---------------------------------
+
   useEffect(() => {
-    const hash = typeof window !== "undefined" ? window.location.hash.replace(/^#/, "") : "";
-    if (hash) {
-      requestAnimationFrame(() => scrollToSection(hash));
-    }
+    const hash =
+      typeof window !== "undefined" ? window.location.hash.replace(/^#/, "") : "";
+    if (hash) requestAnimationFrame(() => scrollToSection(hash));
   }, [scrollToSection]);
+
+  // ---- render --------------------------------------------------------------
 
   const cloneLast = sections[sections.length - 1];
   const cloneFirst = sections[0];
 
-  const mainPanelClass = "flex h-svh w-screen flex-shrink-0";
-  const mainPanelStyle = { scrollSnapAlign: "start", scrollSnapStop: "always" } as const;
+  const panelClass = "flex h-svh w-screen flex-shrink-0";
 
   return (
     <div
@@ -253,7 +391,6 @@ export default function HorizontalScroll({
       data-horizontal-scroll="true"
       className="flex h-svh w-screen overflow-x-auto overflow-y-hidden"
       style={{
-        scrollSnapType: "x mandatory",
         scrollBehavior: "auto",
         WebkitOverflowScrolling: "touch",
       }}
@@ -262,8 +399,7 @@ export default function HorizontalScroll({
         <div
           key="clone-last"
           data-snap-id="clone-last"
-          className={mainPanelClass}
-          style={mainPanelStyle}
+          className={panelClass}
           aria-hidden="true"
         >
           {cloneLast.content}
@@ -273,11 +409,7 @@ export default function HorizontalScroll({
       {sections.map((section) => (
         <Fragment key={section.id}>
           {section.interstitial /* not a snap target */}
-          <div
-            data-snap-id={section.id}
-            className={mainPanelClass}
-            style={mainPanelStyle}
-          >
+          <div data-snap-id={section.id} className={panelClass}>
             {section.content}
           </div>
         </Fragment>
@@ -287,8 +419,7 @@ export default function HorizontalScroll({
         <div
           key="clone-first"
           data-snap-id="clone-first"
-          className={mainPanelClass}
-          style={mainPanelStyle}
+          className={panelClass}
           aria-hidden="true"
         >
           {cloneFirst.content}
