@@ -9,7 +9,7 @@ import SectionAboutIntro from "./sections/SectionAboutIntro";
 import SectionAboutOffice, { type OfficeLocation } from "./sections/SectionAboutOffice";
 import SectionWhatWeDo from "./sections/SectionWhatWeDo";
 import SectionProjects from "./sections/SectionProjects";
-import SectionTeam from "./sections/SectionTeam";
+import SectionTeam, { getTeamSectionWidth } from "./sections/SectionTeam";
 import SectionCardGrid, { type CardItem } from "./sections/SectionCardGrid";
 import Interstitial, { type InterstitialData } from "./sections/Interstitial";
 import { type Project, type Connection, setProjectData } from "./projectNetworkData";
@@ -107,6 +107,7 @@ export default function HomePageClient({ data, projects, connections }: Props) {
         />
       ),
       interstitial: maybeInterstitial(data.team.interstitial),
+      width: getTeamSectionWidth(data.team.members.length),
     },
     {
       id: "publications",

@@ -28,6 +28,18 @@ type Props = {
 };
 
 /**
+ * Width the Team panel must take so all cards fit inline as one wide block.
+ * Used by HomePageClient to set the panel wrapper's width in HorizontalScroll.
+ *
+ *   cols = ceil(N / 2)       (2 rows)
+ *   width = max(100vw, cols * (100vw / 4.5) + (cols - 1) * 0.5rem)
+ */
+export function getTeamSectionWidth(memberCount: number): string {
+  const cols = Math.max(1, Math.ceil(Math.max(memberCount, 1) / 2));
+  return `max(100vw, calc(${cols} * (100vw / 4.5) + ${Math.max(0, cols - 1)} * 0.5rem))`;
+}
+
+/**
  * Team section as a single wide panel: 2 rows of cards laid out column-major
  * so all photos fit inline. The panel itself grows wider than the viewport
  * (no inner scroller), so the outer horizontal scroll is what moves the
@@ -39,24 +51,8 @@ type Props = {
  * snap zone (see HorizontalScroll's SNAP_THRESHOLD).
  */
 export default function SectionTeam({ heading: _heading, teamMembers }: Props) {
-  // 4.5 cards visible per viewport, 2 rows. ceil(N/2) columns are needed.
-  const cardCount = Math.max(teamMembers.length, 1);
-  const cols = Math.max(1, Math.ceil(cardCount / 2));
-
-  // Each grid column is 100vw / 4.5 wide; gaps between columns are 0.5rem.
-  // Panel width = total grid width, but at least 100vw (single-viewport
-  // fallback when there are very few team members).
-  const sectionWidth =
-    cols > 0
-      ? `max(100vw, calc(${cols} * (100vw / 4.5) + ${Math.max(0, cols - 1)} * 0.5rem))`
-      : "100vw";
-
   return (
-    <SectionShell
-      id="team"
-      bgColor={BG}
-      style={{ padding: 0, color: FG, width: sectionWidth }}
-    >
+    <SectionShell id="team" bgColor={BG} style={{ padding: 0, color: FG }}>
       <div className="flex h-full flex-col" style={{ paddingTop: CONTENT_TOP }}>
         <div
           className="grid h-full w-full gap-2 pb-6"

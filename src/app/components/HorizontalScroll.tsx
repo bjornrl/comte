@@ -14,6 +14,10 @@ type Section = {
   /** Optional narrow parallax panel rendered to the LEFT of this section.
    * Not a snap target. */
   interstitial?: ReactNode;
+  /** Width of this snap panel. Defaults to 100vw. Sections with wider
+   * content (e.g. team) can request a wider wrapper so the next snap
+   * panel starts after them in the layout. */
+  width?: string;
 };
 
 type Props = {
@@ -384,7 +388,10 @@ export default function HorizontalScroll({
   const cloneLast = sections[sections.length - 1];
   const cloneFirst = sections[0];
 
-  const panelClass = "flex h-svh w-screen flex-shrink-0";
+  const panelClass = "h-svh flex-shrink-0";
+  const panelStyle = (w?: string): React.CSSProperties => ({
+    width: w ?? "100vw",
+  });
 
   return (
     <div
@@ -401,6 +408,7 @@ export default function HorizontalScroll({
           key="clone-last"
           data-snap-id="clone-last"
           className={panelClass}
+          style={panelStyle(cloneLast.width)}
           aria-hidden="true"
         >
           {cloneLast.content}
@@ -410,7 +418,11 @@ export default function HorizontalScroll({
       {sections.map((section) => (
         <Fragment key={section.id}>
           {section.interstitial /* not a snap target */}
-          <div data-snap-id={section.id} className={panelClass}>
+          <div
+            data-snap-id={section.id}
+            className={panelClass}
+            style={panelStyle(section.width)}
+          >
             {section.content}
           </div>
         </Fragment>
@@ -421,6 +433,7 @@ export default function HorizontalScroll({
           key="clone-first"
           data-snap-id="clone-first"
           className={panelClass}
+          style={panelStyle(cloneFirst.width)}
           aria-hidden="true"
         >
           {cloneFirst.content}

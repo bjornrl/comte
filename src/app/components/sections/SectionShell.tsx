@@ -24,7 +24,9 @@ type SectionShellProps = {
 
 /**
  * Common wrapper for each horizontal-scroll panel.
- * - Full viewport (100vw x 100svh).
+ * - Fills its parent (the snap-wrapper in HorizontalScroll, which controls
+ *   the panel width — defaults to 100vw, but team and other wide blocks
+ *   can specify a larger width).
  * - Background colour driven by CMS.
  * - Top padding uses CONTENT_TOP so content clears the nav; other sides
  *   use PANEL_PADDING. Sections that need full-bleed content can override
@@ -35,7 +37,7 @@ export default function SectionShell({ id, bgColor, children, style, className =
     <section
       id={id}
       data-section-id={id}
-      className={`relative h-svh w-screen flex-shrink-0 overflow-hidden ${className}`}
+      className={`relative h-full w-full overflow-hidden ${className}`}
       style={{
         background: bgColor ?? undefined,
         paddingTop: CONTENT_TOP,
