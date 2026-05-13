@@ -34,7 +34,7 @@ type Props = {
 const SNAP_THRESHOLD = 0.3;
 
 // Smooth-scroll duration when we snap to a section. Higher = more graceful.
-const SNAP_DURATION_MS = 700;
+const SNAP_DURATION_MS = 500;
 
 // How long the container must be idle before we consider a scroll "ended".
 // Trackpad inertia keeps firing scroll events for ~80–120ms after a swipe, so
@@ -126,7 +126,8 @@ export default function HorizontalScroll({
       const startTime = performance.now();
       const tick = (now: number) => {
         const t = Math.min(1, (now - startTime) / duration);
-        const eased = 1 - Math.pow(1 - t, 3); // easeOutCubic — graceful settle
+        // smoothstep: a touch of ease-in at the start, ease-out at the end.
+        const eased = t * t * (3 - 2 * t);
         el.scrollLeft = startX + distance * eased;
         if (t < 1) {
           animFrameId.current = requestAnimationFrame(tick);

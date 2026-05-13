@@ -28,65 +28,74 @@ type Props = {
 };
 
 /**
- * Team section laid out as a horizontal 2-row grid with ~4.5 cards visible at
- * a time. The container side-scrolls and has `scroll-snap-type: none`, so it
- * lands wherever the user releases — no snapping within team.
+ * Team section as a single wide panel: 2 rows of cards laid out column-major
+ * so all photos fit inline. The panel itself grows wider than the viewport
+ * (no inner scroller), so the outer horizontal scroll is what moves the
+ * cards left/right. This avoids the "parallax over cards but plain scroll
+ * over the background" inconsistency that comes with nested scrollers.
  *
- * The outer scroll-snap container only starts moving once this inner scroller
- * reaches its left or right edge (default browser scroll-chaining), which
- * provides the "user must scroll through the employees before snapping to the
- * next section" threshold.
+ * One snap point at the panel's left edge (the SectionShell). The user can
+ * rest mid-team in the "free zone" between team-start and the next section's
+ * snap zone (see HorizontalScroll's SNAP_THRESHOLD).
  */
 export default function SectionTeam({ heading: _heading, teamMembers }: Props) {
+  // 4.5 cards visible per viewport, 2 rows. ceil(N/2) columns are needed.
+  const cardCount = Math.max(teamMembers.length, 1);
+  const cols = Math.max(1, Math.ceil(cardCount / 2));
+
+  // Each grid column is 100vw / 4.5 wide; gaps between columns are 0.5rem.
+  // Panel width = total grid width, but at least 100vw (single-viewport
+  // fallback when there are very few team members).
+  const sectionWidth =
+    cols > 0
+      ? `max(100vw, calc(${cols} * (100vw / 4.5) + ${Math.max(0, cols - 1)} * 0.5rem))`
+      : "100vw";
+
   return (
-    <SectionShell id="team" bgColor={BG} style={{ padding: 0, color: FG }}>
+    <SectionShell
+      id="team"
+      bgColor={BG}
+      style={{ padding: 0, color: FG, width: sectionWidth }}
+    >
       <div className="flex h-full flex-col" style={{ paddingTop: CONTENT_TOP }}>
         <div
-          className="flex-1 min-h-0 overflow-x-auto overflow-y-hidden"
-          style={{ scrollSnapType: "none" }}
+          className="grid h-full w-full gap-2 pb-6"
+          style={{
+            gridTemplateRows: "1fr 1fr",
+            gridAutoFlow: "column",
+            gridAutoColumns: "calc(100vw / 4.5)",
+          }}
         >
-          <div
-            className="grid h-full gap-2 pb-6"
-            style={{
-              gridTemplateRows: "1fr 1fr",
-              gridAutoFlow: "column",
-              // 4.5 cards visible per viewport width. Cards extend edge-to-edge
-              // (no horizontal padding) so they slide off the full viewport
-              // frame rather than disappearing behind an inset margin.
-              gridAutoColumns: "calc(100vw / 4.5)",
-            }}
-          >
-            {teamMembers.map((member: any, i: number) => {
-              const palette = HOVER_PALETTE[i % HOVER_PALETTE.length];
-              const bio =
-                member.bio
-                  ?.map((block: any) => block.children?.map((child: any) => child.text).join(""))
-                  .join(" ") ?? "";
-              const photoUrl = sanityImageUrl(member.photo, 800) ?? PLACEHOLDER_IMAGE;
+          {teamMembers.map((member: any, i: number) => {
+            const palette = HOVER_PALETTE[i % HOVER_PALETTE.length];
+            const bio =
+              member.bio
+                ?.map((block: any) => block.children?.map((child: any) => child.text).join(""))
+                .join(" ") ?? "";
+            const photoUrl = sanityImageUrl(member.photo, 800) ?? PLACEHOLDER_IMAGE;
 
-              return (
-                <PersonCard
-                  key={member._id}
-                  title={member.role}
-                  name={member.name}
-                  description={bio}
-                  imageUrl={photoUrl}
-                  email={member.email}
-                  hoverTextColor={palette.text}
-                  hoverMetaTextColor={palette.meta}
-                  hoverOverlayColor={palette.overlay}
-                  // Override PersonCard's default h-[60vh] min-h-[45vh] so it fits
-                  // exactly one of the two grid rows.
-                  className="!h-full !min-h-0"
-                  cursor={
-                    <div className="h-24 w-24 rounded-full border border-background/40 bg-background/90 text-foreground flex items-center justify-center text-xs font-medium tracking-wide shadow-lg text-center leading-tight px-2">
-                      Send mail til {member.name.split(" ")[0]}
-                    </div>
-                  }
-                />
-              );
-            })}
-          </div>
+            return (
+              <PersonCard
+                key={member._id}
+                title={member.role}
+                name={member.name}
+                description={bio}
+                imageUrl={photoUrl}
+                email={member.email}
+                hoverTextColor={palette.text}
+                hoverMetaTextColor={palette.meta}
+                hoverOverlayColor={palette.overlay}
+                // Override PersonCard's default h-[60vh] min-h-[45vh] so it
+                // fits exactly one of the two grid rows.
+                className="!h-full !min-h-0"
+                cursor={
+                  <div className="h-24 w-24 rounded-full border border-background/40 bg-background/90 text-foreground flex items-center justify-center text-xs font-medium tracking-wide shadow-lg text-center leading-tight px-2">
+                    Send mail til {member.name.split(" ")[0]}
+                  </div>
+                }
+              />
+            );
+          })}
         </div>
       </div>
     </SectionShell>
