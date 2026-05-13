@@ -9,11 +9,10 @@ const PLACEHOLDER_IMAGE =
 // Logo SVG viewBox is 247×71. Rotated 90°CCW, its width / height = 71/247.
 const LOGO_ASPECT = 71 / 247;
 
-// Pre-rotation width as a multiple of panel height. >1 scales the SVG up so
-// that the rotated logo overshoots the panel top/bottom (clipped by overflow
-// hidden) — useful for making the visible content reach the page edges when
-// the SVG has internal padding around the artwork.
-const LOGO_SCALE = 1.18;
+// LOGO_SCALE = 1 → the rotated logo's box matches the column dimensions
+// exactly. Any padding between the box edge and the artwork lives inside
+// the SVG itself and is preserved as-is.
+const LOGO_SCALE = 1;
 
 type Props = {
   imageUrl?: string;
