@@ -1,6 +1,6 @@
 "use client";
 
-import SectionShell, { CONTENT_TOP, PANEL_PADDING } from "./SectionShell";
+import SectionShell, { CONTENT_TOP } from "./SectionShell";
 import PersonCard from "../PersonCard";
 import { comteColors } from "@/lib/comte-colors";
 import { urlFor } from "@/sanity/lib/image";
@@ -37,24 +37,10 @@ type Props = {
  * provides the "user must scroll through the employees before snapping to the
  * next section" threshold.
  */
-export default function SectionTeam({ backgroundColor, heading, teamMembers }: Props) {
+export default function SectionTeam({ backgroundColor, heading: _heading, teamMembers }: Props) {
   return (
     <SectionShell id="team" bgColor={backgroundColor ?? DEFAULT_BG} style={{ padding: 0 }}>
       <div className="flex h-full flex-col" style={{ paddingTop: CONTENT_TOP }}>
-        {heading && (
-          <h2
-            className="font-[family-name:var(--font-manrope)] font-bold text-foreground"
-            style={{
-              fontSize: "clamp(1.5rem, 3vw, 2.5rem)",
-              paddingLeft: PANEL_PADDING,
-              paddingRight: PANEL_PADDING,
-              paddingBottom: "clamp(0.5rem, 1.5vh, 1rem)",
-            }}
-          >
-            {heading}
-          </h2>
-        )}
-
         <div
           className="flex-1 min-h-0 overflow-x-auto overflow-y-hidden"
           style={{ scrollSnapType: "none" }}
@@ -64,10 +50,10 @@ export default function SectionTeam({ backgroundColor, heading, teamMembers }: P
             style={{
               gridTemplateRows: "1fr 1fr",
               gridAutoFlow: "column",
-              // 4.5 cards visible per viewport width.
-              gridAutoColumns: "calc((100vw - 1rem) / 4.5)",
-              paddingLeft: "0.5rem",
-              paddingRight: "0.5rem",
+              // 4.5 cards visible per viewport width. Cards extend edge-to-edge
+              // (no horizontal padding) so they slide off the full viewport
+              // frame rather than disappearing behind an inset margin.
+              gridAutoColumns: "calc(100vw / 4.5)",
             }}
           >
             {teamMembers.map((member: any, i: number) => {
