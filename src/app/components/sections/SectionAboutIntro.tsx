@@ -3,12 +3,17 @@ import SectionShell from "./SectionShell";
 
 const BG = "#EE7883";
 const FG = "#F5F5E9";
-const LOGO_RED = "#FF5252";
 const PLACEHOLDER_IMAGE =
   "https://images.unsplash.com/photo-1773558058134-9ff1a3212ef0?q=80&w=1572&auto=format&fit=crop";
 
 // Logo SVG viewBox is 247×71. Rotated 90°CCW, its width / height = 71/247.
 const LOGO_ASPECT = 71 / 247;
+
+// Pre-rotation width as a multiple of panel height. >1 scales the SVG up so
+// that the rotated logo overshoots the panel top/bottom (clipped by overflow
+// hidden) — useful for making the visible content reach the page edges when
+// the SVG has internal padding around the artwork.
+const LOGO_SCALE = 1.18;
 
 type Props = {
   imageUrl?: string;
@@ -42,12 +47,9 @@ export default function SectionAboutIntro({
         }}
       >
         {/* Rotated Comte logo — anchors the snap at its horizontal middle */}
-        <div
-          className="relative h-full"
-          style={{ background: LOGO_RED }}
-        >
+        <div className="relative h-full overflow-hidden">
           <Image
-            src="/logo.svg"
+            src="/logo-pink.svg"
             width={247}
             height={71}
             alt=""
@@ -56,11 +58,11 @@ export default function SectionAboutIntro({
               position: "absolute",
               top: "50%",
               left: "50%",
-              // Pre-rotation: width = panel height, height = panel height * 71/247.
-              // After rotate(-90deg) around centre, those swap so the visible
-              // box matches the parent: width = panel * 71/247, height = panel.
-              width: "100svh",
-              height: `calc(100svh * ${LOGO_ASPECT})`,
+              // Pre-rotation: width ≈ panel height × LOGO_SCALE so the rotated
+              // logo can overshoot the panel top/bottom and the visible
+              // artwork inside the SVG reaches the page edges.
+              width: `calc(100svh * ${LOGO_SCALE})`,
+              height: `calc(100svh * ${LOGO_ASPECT} * ${LOGO_SCALE})`,
               transformOrigin: "center center",
               transform: "translate(-50%, -50%) rotate(-90deg)",
             }}
