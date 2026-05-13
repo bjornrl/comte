@@ -258,8 +258,9 @@ export default function ProjectCluster({ projects, backgroundColor, heading }: P
         <div
           style={{
             position: "absolute",
-            top: "clamp(24px, 4vh, 48px)",
-            left: "clamp(24px, 4vw, 48px)",
+            // Sits one PANEL_PADDING below the nav (same as other sections).
+            top: "calc(clamp(1rem, 2.5vw, 2.5rem) + 48px + clamp(2rem, 5vw, 5rem))",
+            left: "clamp(2rem, 5vw, 5rem)",
             zIndex: 10,
             maxWidth: "20ch",
           }}
