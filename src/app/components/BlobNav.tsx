@@ -2,7 +2,6 @@
 
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import Image from "next/image";
-import { ChevronLeft } from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
 
 export type NavItem = { label: string; sectionId: string };
@@ -52,40 +51,77 @@ type Props = {
   isScrolling?: boolean;
 };
 
+/**
+ * Two-line icon that morphs between hamburger and chevron via CSS-driven SVG
+ * geometry transitions:
+ *
+ *   open=false  (hamburger)            open=true  (chevron pointing left)
+ *
+ *   ────────────                       ╲
+ *   ────────────                        ╲
+ *                                       ╱
+ *                                      ╱
+ *
+ *   - x1 (right edge) is fixed at 22; only y1 animates so right edges fan
+ *     OUT vertically (top up to y=0, bottom down to y=10).
+ *   - x2 (left edge) is fixed at 0; only y2 animates so left edges
+ *     converge INWARDS to meet at the chevron tip (y=5).
+ *
+ * SVG geometry properties (y1, y2, …) are CSS-animatable in all modern
+ * browsers, so the morph is a smooth one-step transition.
+ */
 function HamburgerIcon({ open }: { open: boolean }) {
-  // Open state → chevron pointing left (collapses the menu).
-  // Closed state → two horizontal cream lines, close together, no rounded ends.
-  if (open) {
-    return <ChevronLeft size={22} strokeWidth={2.5} color={CREAM} />;
-  }
+  // Closed-state line positions — hamburger lines sit a little closer than
+  // the original 1/9 split for a tighter, more refined look.
+  const HAM_TOP_Y = 3;
+  const HAM_BOTTOM_Y = 7;
+  // Chevron corners + tip.
+  const CHEV_TOP_Y = 0;
+  const CHEV_BOTTOM_Y = 10;
+  const CHEV_TIP_Y = 5;
+
+  const transition =
+    "y1 0.4s cubic-bezier(0.25, 1, 0.5, 1), y2 0.4s cubic-bezier(0.25, 1, 0.5, 1)";
+
   return (
-    <span
+    <svg
+      width={22}
+      height={10}
+      viewBox="0 0 22 10"
+      style={{ overflow: "visible", display: "block" }}
       aria-hidden="true"
-      style={{ position: "relative", display: "inline-block", width: 22, height: 10 }}
     >
-      <span
-        style={{
-          position: "absolute",
-          left: 0,
-          top: 1,
-          width: "100%",
-          height: 2,
-          background: CREAM,
-          borderRadius: 0,
-        }}
+      {/* Top line */}
+      <line
+        x1={22}
+        x2={0}
+        stroke={CREAM}
+        strokeWidth={2}
+        strokeLinecap="butt"
+        style={
+          {
+            y1: open ? CHEV_TOP_Y : HAM_TOP_Y,
+            y2: open ? CHEV_TIP_Y : HAM_TOP_Y,
+            transition,
+          } as React.CSSProperties
+        }
       />
-      <span
-        style={{
-          position: "absolute",
-          left: 0,
-          bottom: 1,
-          width: "100%",
-          height: 2,
-          background: CREAM,
-          borderRadius: 0,
-        }}
+      {/* Bottom line */}
+      <line
+        x1={22}
+        x2={0}
+        stroke={CREAM}
+        strokeWidth={2}
+        strokeLinecap="butt"
+        style={
+          {
+            y1: open ? CHEV_BOTTOM_Y : HAM_BOTTOM_Y,
+            y2: open ? CHEV_TIP_Y : HAM_BOTTOM_Y,
+            transition,
+          } as React.CSSProperties
+        }
       />
-    </span>
+    </svg>
   );
 }
 
