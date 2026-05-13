@@ -1,6 +1,6 @@
 "use client";
 
-import SectionShell, { CONTENT_TOP } from "./SectionShell";
+import SectionShell, { CONTENT_TOP, PANEL_PADDING } from "./SectionShell";
 import PersonCard from "../PersonCard";
 import { comteColors } from "@/lib/comte-colors";
 import { urlFor } from "@/sanity/lib/image";
@@ -28,15 +28,18 @@ type Props = {
 };
 
 /**
- * Width the Team panel must take so all cards fit inline as one wide block.
+ * Width the Team panel must take so all cards fit inline as one wide block,
+ * including the same left/right insets as every other section
+ * (2 × PANEL_PADDING).
  * Used by HomePageClient to set the panel wrapper's width in HorizontalScroll.
  *
- *   cols = ceil(N / 2)       (2 rows)
- *   width = max(100vw, cols * (100vw / 4.5) + (cols - 1) * 0.5rem)
+ *   cols  = ceil(N / 2)       (2 rows)
+ *   width = max(100vw, cols * (100vw / 4.5) + (cols - 1) * 0.5rem
+ *                       + 2 * PANEL_PADDING)
  */
 export function getTeamSectionWidth(memberCount: number): string {
   const cols = Math.max(1, Math.ceil(Math.max(memberCount, 1) / 2));
-  return `max(100vw, calc(${cols} * (100vw / 4.5) + ${Math.max(0, cols - 1)} * 0.5rem))`;
+  return `max(100vw, calc(${cols} * (100vw / 4.5) + ${Math.max(0, cols - 1)} * 0.5rem + 2 * ${PANEL_PADDING}))`;
 }
 
 /**
@@ -53,7 +56,14 @@ export function getTeamSectionWidth(memberCount: number): string {
 export default function SectionTeam({ heading: _heading, teamMembers }: Props) {
   return (
     <SectionShell id="team" bgColor={BG} style={{ padding: 0, color: FG }}>
-      <div className="flex h-full flex-col" style={{ paddingTop: CONTENT_TOP }}>
+      <div
+        className="flex h-full flex-col"
+        style={{
+          paddingTop: CONTENT_TOP,
+          paddingLeft: PANEL_PADDING,
+          paddingRight: PANEL_PADDING,
+        }}
+      >
         <div
           className="grid h-full w-full gap-2 pb-6"
           style={{
