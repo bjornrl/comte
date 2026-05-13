@@ -3,8 +3,12 @@ import SectionShell from "./SectionShell";
 
 const BG = "#EE7883";
 const FG = "#F5F5E9";
+const LOGO_RED = "#FF5252";
 const PLACEHOLDER_IMAGE =
   "https://images.unsplash.com/photo-1773558058134-9ff1a3212ef0?q=80&w=1572&auto=format&fit=crop";
+
+// Logo SVG viewBox is 247×71. Rotated 90°CCW, its width / height = 71/247.
+const LOGO_ASPECT = 71 / 247;
 
 type Props = {
   imageUrl?: string;
@@ -25,20 +29,74 @@ export default function SectionAboutIntro({
 }: Props) {
   return (
     <SectionShell id="about-intro" bgColor={BG} style={{ padding: 0, color: FG }}>
-      <div className="grid h-full w-full grid-cols-1 lg:grid-cols-[6fr_4fr]">
-        {/* Left ~60%: image */}
-        <div className="relative h-full min-h-[50svh] overflow-hidden">
+      {/*
+       * Three-column layout:
+       *   1. Comte logo, rotated 90°CCW, full height, no margin to section
+       *   2. Image (40vw, narrower than before)
+       *   3. Two text blocks (the remaining width)
+       */}
+      <div
+        className="grid h-full w-full"
+        style={{
+          gridTemplateColumns: `calc(100svh * ${LOGO_ASPECT}) 40vw 1fr`,
+        }}
+      >
+        {/* Rotated Comte logo — anchors the snap at its horizontal middle */}
+        <div
+          className="relative h-full"
+          style={{ background: LOGO_RED }}
+        >
+          <Image
+            src="/logo.svg"
+            width={247}
+            height={71}
+            alt=""
+            priority
+            style={{
+              position: "absolute",
+              top: "50%",
+              left: "50%",
+              // Pre-rotation: width = panel height, height = panel height * 71/247.
+              // After rotate(-90deg) around centre, those swap so the visible
+              // box matches the parent: width = panel * 71/247, height = panel.
+              width: "100svh",
+              height: `calc(100svh * ${LOGO_ASPECT})`,
+              transformOrigin: "center center",
+              transform: "translate(-50%, -50%) rotate(-90deg)",
+            }}
+          />
+          {/*
+           * Snap anchor placed at the logo column's horizontal middle.
+           * HorizontalScroll uses this element's position as the intro snap
+           * target, so the viewport's left edge lands exactly at the middle
+           * of the rotated logo when intro is snapped.
+           */}
+          <div
+            data-snap-anchor=""
+            aria-hidden="true"
+            style={{
+              position: "absolute",
+              left: "50%",
+              top: 0,
+              width: 0,
+              height: 0,
+            }}
+          />
+        </div>
+
+        {/* Image — now 40vw wide */}
+        <div className="relative h-full overflow-hidden">
           <Image
             src={imageUrl ?? PLACEHOLDER_IMAGE}
             alt={imageAlt ?? ""}
             fill
             className="object-cover"
-            sizes="(max-width: 1024px) 100vw, 60vw"
+            sizes="40vw"
             priority
           />
         </div>
 
-        {/* Right ~40%: two text blocks */}
+        {/* Two text blocks */}
         <div className="flex h-full flex-col justify-center gap-12 px-[clamp(1.5rem,4vw,4rem)] py-[clamp(2rem,5vw,5rem)]">
           {(whoIsComteTitle || whoIsComte) && (
             <div>

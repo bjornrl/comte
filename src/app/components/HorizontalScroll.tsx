@@ -85,6 +85,24 @@ export default function HorizontalScroll({
     return Array.from(el.querySelectorAll<HTMLElement>("[data-snap-id]"));
   }, []);
 
+  /**
+   * Snap target X (document coordinate) for a panel. If the panel contains a
+   * child with `data-snap-anchor`, that child's position is used — letting a
+   * section deliberately snap "off-kilter" by placing the anchor somewhere
+   * other than the panel's left edge. Falls back to panel.offsetLeft.
+   */
+  const getSnapTarget = useCallback((panel: HTMLElement): number => {
+    const el = containerRef.current;
+    if (!el) return panel.offsetLeft;
+    const anchor = panel.querySelector<HTMLElement>("[data-snap-anchor]");
+    if (anchor) {
+      const anchorRect = anchor.getBoundingClientRect();
+      const containerRect = el.getBoundingClientRect();
+      return el.scrollLeft + anchorRect.left - containerRect.left;
+    }
+    return panel.offsetLeft;
+  }, []);
+
   const findNearestSnapIndex = useCallback((): {
     index: number;
     distance: number;
@@ -97,14 +115,14 @@ export default function HorizontalScroll({
     let bestIdx = 0;
     let bestDist = Infinity;
     panels.forEach((p, i) => {
-      const dist = Math.abs(p.offsetLeft - scrollLeft);
+      const dist = Math.abs(getSnapTarget(p) - scrollLeft);
       if (dist < bestDist) {
         bestDist = dist;
         bestIdx = i;
       }
     });
     return { index: bestIdx, distance: bestDist };
-  }, [getSnapPanels]);
+  }, [getSnapPanels, getSnapTarget]);
 
   const stopAnimation = useCallback(() => {
     if (animFrameId.current != null) {
@@ -177,13 +195,14 @@ export default function HorizontalScroll({
       const panels = getSnapPanels();
       const target = panels[snapIdx];
       if (!target) return;
+      const targetX = getSnapTarget(target);
       if (smooth) {
-        smoothScrollTo(target.offsetLeft, SNAP_DURATION_MS);
+        smoothScrollTo(targetX, SNAP_DURATION_MS);
       } else {
-        jumpToScrollLeft(target.offsetLeft);
+        jumpToScrollLeft(targetX);
       }
     },
-    [getSnapPanels, smoothScrollTo, jumpToScrollLeft],
+    [getSnapPanels, getSnapTarget, smoothScrollTo, jumpToScrollLeft],
   );
 
   const scrollToSection = useCallback(
@@ -264,9 +283,9 @@ export default function HorizontalScroll({
 
       // Loop seam: clones are always snapped to so we can teleport seamlessly.
       if (isCloneIndex(nearestIdx)) {
-        smoothScrollTo(nearest.offsetLeft, SNAP_DURATION_MS, () => {
+        smoothScrollTo(getSnapTarget(nearest), SNAP_DURATION_MS, () => {
           const targetIdx = nearestIdx === 0 ? numReal() : 1;
-          jumpToScrollLeft(panels[targetIdx].offsetLeft);
+          jumpToScrollLeft(getSnapTarget(panels[targetIdx]));
           updateActiveSection(targetIdx);
           scrolling = false;
           onScrollingChange?.(false);
@@ -276,7 +295,7 @@ export default function HorizontalScroll({
 
       // Within the threshold of a real snap point → snap to it.
       if (nearestDist <= panelWidth * SNAP_THRESHOLD) {
-        smoothScrollTo(nearest.offsetLeft, SNAP_DURATION_MS, () => {
+        smoothScrollTo(getSnapTarget(nearest), SNAP_DURATION_MS, () => {
           updateActiveSection(nearestIdx);
           scrolling = false;
           onScrollingChange?.(false);
@@ -315,6 +334,7 @@ export default function HorizontalScroll({
   }, [
     findNearestSnapIndex,
     getSnapPanels,
+    getSnapTarget,
     jumpToScrollLeft,
     onActiveSectionChange,
     onScrollingChange,

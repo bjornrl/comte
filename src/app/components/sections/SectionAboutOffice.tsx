@@ -6,6 +6,15 @@ import { Map, MapMarker, MarkerContent } from "@/components/ui/map";
 
 const BG = "#F5F5E9";
 const FG = "#1F3A32";
+// The intro section's pink continues into the left of office, covering a bit
+// over half of the maps' visible width. With maps at ~40vw in office's
+// [2fr_3fr] grid, "a bit over half" lands around 22vw of pink.
+const INTRO_PINK = "#EE7883";
+const PINK_EXTENSION = "22vw";
+// Office snaps slightly to the LEFT of its natural panel start, so part of
+// intro's pink right edge stays visible at office snap (the "right snap"
+// off-kilter position).
+const SNAP_PULLBACK = "15vw";
 
 // Subtle parallax factor for the office maps. The inner map content shifts
 // at this fraction of the scroll delta (relative to the map's own natural
@@ -128,7 +137,34 @@ export default function SectionAboutOffice({ locations }: Props) {
   const items = (locations && locations.length > 0 ? locations : DEFAULT_LOCATIONS).slice(0, 4);
 
   return (
-    <SectionShell id="about-office" bgColor={BG} style={{ color: FG }}>
+    <SectionShell
+      id="about-office"
+      bgColor={BG}
+      style={{
+        color: FG,
+        // Hard transition: intro's pink for the first PINK_EXTENSION, then BG.
+        background: `linear-gradient(to right, ${INTRO_PINK} 0, ${INTRO_PINK} ${PINK_EXTENSION}, ${BG} ${PINK_EXTENSION}, ${BG} 100%)`,
+        // Push the maps flush with the section's left edge so their left
+        // half sits visibly over the intro-pink area.
+        paddingLeft: 0,
+      }}
+    >
+      {/*
+       * Off-kilter snap anchor: viewport's left edge lands at -SNAP_PULLBACK
+       * relative to the panel's natural offsetLeft, so a slice of intro's
+       * right edge stays visible when this section is the active snap.
+       */}
+      <div
+        data-snap-anchor=""
+        aria-hidden="true"
+        style={{
+          position: "absolute",
+          left: `calc(-1 * ${SNAP_PULLBACK})`,
+          top: 0,
+          width: 0,
+          height: 0,
+        }}
+      />
       <div className="flex h-full flex-col gap-6">
         {items.map((loc, i) => {
           const lng = loc.longitude ?? 10.736;
