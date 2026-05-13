@@ -1,7 +1,13 @@
 import SectionShell from "./SectionShell";
+import TiltedHeading from "../TiltedHeading";
 
 const BG = "#F5F5E9";
 const FG = "#FF5252";
+
+// Two-line tilted heading at the section's left edge. First line gets
+// bisected by the office/what-we-do boundary, second line lives entirely on
+// the what-we-do side — same pattern as motto's "Design to / evolve".
+const TILT_LINES = ["What do", "we do?"];
 
 type Datapoint = { value?: string; label?: string } | null | undefined;
 
@@ -41,7 +47,14 @@ export default function SectionWhatWeDo({
   const datapoints = [datapoint1, datapoint2, datapoint3];
 
   return (
-    <SectionShell id="what-we-do" bgColor={BG} style={{ color: FG }}>
+    <SectionShell
+      id="what-we-do"
+      bgColor={BG}
+      // overflow: visible so the tilted heading can bleed LEFT into the
+      // office panel (where it gets bisected by the section boundary).
+      style={{ color: FG, overflow: "visible" }}
+    >
+      <TiltedHeading lines={TILT_LINES} color={FG} parallaxFactor={0.18} />
       <div className="flex h-full flex-col">
         {textbox && (
           <p

@@ -103,6 +103,11 @@ export default function HomePageClient({ data, projects, connections }: Props) {
         />
       ),
       interstitial: maybeInterstitial(data.aboutOffice.interstitial),
+      // Office panel is wider than the viewport — the extra 30vw on the right
+      // is empty cream space where the tilted "What do we do?" heading slides
+      // through cleanly without colliding with the office image. Same wider-
+      // panel pattern as the team section.
+      width: "130vw",
     },
     {
       id: "what-we-do",

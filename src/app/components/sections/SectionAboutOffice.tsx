@@ -174,9 +174,14 @@ export default function SectionAboutOffice({
         color: FG,
         // Hard transition: intro's pink for the first PINK_EXTENSION, then BG.
         background: `linear-gradient(to right, ${INTRO_PINK} 0, ${INTRO_PINK} ${PINK_EXTENSION}, ${BG} ${PINK_EXTENSION}, ${BG} 100%)`,
-        // Full-bleed: padding is reapplied inside the locations column so the
-        // optional media column sits flush with the section's right edge.
+        // Full-bleed left; padding is reapplied inside the locations column.
+        // Right padding pushes the content (locations + media) back into the
+        // first 94vw of section width, leaving the panel's extra 36vw on the
+        // right as empty cream where the tilted "What do we do?" heading can
+        // slide cleanly without overlapping the office image.
+        // 36vw padding = 130vw panel − 94vw content area.
         padding: 0,
+        paddingRight: "36vw",
       }}
     >
       {/*

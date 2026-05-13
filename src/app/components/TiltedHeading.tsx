@@ -136,6 +136,10 @@ export default function TiltedHeading({
       style={{
         position: "absolute",
         inset: 0,
+        // z-10 keeps the rotated text above the home network's background
+        // canvas (which extends into motto's area at z-1). Without this,
+        // the canvas paints on top of the heading.
+        zIndex: 10,
         pointerEvents: "none",
         willChange: parallaxFactor > 0 ? "transform" : undefined,
       }}

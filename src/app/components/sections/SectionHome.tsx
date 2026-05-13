@@ -1,4 +1,5 @@
 import SectionShell, { PANEL_PADDING } from "./SectionShell";
+import HomeBackgroundNetwork from "../HomeBackgroundNetwork";
 
 const DEFAULT_BG = "#1F3A32";
 
@@ -11,9 +12,25 @@ type Props = {
 // one rendered line.
 const HERO_LINES = ["Comte", "creates change", "that matters"];
 
+// Entry-animation timing (ms). The dot network starts immediately on mount;
+// these delays trail behind so the dot field reads as "alive" before the
+// wordmark surfaces over it. Tuned alongside HomeBackgroundNetwork's
+// LINES_APPEAR_DELAY so the connection lines arrive after the last text
+// line settles in.
+const HERO_LINE_DELAYS_MS = [900, 1200, 1500];
+const HERO_DOT_DELAY_MS = 1000;
+
 export default function SectionHome({ backgroundColor, backgroundVideoUrl }: Props) {
   return (
-    <SectionShell id="home" bgColor={backgroundColor ?? DEFAULT_BG} style={{ padding: 0 }}>
+    <SectionShell
+      id="home"
+      bgColor={backgroundColor ?? DEFAULT_BG}
+      // overflow: visible lets the background canvas extend right into the
+      // motto panel so the dot network spans both. Motto's section bg paints
+      // at z-auto and the canvas at z-1, so the canvas wins on top of bg but
+      // loses to TiltedHeading + hero text (both z-10).
+      style={{ padding: 0, overflow: "visible" }}
+    >
       {/* Background video */}
       {backgroundVideoUrl && (
         <video
@@ -31,6 +48,11 @@ export default function SectionHome({ backgroundColor, backgroundVideoUrl }: Pro
       {backgroundVideoUrl && (
         <div aria-hidden="true" className="absolute inset-0 z-0 bg-black/30" />
       )}
+
+      {/* Interactive dot-network background. Sits above the bg colour/video
+          and dim overlay, below the hero text. Lines from the dots converge
+          on the hero's white dot via its `data-hero-anchor` attribute. */}
+      <HomeBackgroundNetwork />
 
       {/* Bottom-left hero text */}
       <div
@@ -59,6 +81,7 @@ export default function SectionHome({ backgroundColor, backgroundVideoUrl }: Pro
            */}
           <span
             aria-hidden="true"
+            data-hero-anchor=""
             style={{
               position: "absolute",
               top: "-0.15em",
@@ -67,15 +90,42 @@ export default function SectionHome({ backgroundColor, backgroundVideoUrl }: Pro
               height: "0.32em",
               borderRadius: "9999px",
               background: "white",
+              opacity: 0,
+              animation: "heroFadeIn 700ms cubic-bezier(0.25,1,0.5,1) forwards",
+              animationDelay: `${HERO_DOT_DELAY_MS}ms`,
             }}
           />
           {HERO_LINES.map((line, i) => (
-            <span key={i} className="block">
+            <span
+              key={i}
+              className="block"
+              style={{
+                opacity: 0,
+                animation:
+                  "heroFadeIn 700ms cubic-bezier(0.25,1,0.5,1) forwards",
+                animationDelay: `${HERO_LINE_DELAYS_MS[i] ?? 0}ms`,
+              }}
+            >
               {line}
             </span>
           ))}
         </h1>
       </div>
+
+      {/* @keyframes for the cascading hero fade-in. Kept inline so the
+          animation ships with this section and isn't a global concern. */}
+      <style>{`
+        @keyframes heroFadeIn {
+          from { opacity: 0; transform: translateY(8px); }
+          to   { opacity: 1; transform: translateY(0); }
+        }
+        @media (prefers-reduced-motion: reduce) {
+          [data-snap-id="home"] [style*="heroFadeIn"] {
+            animation-duration: 1ms !important;
+            animation-delay: 0ms !important;
+          }
+        }
+      `}</style>
     </SectionShell>
   );
 }

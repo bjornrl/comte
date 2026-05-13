@@ -27,6 +27,8 @@ export default function SectionMotto(_props: Props) {
       // wrapper's overflow-y-hidden).
       style={{ overflow: "visible" }}
     >
+      {/* The motto-side dots are drawn by the home section's background
+          network canvas, which spans 200vw into this panel's area. */}
       <TiltedHeading lines={lines} color={TILT_COLOR} parallaxFactor={0.18} />
     </SectionShell>
   );
