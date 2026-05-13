@@ -1,5 +1,8 @@
 import Image from "next/image";
 import SectionShell from "./SectionShell";
+// The logo uses a plain <img> instead of next/image because next/image
+// applies a `max-width: 100%` style that clamps the rendered size to the
+// parent, defeating the rotated-and-oversized layout we want here.
 
 const BG = "#EE7883";
 const FG = "#F5F5E9";
@@ -17,7 +20,7 @@ const LOGO_ASPECT = 71 / 247;
 // the visible portion becomes the SVG's empty middle. The pink box
 // overshoots both edges and is clipped by overflow-hidden; the section
 // background is the same pink so nothing visible is lost.
-const LOGO_SCALE = 1.23;
+const LOGO_SCALE = 2;
 
 type Props = {
   imageUrl?: string;
@@ -52,12 +55,10 @@ export default function SectionAboutIntro({
       >
         {/* Rotated Comte logo — anchors the snap at its horizontal middle */}
         <div className="relative h-full overflow-hidden">
-          <Image
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
             src="/logo-pink.svg"
-            width={247}
-            height={71}
             alt=""
-            priority
             style={{
               position: "absolute",
               top: "50%",
@@ -67,6 +68,8 @@ export default function SectionAboutIntro({
               // artwork inside the SVG reaches the page edges.
               width: `calc(100svh * ${LOGO_SCALE})`,
               height: `calc(100svh * ${LOGO_ASPECT} * ${LOGO_SCALE})`,
+              maxWidth: "none",
+              maxHeight: "none",
               transformOrigin: "center center",
               transform: "translate(-50%, -50%) rotate(-90deg)",
             }}
