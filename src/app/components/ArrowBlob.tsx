@@ -35,12 +35,12 @@ export default function ArrowBlob({ navRef, activeIndex = 0 }: ArrowBlobProps) {
   }, [navRef]);
 
   return (
-    <div className="fixed bottom-10 left-1/2 z-50 flex w-max -translate-x-1/2 flex-col items-center justify-center gap-2 bg-background/10 backdrop-blur-sm rounded-lg px-4 py-2">
+    <div className="fixed bottom-10 left-1/2 z-50 flex w-max -translate-x-1/2 flex-col items-center justify-center gap-2 bg-background/10 backdrop-blur-sm px-4 py-2">
       <div className="flex flex-row items-center justify-center gap-2">
         <button
           type="button"
           aria-label="Previous section"
-          className="rounded hover:cursor-pointer p-1 transition-opacity hover:opacity-80 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-background"
+          className="hover:cursor-pointer p-1 transition-opacity hover:opacity-80 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-background"
           onClick={() => navRef.current?.goPrev()}
         >
           <ArrowLeft size={32} />
@@ -48,7 +48,7 @@ export default function ArrowBlob({ navRef, activeIndex = 0 }: ArrowBlobProps) {
         <button
           type="button"
           aria-label="Next section"
-          className="rounded p-1 hover:cursor-pointer transition-opacity hover:opacity-80 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-background"
+          className="p-1 hover:cursor-pointer transition-opacity hover:opacity-80 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-background"
           onClick={() => navRef.current?.goNext()}
         >
           <ArrowRight size={32} />

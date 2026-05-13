@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import SectionShell from "./SectionShell";
+import Image from "next/image";
+import SectionShell, { CONTENT_TOP, PANEL_PADDING } from "./SectionShell";
 import { Map, MapMarker, MarkerContent } from "@/components/ui/map";
 
 const BG = "#F5F5E9";
@@ -17,11 +18,18 @@ const PINK_EXTENSION = "22vw";
 const SNAP_PULLBACK = "15vw";
 
 // Subtle parallax factor for the office maps. The inner map content shifts
-// at this fraction of the scroll delta (relative to the map's own natural
-// position), so the map looks like it's gliding slightly while the section
-// scrolls past. Mirrors the interstitial parallax but at a much smaller
-// magnitude so the marker stays close to its anchor.
+// at this fraction of the scroll delta past the section's snap point, so the
+// inside of the map glides left while the frame itself stays put.
 const MAP_PARALLAX = 0.18;
+// Inner is wider than the wrap by INNER_OVERHANG on each side (as a fraction
+// of wrap width). Parallax shifts the inner up to this much before it would
+// expose the wrap's edges, so the offset is clamped to ±INNER_OVERHANG × wrap.
+const INNER_OVERHANG = 0.15;
+
+// Width of the optional right-side media column (image or video). Mirrors
+// the intro section's 40vw image, but a touch narrower so the office
+// locations have breathing room on the left.
+const MEDIA_WIDTH = "30vw";
 
 export type OfficeLocation = {
   title?: string;
@@ -33,6 +41,9 @@ export type OfficeLocation = {
 
 type Props = {
   locations?: OfficeLocation[];
+  mediaImageUrl?: string;
+  mediaImageAlt?: string;
+  mediaVideoUrl?: string;
 };
 
 const DEFAULT_LOCATIONS: OfficeLocation[] = [
@@ -69,14 +80,27 @@ function ParallaxMap({
     }
     if (!scroller) return;
 
+    // Find the snap reference for this panel: the data-snap-anchor element
+    // if present (so off-kilter snaps like office's -15vw pullback are
+    // respected), otherwise the panel itself. The anchor's distance from the
+    // scroller's left edge equals how far we've scrolled past this section's
+    // snap point — which is the only signal parallax should react to.
+    let panel: HTMLElement | null = wrap.parentElement;
+    while (panel && !panel.dataset.snapId) panel = panel.parentElement;
+    const reference: HTMLElement =
+      panel?.querySelector<HTMLElement>("[data-snap-anchor]") ?? panel ?? wrap;
+
     const update = () => {
-      // Natural document position: where the map sits when scrollLeft equals
-      // the map's offsetLeft (i.e. the map is flush against the viewport's
-      // left edge). At that moment, transform is 0 — the inner map is
-      // centred inside the (overflow:hidden) frame.
-      const naturalLeft = wrap.offsetLeft;
-      const scrollLeft = scroller!.scrollLeft;
-      const offset = -MAP_PARALLAX * (scrollLeft - naturalLeft);
+      const refRect = reference.getBoundingClientRect();
+      const scrollerRect = scroller!.getBoundingClientRect();
+      // scrollDelta: how far past the section's snap point we've scrolled.
+      // = 0 at snap; positive when scrolling forward, negative when before.
+      const scrollDelta = scrollerRect.left - refRect.left;
+      // Clamp to the inner's overhang so a hard scroll can never shift the
+      // inner far enough to expose the section background through the wrap.
+      const slack = INNER_OVERHANG * wrap.clientWidth;
+      const raw = -MAP_PARALLAX * scrollDelta;
+      const offset = Math.max(-slack, Math.min(slack, raw));
       inner.style.transform = `translate3d(${offset}px, 0, 0)`;
     };
 
@@ -92,7 +116,7 @@ function ParallaxMap({
   return (
     <div
       ref={wrapRef}
-      className="relative isolate h-full w-full overflow-hidden rounded-lg"
+      className="relative isolate h-full w-full overflow-hidden"
       // Block all pointer interaction. Map drags, scroll-zoom, marker hover,
       // etc. simply cannot fire when the container ignores pointer events.
       style={{ pointerEvents: "none" }}
@@ -133,8 +157,14 @@ function ParallaxMap({
   );
 }
 
-export default function SectionAboutOffice({ locations }: Props) {
+export default function SectionAboutOffice({
+  locations,
+  mediaImageUrl,
+  mediaImageAlt,
+  mediaVideoUrl,
+}: Props) {
   const items = (locations && locations.length > 0 ? locations : DEFAULT_LOCATIONS).slice(0, 4);
+  const hasMedia = !!(mediaVideoUrl || mediaImageUrl);
 
   return (
     <SectionShell
@@ -144,9 +174,9 @@ export default function SectionAboutOffice({ locations }: Props) {
         color: FG,
         // Hard transition: intro's pink for the first PINK_EXTENSION, then BG.
         background: `linear-gradient(to right, ${INTRO_PINK} 0, ${INTRO_PINK} ${PINK_EXTENSION}, ${BG} ${PINK_EXTENSION}, ${BG} 100%)`,
-        // Push the maps flush with the section's left edge so their left
-        // half sits visibly over the intro-pink area.
-        paddingLeft: 0,
+        // Full-bleed: padding is reapplied inside the locations column so the
+        // optional media column sits flush with the section's right edge.
+        padding: 0,
       }}
     >
       {/*
@@ -165,36 +195,83 @@ export default function SectionAboutOffice({ locations }: Props) {
           height: 0,
         }}
       />
-      <div className="flex h-full flex-col gap-6">
-        {items.map((loc, i) => {
-          const lng = loc.longitude ?? 10.736;
-          const lat = loc.latitude ?? 59.9202;
-          const zoom = loc.zoom ?? 12;
-          return (
-            <div
-              key={`${loc.title ?? "office"}-${i}`}
-              className="grid min-h-0 flex-1 grid-cols-1 gap-4 md:grid-cols-[2fr_3fr]"
-            >
-              {/* Map rectangle, left */}
-              <ParallaxMap longitude={lng} latitude={lat} zoom={zoom} />
+      <div
+        className="grid h-full w-full"
+        style={{
+          gridTemplateColumns: hasMedia ? `1fr ${MEDIA_WIDTH}` : "1fr",
+        }}
+      >
+        {/* Locations column — re-applies SectionShell's padding internally. */}
+        <div
+          className="flex min-w-0 flex-col gap-6"
+          style={{
+            paddingTop: CONTENT_TOP,
+            paddingRight: PANEL_PADDING,
+            paddingBottom: PANEL_PADDING,
+            paddingLeft: 0,
+          }}
+        >
+          {items.map((loc, i) => {
+            const lng = loc.longitude ?? 10.736;
+            const lat = loc.latitude ?? 59.9202;
+            const zoom = loc.zoom ?? 12;
+            return (
+              <div
+                key={`${loc.title ?? "office"}-${i}`}
+                // `flex-1 min-h-0` gives the grid a definite height inside the
+                // column-flex parent, but without an explicit row template the
+                // single grid row sizes to its content (the heading + paragraph),
+                // collapsing the map cell to ~30–90px. `grid-rows-1` (single
+                // row, 1fr) forces the row to fill the container so the map
+                // cell stretches to the full available height on md+.
+                className="grid min-h-0 flex-1 grid-cols-1 grid-rows-[200px_1fr] gap-4 md:grid-cols-[2fr_3fr] md:grid-rows-1"
+              >
+                {/* Map rectangle, left */}
+                <ParallaxMap longitude={lng} latitude={lat} zoom={zoom} />
 
-              {/* Title + description, right */}
-              <div className="flex min-h-0 flex-col justify-start pt-2">
-                <h3 className="mb-2 font-[family-name:var(--font-manrope)] text-2xl font-bold">
-                  {loc.title ?? `Office ${i + 1}`}
-                </h3>
-                {loc.description && (
-                  <p
-                    className="font-[family-name:var(--font-manrope)] text-base font-light leading-relaxed whitespace-pre-line"
-                    style={{ color: FG, opacity: 0.85 }}
-                  >
-                    {loc.description}
-                  </p>
-                )}
+                {/* Title + description, right */}
+                <div className="flex min-h-0 flex-col justify-start pt-2">
+                  <h3 className="mb-2 font-[family-name:var(--font-manrope)] text-2xl font-bold">
+                    {loc.title ?? `Office ${i + 1}`}
+                  </h3>
+                  {loc.description && (
+                    <p
+                      className="font-[family-name:var(--font-manrope)] text-base font-light leading-relaxed whitespace-pre-line"
+                      style={{ color: FG, opacity: 0.85 }}
+                    >
+                      {loc.description}
+                    </p>
+                  )}
+                </div>
               </div>
-            </div>
-          );
-        })}
+            );
+          })}
+        </div>
+
+        {/* Right-side media — flush with the section's right edge, video
+            wins if both video and image are provided. */}
+        {hasMedia && (
+          <div className="relative h-full w-full overflow-hidden">
+            {mediaVideoUrl ? (
+              <video
+                src={mediaVideoUrl}
+                autoPlay
+                muted
+                loop
+                playsInline
+                className="absolute inset-0 h-full w-full object-cover"
+              />
+            ) : mediaImageUrl ? (
+              <Image
+                src={mediaImageUrl}
+                alt={mediaImageAlt ?? ""}
+                fill
+                className="object-cover"
+                sizes="30vw"
+              />
+            ) : null}
+          </div>
+        )}
       </div>
     </SectionShell>
   );

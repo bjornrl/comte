@@ -35,6 +35,12 @@ export const teamMember = defineType({
       type: "string",
     }),
     defineField({
+      name: "phone",
+      title: "Telephone",
+      type: "string",
+      description: "Phone number shown alongside email on the responsible block of project cards.",
+    }),
+    defineField({
       name: "order",
       title: "Sort Order",
       type: "number",

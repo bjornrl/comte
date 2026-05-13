@@ -18,7 +18,6 @@ type WithInterstitial = { interstitial?: InterstitialData };
 
 export type HomeData = {
   home: WithInterstitial & {
-    heroText?: string;
     backgroundColor?: string;
     backgroundVideoUrl?: string;
   };
@@ -31,7 +30,12 @@ export type HomeData = {
     whoAreWeTitle?: string;
     whoAreWe?: string;
   };
-  aboutOffice: WithInterstitial & { locations: OfficeLocation[] };
+  aboutOffice: WithInterstitial & {
+    locations: OfficeLocation[];
+    mediaImageUrl?: string;
+    mediaImageAlt?: string;
+    mediaVideoUrl?: string;
+  };
   whatWeDo: WithInterstitial & {
     textbox?: string;
     datapoint1?: { value?: string; label?: string };
@@ -70,7 +74,12 @@ export default function HomePageClient({ data, projects, connections }: Props) {
   const sections = [
     {
       id: "home",
-      content: <SectionHome {...data.home} />,
+      content: (
+        <SectionHome
+          backgroundColor={data.home.backgroundColor}
+          backgroundVideoUrl={data.home.backgroundVideoUrl}
+        />
+      ),
       interstitial: maybeInterstitial(data.home.interstitial),
     },
     {
@@ -85,7 +94,14 @@ export default function HomePageClient({ data, projects, connections }: Props) {
     },
     {
       id: "about-office",
-      content: <SectionAboutOffice locations={data.aboutOffice.locations} />,
+      content: (
+        <SectionAboutOffice
+          locations={data.aboutOffice.locations}
+          mediaImageUrl={data.aboutOffice.mediaImageUrl}
+          mediaImageAlt={data.aboutOffice.mediaImageAlt}
+          mediaVideoUrl={data.aboutOffice.mediaVideoUrl}
+        />
+      ),
       interstitial: maybeInterstitial(data.aboutOffice.interstitial),
     },
     {

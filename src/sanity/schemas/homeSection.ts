@@ -19,12 +19,6 @@ export const homeSection = defineType({
       initialValue: "#1F3A32",
     }),
     defineField({
-      name: "heroText",
-      title: "Hero Text",
-      type: "string",
-      initialValue: "Innovation for societal impact",
-    }),
-    defineField({
       name: "interstitial",
       title: "Interstitial (narrow panel to the left)",
       type: "interstitial",

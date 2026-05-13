@@ -52,23 +52,27 @@ type Props = {
 };
 
 /**
- * Two-line icon that morphs between hamburger and chevron via CSS-driven SVG
- * geometry transitions:
+ * Two-line icon that morphs between hamburger and chevron via an animated
+ * SVG path `d` attribute.
  *
- *   open=false  (hamburger)            open=true  (chevron pointing left)
+ *   open=false  (hamburger)              open=true  (chevron pointing left)
  *
- *   ────────────                       ╲
- *   ────────────                        ╲
- *                                       ╱
- *                                      ╱
+ *   ────────────                          ╲
+ *   ────────────                           ╲
+ *                                          ╱
+ *                                         ╱
  *
- *   - x1 (right edge) is fixed at 22; only y1 animates so right edges fan
- *     OUT vertically (top up to y=0, bottom down to y=10).
- *   - x2 (left edge) is fixed at 0; only y2 animates so left edges
- *     converge INWARDS to meet at the chevron tip (y=5).
+ * Both paths share the same structure — two sub-paths, each a Move + a Line
+ * (M L M L) — so the browser interpolates every coordinate point-for-point:
  *
- * SVG geometry properties (y1, y2, …) are CSS-animatable in all modern
- * browsers, so the morph is a smooth one-step transition.
+ *   - The right-edge points (the `M` of each sub-path) animate vertically
+ *     OUTWARDS so the right ends fan apart to the corners.
+ *   - The left-edge points (the `L` of each sub-path) animate vertically
+ *     INWARDS, converging to the chevron's tip at y=5.
+ *
+ * CSS transitions on the `d` attribute are supported in every recent
+ * Chromium-based browser and in Safari 14+. Where unavailable the morph
+ * falls back to a snap, but the chevron shape itself still renders.
  */
 function HamburgerIcon({ open }: { open: boolean }) {
   // Closed-state line positions — hamburger lines sit a little closer than
@@ -80,8 +84,9 @@ function HamburgerIcon({ open }: { open: boolean }) {
   const CHEV_BOTTOM_Y = 10;
   const CHEV_TIP_Y = 5;
 
-  const transition =
-    "y1 0.4s cubic-bezier(0.25, 1, 0.5, 1), y2 0.4s cubic-bezier(0.25, 1, 0.5, 1)";
+  const d = open
+    ? `M 22 ${CHEV_TOP_Y} L 0 ${CHEV_TIP_Y} M 22 ${CHEV_BOTTOM_Y} L 0 ${CHEV_TIP_Y}`
+    : `M 22 ${HAM_TOP_Y} L 0 ${HAM_TOP_Y} M 22 ${HAM_BOTTOM_Y} L 0 ${HAM_BOTTOM_Y}`;
 
   return (
     <svg
@@ -91,35 +96,13 @@ function HamburgerIcon({ open }: { open: boolean }) {
       style={{ overflow: "visible", display: "block" }}
       aria-hidden="true"
     >
-      {/* Top line */}
-      <line
-        x1={22}
-        x2={0}
+      <path
+        d={d}
         stroke={CREAM}
         strokeWidth={2}
         strokeLinecap="butt"
-        style={
-          {
-            y1: open ? CHEV_TOP_Y : HAM_TOP_Y,
-            y2: open ? CHEV_TIP_Y : HAM_TOP_Y,
-            transition,
-          } as React.CSSProperties
-        }
-      />
-      {/* Bottom line */}
-      <line
-        x1={22}
-        x2={0}
-        stroke={CREAM}
-        strokeWidth={2}
-        strokeLinecap="butt"
-        style={
-          {
-            y1: open ? CHEV_BOTTOM_Y : HAM_BOTTOM_Y,
-            y2: open ? CHEV_TIP_Y : HAM_BOTTOM_Y,
-            transition,
-          } as React.CSSProperties
-        }
+        fill="none"
+        style={{ transition: "d 0.4s cubic-bezier(0.25, 1, 0.5, 1)" }}
       />
     </svg>
   );

@@ -44,6 +44,21 @@ export const aboutOffice = defineType({
       ],
     }),
     defineField({
+      name: "mediaImage",
+      title: "Right-side Image",
+      type: "image",
+      options: { hotspot: true },
+      fields: [defineField({ name: "alt", title: "Alt Text", type: "string" })],
+      description: "Image filling the right ~30% of the office panel.",
+    }),
+    defineField({
+      name: "mediaVideo",
+      title: "Right-side Video (overrides image)",
+      type: "file",
+      options: { accept: "video/*" },
+      description: "If provided, replaces the right-side image with a looping muted video.",
+    }),
+    defineField({
       name: "interstitial",
       title: "Interstitial (narrow panel to the left)",
       type: "interstitial",

@@ -2,13 +2,14 @@
 
 import { useRef, useEffect, useState, useCallback, useMemo } from "react";
 import Image from "next/image";
-import Link from "next/link";
-import { ChevronLeft, ChevronRight, Check } from "lucide-react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import type {
   Project as NetProject,
   Domain,
   Method,
+  Scale,
 } from "./projectNetworkData";
+import { METHOD_LABELS, SCALE_LABELS } from "./projectNetworkData";
 
 // Domains rendered in the cluster view.
 // Health & Care uses a brighter sage here so it remains visible against
@@ -21,16 +22,18 @@ const DOMAIN_COLORS: Record<Domain, string> = {
   climate: "#4F7C6C",
   digital: "#FF5252",
   culture: "#B47AC9",
+  policy: "#9AA4B2",
 };
 
 const DOMAIN_LABELS: Record<Domain, string> = {
   health: "Health & Care",
-  education: "Education",
-  integration: "Integration & Migration",
+  education: "Childhood & Education",
+  integration: "Inclusion & Participation",
   urban: "Urban Development",
   climate: "Climate & Sustainability",
   digital: "Digital Transformation",
   culture: "Culture",
+  policy: "Policy",
 };
 
 const VISIBLE_DOMAINS: Domain[] = [
@@ -41,17 +44,20 @@ const VISIBLE_DOMAINS: Domain[] = [
   "digital",
   "integration",
   "urban",
+  "policy",
 ];
 
-// Cluster centres in normalised (0..1) coordinates.
+// Cluster centres in normalised (0..1) coordinates. With 8 clusters now, the
+// layout follows a rough 3-2-3 grid: top row (3), middle row (2), bottom (3).
 const CLUSTER_CENTERS: Record<Domain, { x: number; y: number }> = {
-  education: { x: 0.18, y: 0.26 },
+  education: { x: 0.18, y: 0.22 },
   culture: { x: 0.5, y: 0.18 },
-  health: { x: 0.82, y: 0.26 },
-  climate: { x: 0.15, y: 0.58 },
-  digital: { x: 0.5, y: 0.5 },
-  integration: { x: 0.85, y: 0.62 },
+  health: { x: 0.82, y: 0.22 },
+  climate: { x: 0.22, y: 0.5 },
+  digital: { x: 0.78, y: 0.5 },
+  integration: { x: 0.18, y: 0.78 },
   urban: { x: 0.5, y: 0.82 },
+  policy: { x: 0.82, y: 0.78 },
 };
 
 // Fallback seed projects (used when Sanity has no projects yet).
@@ -305,7 +311,7 @@ export default function ProjectCluster({ projects, backgroundColor, heading }: P
               aria-pressed={isActive}
               style={{
                 border: `1px solid ${DOMAIN_COLORS[domain]}`,
-                borderRadius: 16,
+                borderRadius: 0,
                 padding: "4px 12px",
                 fontSize: "0.7rem",
                 fontFamily: "var(--font-manrope), system-ui, sans-serif",
@@ -487,7 +493,7 @@ export default function ProjectCluster({ projects, backgroundColor, heading }: P
             top: mousePos.y - 8,
             background: "#141414",
             border: "1px solid rgba(255,255,255,0.15)",
-            borderRadius: 8,
+            borderRadius: 0,
             padding: "8px 12px",
             pointerEvents: "none",
             zIndex: 20,
@@ -505,53 +511,185 @@ export default function ProjectCluster({ projects, backgroundColor, heading }: P
 
       {/* Expanded detail card */}
       {activeData && (
-        <>
-          <div onClick={() => setActiveProject(null)} style={{ position: "absolute", inset: 0, zIndex: 25 }} />
+        <ExpandedProjectCard
+          project={activeData}
+          galleryUrls={galleryUrls}
+          photoIdx={photoIdx}
+          setPhotoIdx={setPhotoIdx}
+          onClose={() => setActiveProject(null)}
+          isMobile={isMobile}
+        />
+      )}
+
+      <style>{`
+        @keyframes clusterCardIn {
+          from { opacity: 0; transform: translate(-50%, -48%); }
+          to   { opacity: 1; transform: translate(-50%, -50%); }
+        }
+        @media (prefers-reduced-motion: reduce) {
+          * { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+        }
+      `}</style>
+    </section>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// ExpandedProjectCard
+//
+// Modal-style card that opens when a project dot is clicked. The card has its
+// own vertical scroll (max-height 86vh) so it can host more content than the
+// viewport allows. Inside that scroll, the carousel image runs a parallax
+// translate at 0.5× the scroll speed so the image LAGS the text — it stays
+// visible roughly twice as long as it would with regular flow.
+//
+// Layout, top to bottom:
+//   - Backdrop click target + close button (outside the parallax)
+//   - Carousel (image + chevrons), parallax target
+//   - Main category chip (filled) + sub-categories (outlined chips)
+//   - Title
+//   - Customers (joined with " · ") + year on its own line
+//   - Description
+//   - Scale + Method chips on one row
+//   - Responsible: small headshot left, phone / email right (two lines)
+//   - Optional auxiliary links
+// ---------------------------------------------------------------------------
+
+type ExpandedProjectCardProps = {
+  project: NetProject;
+  galleryUrls: string[];
+  photoIdx: number;
+  setPhotoIdx: (updater: (i: number) => number) => void;
+  onClose: () => void;
+  isMobile: boolean;
+};
+
+// Parallax factor: how slowly the carousel image moves relative to the
+// card's scroll. 0 = stick to text (no parallax), 1 = scroll at same speed
+// (also no parallax). 0.5 = image moves at half speed, so it lags the text.
+const CARD_PARALLAX_FACTOR = 0.5;
+
+function ExpandedProjectCard({
+  project,
+  galleryUrls,
+  photoIdx,
+  setPhotoIdx,
+  onClose,
+  isMobile,
+}: ExpandedProjectCardProps) {
+  const scrollerRef = useRef<HTMLDivElement>(null);
+  const parallaxRef = useRef<HTMLDivElement>(null);
+  const rafIdRef = useRef<number | null>(null);
+
+  // Drive the image parallax off the card's own scrollTop. Uses requestAnimationFrame
+  // to coalesce scroll bursts into one DOM write per frame.
+  useEffect(() => {
+    const scroller = scrollerRef.current;
+    const parallax = parallaxRef.current;
+    if (!scroller || !parallax) return;
+
+    const apply = () => {
+      parallax.style.transform = `translate3d(0, ${scroller.scrollTop * CARD_PARALLAX_FACTOR}px, 0)`;
+      rafIdRef.current = null;
+    };
+    const onScroll = () => {
+      if (rafIdRef.current != null) return;
+      rafIdRef.current = requestAnimationFrame(apply);
+    };
+
+    // Initial application in case the card opens with scrollTop > 0.
+    apply();
+    scroller.addEventListener("scroll", onScroll, { passive: true });
+    return () => {
+      scroller.removeEventListener("scroll", onScroll);
+      if (rafIdRef.current != null) cancelAnimationFrame(rafIdRef.current);
+    };
+  }, [project.id]);
+
+  const accent = DOMAIN_COLORS[project.domain];
+  const customers = project.customers && project.customers.length > 0
+    ? project.customers
+    : project.client
+      ? [project.client]
+      : [];
+  const subCategories = project.subCategories ?? project.displayTags ?? [];
+  const responsible = project.responsible;
+  const scaleLabel = project.scale && project.scale in SCALE_LABELS
+    ? SCALE_LABELS[project.scale as Scale]
+    : null;
+  const methodLabels = (project.methods ?? [])
+    .filter((m): m is Method => m in METHOD_LABELS)
+    .map((m) => METHOD_LABELS[m]);
+
+  return (
+    <>
+      {/* Click-outside-to-close backdrop */}
+      <div
+        onClick={onClose}
+        style={{ position: "absolute", inset: 0, zIndex: 25 }}
+        aria-hidden="true"
+      />
+      {/* Card */}
+      <div
+        role="dialog"
+        aria-label={project.name}
+        onClick={(e) => e.stopPropagation()}
+        style={{
+          position: "absolute",
+          top: "50%",
+          left: "50%",
+          transform: "translate(-50%, -50%)",
+          width: isMobile ? "calc(100% - 48px)" : 440,
+          maxWidth: 480,
+          maxHeight: "86vh",
+          background: "#2a2a2a",
+          border: "1px solid rgba(255,255,255,0.1)",
+          padding: 0,
+          overflow: "hidden", // outer keeps the close button stable; inner scrolls
+          zIndex: 30,
+          animation: "clusterCardIn 0.3s ease-out",
+          display: "flex",
+          flexDirection: "column",
+        }}
+      >
+        {/* Close — stays fixed in the card's upper-right, outside the scroller */}
+        <button
+          onClick={onClose}
+          aria-label="Close project details"
+          style={{
+            position: "absolute",
+            top: 12,
+            right: 12,
+            width: 32,
+            height: 32,
+            border: "1px solid rgba(255,255,255,0.15)",
+            background: "rgba(0,0,0,0.55)",
+            color: "rgba(255,255,255,0.9)",
+            fontSize: "1rem",
+            cursor: "pointer",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            lineHeight: 1,
+            zIndex: 40,
+          }}
+        >
+          ✕
+        </button>
+
+        {/* Scroll viewport */}
+        <div
+          ref={scrollerRef}
+          style={{ flex: 1, minHeight: 0, overflowY: "auto", overflowX: "hidden" }}
+        >
+          {/* Parallax image at top of scroll content */}
           <div
-            role="dialog"
-            aria-label={activeData.name}
-            onClick={(e) => e.stopPropagation()}
+            ref={parallaxRef}
             style={{
-              position: "absolute",
-              top: "50%",
-              left: "50%",
-              transform: "translate(-50%, -50%)",
-              width: isMobile ? "calc(100% - 48px)" : 420,
-              maxWidth: 440,
-              background: "#2a2a2a",
-              border: "1px solid rgba(255,255,255,0.1)",
-              borderRadius: 12,
-              padding: 0,
-              overflow: "hidden",
-              zIndex: 30,
-              animation: "clusterCardIn 0.3s ease-out",
+              willChange: "transform",
+              // Below sits the text; the image carousel itself has aspect 16/10.
             }}
           >
-            <button
-              onClick={() => setActiveProject(null)}
-              aria-label="Close project details"
-              style={{
-                position: "absolute",
-                top: 12,
-                right: 12,
-                width: 32,
-                height: 32,
-                borderRadius: "50%",
-                border: "1px solid rgba(255,255,255,0.15)",
-                background: "rgba(0,0,0,0.35)",
-                color: "rgba(255,255,255,0.85)",
-                fontSize: "1rem",
-                cursor: "pointer",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                lineHeight: 1,
-                zIndex: 5,
-              }}
-            >
-              ✕
-            </button>
-
             {galleryUrls.length > 0 ? (
               <div className="relative w-full" style={{ aspectRatio: "16/10" }}>
                 <Image
@@ -560,7 +698,7 @@ export default function ProjectCluster({ projects, backgroundColor, heading }: P
                   alt=""
                   fill
                   className="object-cover"
-                  sizes="440px"
+                  sizes="480px"
                 />
                 {galleryUrls.length > 1 ? (
                   <>
@@ -578,7 +716,6 @@ export default function ProjectCluster({ projects, backgroundColor, heading }: P
                         transform: "translateY(-50%)",
                         width: 36,
                         height: 36,
-                        borderRadius: "50%",
                         border: "1px solid rgba(255,255,255,0.2)",
                         background: "rgba(0,0,0,0.45)",
                         color: "#fff",
@@ -605,7 +742,6 @@ export default function ProjectCluster({ projects, backgroundColor, heading }: P
                         transform: "translateY(-50%)",
                         width: 36,
                         height: 36,
-                        borderRadius: "50%",
                         border: "1px solid rgba(255,255,255,0.2)",
                         background: "rgba(0,0,0,0.45)",
                         color: "#fff",
@@ -622,125 +758,251 @@ export default function ProjectCluster({ projects, backgroundColor, heading }: P
                 ) : null}
               </div>
             ) : null}
+          </div>
 
-            <div style={{ padding: "clamp(16px, 3vw, 24px)" }}>
+          {/* Text content — flows normally underneath the parallax image */}
+          <div style={{ padding: "clamp(16px, 3vw, 24px)" }}>
+            {/* Category row: filled main + outlined subs */}
+            <div
+              style={{
+                display: "flex",
+                flexWrap: "wrap",
+                gap: 6,
+                marginBottom: 14,
+                alignItems: "center",
+              }}
+            >
               <span
                 style={{
                   display: "inline-block",
-                  borderRadius: 16,
                   padding: "3px 10px",
                   fontSize: "0.65rem",
                   fontFamily: "var(--font-manrope), system-ui, sans-serif",
                   letterSpacing: "0.05em",
                   color: "#fff",
-                  background: DOMAIN_COLORS[activeData.domain],
-                  marginBottom: 12,
+                  background: accent,
                 }}
               >
-                {DOMAIN_LABELS[activeData.domain]}
+                {DOMAIN_LABELS[project.domain]}
               </span>
+              {subCategories.map((cat) => (
+                <span
+                  key={cat.id}
+                  style={{
+                    display: "inline-block",
+                    padding: "3px 10px",
+                    fontSize: "0.65rem",
+                    fontFamily: "var(--font-manrope), system-ui, sans-serif",
+                    letterSpacing: "0.05em",
+                    color: cat.color ?? "rgba(255,255,255,0.85)",
+                    background: "transparent",
+                    border: `1px solid ${cat.color ?? "rgba(255,255,255,0.4)"}`,
+                  }}
+                >
+                  {cat.label}
+                </span>
+              ))}
+            </div>
 
-              <h3
+            {/* Title */}
+            <h3
+              style={{
+                margin: "0 0 6px 0",
+                fontSize: "clamp(1.1rem, 2vw, 1.3rem)",
+                fontWeight: 500,
+                color: "#fff",
+                fontFamily: "var(--font-manrope), system-ui, sans-serif",
+                lineHeight: 1.3,
+                paddingRight: 24,
+              }}
+            >
+              {project.name}
+            </h3>
+
+            {/* Customers (dot-separated when >1) */}
+            {customers.length > 0 ? (
+              <p
                 style={{
-                  margin: "0 0 8px 0",
-                  fontSize: "clamp(1.1rem, 2vw, 1.3rem)",
-                  fontWeight: 500,
-                  color: "#fff",
+                  margin: "0 0 2px 0",
+                  fontSize: "0.85rem",
+                  color: "rgba(255,255,255,0.75)",
                   fontFamily: "var(--font-manrope), system-ui, sans-serif",
-                  lineHeight: 1.3,
-                  paddingRight: 24,
                 }}
               >
-                {activeData.name}
-              </h3>
-
-              <p style={{ margin: "0 0 16px 0", fontSize: "0.8rem", color: "rgba(255,255,255,0.5)", fontFamily: "var(--font-manrope), system-ui, sans-serif" }}>
-                {activeData.client} · {activeData.year}
+                {customers.join(" · ")}
               </p>
+            ) : null}
 
-              <p style={{ margin: "0 0 16px 0", fontSize: "0.9rem", color: "rgba(255,255,255,0.7)", fontFamily: "var(--font-manrope), system-ui, sans-serif", lineHeight: 1.5 }}>
-                {activeData.summary}
-              </p>
+            {/* Year, on its own line under customers */}
+            <p
+              style={{
+                margin: "0 0 14px 0",
+                fontSize: "0.8rem",
+                color: "rgba(255,255,255,0.55)",
+                fontFamily: "var(--font-manrope), system-ui, sans-serif",
+              }}
+            >
+              {project.year}
+            </p>
 
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", gap: 16, marginTop: 8, flexWrap: "wrap" }}>
-                <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-start", gap: 8, minWidth: 0 }}>
-                  {(activeData.cardLinks ?? []).map((link) =>
-                    link.url ? (
-                      <a
-                        key={link.url}
-                        href={link.url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        style={{
-                          fontSize: "0.85rem",
-                          fontWeight: 500,
-                          color: DOMAIN_COLORS[activeData.domain],
-                          fontFamily: "var(--font-manrope), system-ui, sans-serif",
-                          textDecoration: "none",
-                        }}
-                      >
-                        {link.label || link.url}
-                      </a>
-                    ) : null,
-                  )}
-                  {activeData.slug ? (
-                    <Link
-                      href={`/projects/${activeData.slug}`}
-                      style={{
-                        fontSize: "0.85rem",
-                        fontWeight: 500,
-                        color: "rgba(255,255,255,0.85)",
-                        fontFamily: "var(--font-manrope), system-ui, sans-serif",
-                        textDecoration: "underline",
-                        textUnderlineOffset: 3,
-                      }}
-                    >
-                      View full project →
-                    </Link>
+            {/* Description */}
+            <p
+              style={{
+                margin: "0 0 14px 0",
+                fontSize: "0.9rem",
+                color: "rgba(255,255,255,0.78)",
+                fontFamily: "var(--font-manrope), system-ui, sans-serif",
+                lineHeight: 1.55,
+              }}
+            >
+              {project.summary}
+            </p>
+
+            {/* Scale + Method chips on one row */}
+            {(scaleLabel || methodLabels.length > 0) ? (
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 16 }}>
+                {scaleLabel ? (
+                  <span
+                    style={{
+                      display: "inline-block",
+                      padding: "3px 10px",
+                      fontSize: "0.65rem",
+                      fontFamily: "var(--font-manrope), system-ui, sans-serif",
+                      letterSpacing: "0.05em",
+                      color: "rgba(255,255,255,0.85)",
+                      border: "1px solid rgba(255,255,255,0.35)",
+                    }}
+                  >
+                    {scaleLabel}
+                  </span>
+                ) : null}
+                {methodLabels.map((label) => (
+                  <span
+                    key={label}
+                    style={{
+                      display: "inline-block",
+                      padding: "3px 10px",
+                      fontSize: "0.65rem",
+                      fontFamily: "var(--font-manrope), system-ui, sans-serif",
+                      letterSpacing: "0.05em",
+                      color: "rgba(255,255,255,0.85)",
+                      border: "1px solid rgba(255,255,255,0.35)",
+                    }}
+                  >
+                    {label}
+                  </span>
+                ))}
+              </div>
+            ) : null}
+
+            {/* Responsible block: headshot left, phone + email right */}
+            {responsible ? (
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 12,
+                  marginTop: 8,
+                  paddingTop: 14,
+                  borderTop: "1px solid rgba(255,255,255,0.08)",
+                }}
+              >
+                <div
+                  style={{
+                    position: "relative",
+                    width: 40,
+                    height: 40,
+                    flexShrink: 0,
+                    overflow: "hidden",
+                    background: "rgba(255,255,255,0.06)",
+                  }}
+                >
+                  {responsible.photoUrl ? (
+                    <Image
+                      src={responsible.photoUrl}
+                      alt={responsible.name}
+                      fill
+                      sizes="40px"
+                      className="object-cover"
+                    />
                   ) : null}
                 </div>
-
-                {activeData.displayTags && activeData.displayTags.length > 0 ? (
-                  <ul style={{ margin: 0, padding: 0, listStyle: "none", maxWidth: "48%", flexShrink: 0 }}>
-                    {activeData.displayTags.map((t) => (
-                      <li
-                        key={t.id}
-                        style={{
-                          display: "flex",
-                          alignItems: "center",
-                          gap: 6,
-                          fontSize: "0.75rem",
-                          color: "rgba(255,255,255,0.88)",
-                          marginBottom: 6,
-                          fontFamily: "var(--font-manrope), system-ui, sans-serif",
-                        }}
-                      >
-                        <Check
-                          size={14}
-                          strokeWidth={2.5}
-                          style={{ color: t.color ?? DOMAIN_COLORS[activeData.domain], flexShrink: 0 }}
-                          aria-hidden
-                        />
-                        <span>{t.label}</span>
-                      </li>
-                    ))}
-                  </ul>
-                ) : null}
+                <div
+                  style={{
+                    display: "flex",
+                    flexDirection: "column",
+                    fontFamily: "var(--font-manrope), system-ui, sans-serif",
+                    fontSize: "0.78rem",
+                    lineHeight: 1.3,
+                    minWidth: 0,
+                  }}
+                >
+                  {responsible.phone ? (
+                    <a
+                      href={`tel:${responsible.phone.replace(/\s+/g, "")}`}
+                      style={{
+                        color: "rgba(255,255,255,0.85)",
+                        textDecoration: "none",
+                      }}
+                    >
+                      {responsible.phone}
+                    </a>
+                  ) : (
+                    <span style={{ color: "rgba(255,255,255,0.55)" }}>{responsible.name}</span>
+                  )}
+                  {responsible.email ? (
+                    <a
+                      href={`mailto:${responsible.email}`}
+                      style={{
+                        color: "rgba(255,255,255,0.7)",
+                        textDecoration: "none",
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                        whiteSpace: "nowrap",
+                      }}
+                    >
+                      {responsible.email}
+                    </a>
+                  ) : null}
+                </div>
               </div>
-            </div>
-          </div>
-        </>
-      )}
+            ) : null}
 
-      <style>{`
-        @keyframes clusterCardIn {
-          from { opacity: 0; transform: translate(-50%, -48%); }
-          to   { opacity: 1; transform: translate(-50%, -50%); }
-        }
-        @media (prefers-reduced-motion: reduce) {
-          * { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
-        }
-      `}</style>
-    </section>
+            {/* Auxiliary links (external project pages etc.) */}
+            {(project.cardLinks ?? []).filter((l) => l.url).length > 0 ? (
+              <div
+                style={{
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "flex-start",
+                  gap: 6,
+                  marginTop: 14,
+                }}
+              >
+                {(project.cardLinks ?? []).map((link) =>
+                  link.url ? (
+                    <a
+                      key={link.url}
+                      href={link.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      style={{
+                        fontSize: "0.82rem",
+                        fontWeight: 500,
+                        color: accent,
+                        fontFamily: "var(--font-manrope), system-ui, sans-serif",
+                        textDecoration: "none",
+                      }}
+                    >
+                      {link.label || link.url}
+                    </a>
+                  ) : null,
+                )}
+              </div>
+            ) : null}
+          </div>
+        </div>
+      </div>
+    </>
   );
 }

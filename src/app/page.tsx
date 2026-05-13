@@ -111,31 +111,67 @@ function mapInterstitial(raw: any) {
 }
 
 function mapSanityProject(doc: any): Project {
-  const tags: string[] = doc.tags ?? [];
-  const displayTags = tags
-    .filter((t): t is Domain => t in DOMAIN_LABELS)
-    .map((t) => ({ id: t, label: DOMAIN_LABELS[t], color: DOMAIN_COLORS[t] }));
+  // Prefer the new `mainCategory` field; fall back to the first legacy tag.
+  const mainCategoryRaw: string | undefined = doc.mainCategory;
+  const domain: Domain =
+    mainCategoryRaw && mainCategoryRaw in DOMAIN_LABELS
+      ? (mainCategoryRaw as Domain)
+      : firstTagAsDomain(doc.tags);
+
+  // Sub-categories: prefer `allCategories`, fall back to legacy `tags`. In
+  // either case strip the main category so it isn't doubled up on the card.
+  const sourceCategories: string[] =
+    (doc.allCategories?.length ? doc.allCategories : doc.tags) ?? [];
+  const subCategories = sourceCategories
+    .filter((t: string): t is Domain => t in DOMAIN_LABELS)
+    .filter((t: Domain) => t !== domain)
+    .map((t: Domain) => ({ id: t, label: DOMAIN_LABELS[t], color: DOMAIN_COLORS[t] }));
+
+  // Customers: prefer the multi-value field; fall back to the legacy single
+  // `client` string wrapped in an array.
+  const customers: string[] = Array.isArray(doc.customers) && doc.customers.length
+    ? (doc.customers as string[]).filter(Boolean)
+    : doc.client
+      ? [doc.client as string]
+      : [];
+
   const galleryUrls = (doc.galleryUrls ?? []).filter(Boolean) as string[];
   const cardLinks = (doc.links ?? []).map((l: any) => ({
     label: l?.label ?? "",
     url: l?.url ?? "",
   }));
+
+  const responsibleDoc = doc.responsible;
+  const responsible = responsibleDoc
+    ? {
+        id: responsibleDoc._id,
+        name: responsibleDoc.name ?? "",
+        role: responsibleDoc.role ?? undefined,
+        email: responsibleDoc.email ?? undefined,
+        phone: responsibleDoc.phone ?? undefined,
+        photoUrl: responsibleDoc.photoUrl ?? undefined,
+      }
+    : undefined;
+
   return {
     id: doc._id,
     slug: doc.slug,
     name: doc.title,
-    client: doc.client,
-    domain: firstTagAsDomain(doc.tags),
+    client: customers[0] ?? "",
+    customers,
+    domain,
     summary: doc.summary ?? "",
     featured: false,
     year: doc.year ?? new Date().getFullYear(),
-    scale: "municipal",
-    methods: [],
+    scale: (doc.scale as Project["scale"]) ?? "municipal",
+    methods: (Array.isArray(doc.methods) ? doc.methods : []) as Project["methods"],
     innovationLevel: "incremental",
     heroImageUrl: doc.heroImageUrl ?? undefined,
     galleryUrls,
     cardLinks,
-    displayTags,
+    subCategories,
+    displayTags: subCategories,
+    responsible,
   };
 }
 
@@ -196,7 +232,6 @@ export default async function Home() {
 
   const data: HomeData = {
     home: {
-      heroText: home?.heroText,
       backgroundColor: home?.backgroundColor,
       backgroundVideoUrl: home?.backgroundVideoUrl,
       interstitial: mapInterstitial(home?.interstitial),
@@ -216,6 +251,9 @@ export default async function Home() {
     },
     aboutOffice: {
       locations: aboutOfficeLocations,
+      mediaImageUrl: sanityImageUrl(aboutOffice?.mediaImage),
+      mediaImageAlt: aboutOffice?.mediaImage?.alt,
+      mediaVideoUrl: aboutOffice?.mediaVideoUrl,
       interstitial: mapInterstitial(aboutOffice?.interstitial),
     },
     whatWeDo: {

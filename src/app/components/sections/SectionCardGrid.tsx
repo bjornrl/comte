@@ -50,7 +50,7 @@ export default function SectionCardGrid({
             const imageUrl = sanityImageUrl(item.image, 800) ?? PLACEHOLDER_IMAGE;
             return (
               <article key={item._id} className="flex flex-col gap-3">
-                <div className="relative aspect-[4/3] overflow-hidden rounded-lg">
+                <div className="relative aspect-[4/3] overflow-hidden">
                   <Image
                     src={imageUrl}
                     alt={item.image?.alt ?? item.title ?? ""}

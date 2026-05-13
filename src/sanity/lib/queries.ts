@@ -17,10 +17,23 @@ export const PROJECTS_QUERY = groq`
     _id,
     title,
     "slug": slug.current,
-    client,
+    customers,
+    client, // legacy fallback
     summary,
     year,
-    tags,
+    mainCategory,
+    allCategories,
+    tags, // legacy fallback
+    scale,
+    methods,
+    responsible-> {
+      _id,
+      name,
+      role,
+      email,
+      phone,
+      "photoUrl": photo.asset->url
+    },
     "heroImageUrl": gallery[0].asset->url,
     "galleryUrls": gallery[].asset->url,
     links[] { label, url },
@@ -52,7 +65,6 @@ export const PROJECT_DETAIL_QUERY = groq`
 // Page-section singletons
 export const HOME_SECTION_QUERY = groq`
   *[_type == "homeSection"][0] {
-    heroText,
     backgroundColor,
     "backgroundVideoUrl": backgroundVideo.asset->url,
     ${INTERSTITIAL_FIELDS}
@@ -90,6 +102,8 @@ export const ABOUT_OFFICE_QUERY = groq`
       address,
       zoom
     },
+    mediaImage,
+    "mediaVideoUrl": mediaVideo.asset->url,
     ${INTERSTITIAL_FIELDS}
   }
 `;

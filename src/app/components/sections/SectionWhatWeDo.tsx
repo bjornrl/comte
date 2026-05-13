@@ -9,7 +9,7 @@ function DatapointCard({ data, accent }: { data: Datapoint; accent: string }) {
   if (!data?.value && !data?.label) return null;
   return (
     <div
-      className="flex h-full min-h-[160px] flex-col justify-between rounded-lg p-6"
+      className="flex h-full min-h-[160px] flex-col justify-between p-6"
       style={{ background: accent, color: "var(--comte-cream)" }}
     >
       <span className="font-[family-name:var(--font-manrope)] text-5xl font-bold leading-none">

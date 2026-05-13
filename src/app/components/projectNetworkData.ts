@@ -7,17 +7,35 @@ export type Domain =
   | "urban"
   | "climate"
   | "digital"
-  | "culture";
+  | "culture"
+  | "policy";
 export type Scale = "municipal" | "regional" | "national" | "international";
 export type Method = "research" | "codesign" | "implementation" | "strategy" | "foresight";
 export type InnovationLevel = "incremental" | "transformative";
+
+export type ResponsibleRef = {
+  id: string;
+  name: string;
+  role?: string;
+  email?: string;
+  phone?: string;
+  photoUrl?: string;
+};
 
 export type Project = {
   id: string;
   slug?: string;
   name: string;
+  /** First customer — kept for legacy callers that read a single string. */
   client: string;
+  /** Full list of customers. Multiple render with a dot separator. */
+  customers?: string[];
   domain: Domain;
+  /**
+   * Extra categories shown as outlined chips on the card. Excludes the
+   * main category (which already renders as the filled chip).
+   */
+  subCategories?: { id: string; label: string; color?: string }[];
   summary: string;
   featured: boolean;
   year: number;
@@ -27,6 +45,8 @@ export type Project = {
   heroImageUrl?: string;
   galleryUrls?: string[];
   cardLinks?: { label: string; url: string }[];
+  responsible?: ResponsibleRef;
+  /** Deprecated alias for subCategories. Older callers still read this. */
   displayTags?: { id: string; label: string; color?: string }[];
 };
 
@@ -55,16 +75,18 @@ export const DOMAIN_COLORS: Record<Domain, string> = {
   climate: "#4F7C6C",
   digital: "#FF5252",
   culture: "#B47AC9",
+  policy: "#9AA4B2",
 };
 
 export const DOMAIN_LABELS: Record<Domain, string> = {
   health: "Health & Care",
-  education: "Education",
-  integration: "Integration & Migration",
+  education: "Childhood & Education",
+  integration: "Inclusion & Participation",
   urban: "Urban Development",
   climate: "Climate & Sustainability",
   digital: "Digital Transformation",
   culture: "Culture",
+  policy: "Policy",
 };
 
 const TAG_VALUES = new Set<Domain>([
@@ -75,6 +97,7 @@ const TAG_VALUES = new Set<Domain>([
   "climate",
   "digital",
   "culture",
+  "policy",
 ]);
 
 export function firstTagAsDomain(tags: readonly string[] | undefined | null): Domain {

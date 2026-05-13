@@ -78,7 +78,7 @@ export default function PersonCard({
       onMouseEnter={() => setIsHovering(true)}
       onMouseLeave={() => setIsHovering(false)}
       onMouseMove={handleMove}
-      className={`group relative h-[60vh] min-h-[45vh] overflow-hidden rounded-lg bg-gray-100 cursor-pointer ${className}`}
+      className={`group relative h-[60vh] min-h-[45vh] overflow-hidden bg-gray-100 cursor-pointer ${className}`}
     >
       {/* image */}
       <div
@@ -92,38 +92,42 @@ export default function PersonCard({
         style={{ backgroundColor: hoverOverlayColor }}
       />
 
-      {/* subtle scrim to keep title readable before hover */}
+      {/* subtle scrim at the bottom to keep role + name readable over images */}
       <div
-        className="pointer-events-none absolute inset-x-0 top-0 h-24 transition-opacity duration-500 ease-out group-hover:opacity-0"
+        className="pointer-events-none absolute inset-x-0 bottom-0 h-32 transition-opacity duration-500 ease-out group-hover:opacity-0"
         style={{
-          backgroundImage: "linear-gradient(to bottom, rgba(0,0,0,0.35), rgba(0,0,0,0))",
+          backgroundImage: "linear-gradient(to top, rgba(0,0,0,0.45), rgba(0,0,0,0))",
         }}
       />
 
-      {/* title is always visible */}
-      <div className="relative z-10 p-6">
+      {/* Bottom-anchored info block: hover description appears above role +
+          name, role + name are always visible. */}
+      <div className="absolute inset-x-0 bottom-0 z-10 p-6">
         <p
-          className="text-xs font-medium uppercase tracking-wider transition-colors duration-500 ease-out"
-          style={{ color: isHovering ? hoverMetaTextColor : "rgba(255,255,255,0.7)" }}
-        >
-          {title}
-        </p>
-        <h3
-          className="mt-2 text-3xl md:text-4xl font-light leading-tight transition-colors duration-500 ease-out"
-          style={{ color: isHovering ? hoverTextColor : "rgba(255,255,255,0.95)" }}
-        >
-          {name}
-        </h3>
-      </div>
-
-      {/* hover description */}
-      <div className="relative z-10 px-6 pb-6">
-        <p
-          className="text-lg font-light leading-normal opacity-0 translate-y-2 transition-all duration-500 ease-out group-hover:opacity-100 group-hover:translate-y-0"
+          className="mb-3 text-base font-light leading-normal opacity-0 translate-y-2 transition-all duration-500 ease-out group-hover:opacity-100 group-hover:translate-y-0 md:text-lg"
           style={{ color: isHovering ? hoverTextColor : "rgba(255,255,255,0.9)" }}
         >
           {description}
         </p>
+        <p
+          className="font-[family-name:var(--font-work-sans)] text-xs font-medium tracking-wider transition-colors duration-500 ease-out"
+          style={{
+            color: isHovering ? hoverMetaTextColor : "rgba(255,255,255,0.7)",
+            // `text-transform: lowercase` strips any capital first letters so
+            // every glyph renders at the same small-caps height (input like
+            // "Project Manager" → "project manager" → "ᴘʀᴏᴊᴇᴄᴛ ᴍᴀɴᴀɢᴇʀ").
+            textTransform: "lowercase",
+            fontVariant: "small-caps",
+          }}
+        >
+          {title}
+        </p>
+        <h3
+          className="font-[family-name:var(--font-manrope)] text-lg font-medium leading-tight transition-colors duration-500 ease-out md:text-xl"
+          style={{ color: isHovering ? hoverTextColor : "rgba(255,255,255,0.95)" }}
+        >
+          {name}
+        </h3>
       </div>
 
       {/* custom cursor (follows pointer; cursor stays pointer) */}

@@ -51,7 +51,7 @@ export default function StatCard({
   const colorStyle = textColor ? { color: textColor } : undefined;
   const linkLineText = href ? (linkLabel ?? "Read more") : undefined;
 
-  const shellClass = `relative h-full min-h-0 w-full min-w-0 overflow-hidden rounded-lg ${bgColorClass}`;
+  const shellClass = `relative h-full min-h-0 w-full min-w-0 overflow-hidden ${bgColorClass}`;
   const valueClass = `absolute left-0 right-0 top-0 flex items-start justify-start p-4 text-4xl font-light sm:p-6 sm:text-5xl md:text-6xl ${textColorClass}`;
   const bodyClass = `absolute bottom-0 left-0 right-0 flex flex-col gap-2 p-4 sm:p-6 ${textColorClass}`;
   const descClass = `text-pretty text-base font-light leading-snug sm:text-lg ${textColorClass}`;

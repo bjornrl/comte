@@ -3,16 +3,15 @@ import SectionShell, { PANEL_PADDING } from "./SectionShell";
 const DEFAULT_BG = "#1F3A32";
 
 type Props = {
-  heroText?: string;
   backgroundColor?: string;
   backgroundVideoUrl?: string;
 };
 
-export default function SectionHome({ heroText, backgroundColor, backgroundVideoUrl }: Props) {
-  const text = heroText ?? "Innovation for societal impact";
-  const [firstWord, ...restWords] = text.split(" ");
-  const remainder = restWords.join(" ");
+// Hardcoded hero copy. Line breaks come from the array order — one entry =
+// one rendered line.
+const HERO_LINES = ["Comte", "creates change", "that matters"];
 
+export default function SectionHome({ backgroundColor, backgroundVideoUrl }: Props) {
   return (
     <SectionShell id="home" bgColor={backgroundColor ?? DEFAULT_BG} style={{ padding: 0 }}>
       {/* Background video */}
@@ -39,32 +38,35 @@ export default function SectionHome({ heroText, backgroundColor, backgroundVideo
         style={{ left: PANEL_PADDING, bottom: PANEL_PADDING, right: PANEL_PADDING }}
       >
         <h1
-          className="font-[family-name:var(--font-manrope)] font-bold text-white max-w-[14ch]"
+          className="relative font-[family-name:var(--font-manrope)] font-bold text-white max-w-[14ch]"
           style={{
             fontSize: "clamp(2.5rem, 7.25vw, 6rem)",
             lineHeight: 1.4,
             letterSpacing: "-0.02em",
           }}
         >
-          {firstWord}
-          {remainder ? (
-            <>
-              <br />
-              {remainder}
-            </>
-          ) : null}
+          {/*
+           * Suspended dot — placed in the upper-right of the wordmark, like
+           * the dot in the Comte logo. All offsets are em-based so the dot
+           * scales with the hero font-size.
+           */}
           <span
             aria-hidden="true"
-            className="inline-block align-baseline"
             style={{
-              width: "0.6em",
-              height: "0.6em",
-              marginLeft: "0.15em",
+              position: "absolute",
+              top: "-0.15em",
+              left: "5.5em",
+              width: "0.28em",
+              height: "0.28em",
               borderRadius: "9999px",
               background: "white",
-              verticalAlign: "baseline",
             }}
           />
+          {HERO_LINES.map((line, i) => (
+            <span key={i} className="block">
+              {line}
+            </span>
+          ))}
         </h1>
       </div>
     </SectionShell>

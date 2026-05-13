@@ -53,7 +53,7 @@ export default async function ProjectPage({
 
       {/* Hero image */}
       <div className="w-full bg-background px-6 md:px-12 lg:px-24 py-8">
-        <div className="relative w-full aspect-[16/9] overflow-hidden rounded-lg bg-gray-100">
+        <div className="relative w-full aspect-[16/9] overflow-hidden bg-gray-100">
           <Image
             src={heroUrl}
             alt={heroAlt}
@@ -81,7 +81,7 @@ export default async function ProjectPage({
             {tags.map((tag) => (
               <span
                 key={tag}
-                className="rounded-full border border-foreground/20 px-3 py-1 text-sm font-light text-foreground/70"
+                className="border border-foreground/20 px-3 py-1 text-sm font-light text-foreground/70"
               >
                 {DOMAIN_LABELS[tag as Domain] ?? tag}
               </span>
@@ -118,7 +118,7 @@ export default async function ProjectPage({
               return (
                 <div
                   key={img.asset?._id ?? i}
-                  className="relative aspect-[4/3] overflow-hidden rounded-lg bg-gray-100"
+                  className="relative aspect-[4/3] overflow-hidden bg-gray-100"
                 >
                   <Image src={imgUrl} alt={img.alt ?? ""} fill className="object-cover" sizes="(max-width: 768px) 100vw, 50vw" />
                   {img.caption && (
@@ -142,13 +142,13 @@ export default async function ProjectPage({
       <div className="w-full flex flex-col md:flex-row md:items-stretch gap-2 py-2 p-0">
         <Link
           href="/about"
-          className="w-full rounded-full md:w-1/2 h-[30vh] md:h-[50vh] flex items-center justify-center border border-foreground text-foreground font-light text-2xl md:text-3xl tracking-wide transition-[box-shadow,background-color,color] duration-300 ease-out focus:outline-none focus:ring-2 focus:ring-inset focus:ring-background/30 shrink-0 hover:[box-shadow:inset_0_0_100px_0_rgba(255,82,82,0.85)]"
+          className="w-full md:w-1/2 h-[30vh] md:h-[50vh] flex items-center justify-center border border-foreground text-foreground font-light text-2xl md:text-3xl tracking-wide transition-[box-shadow,background-color,color] duration-300 ease-out focus:outline-none focus:ring-2 focus:ring-inset focus:ring-background/30 shrink-0 hover:[box-shadow:inset_0_0_100px_0_rgba(255,82,82,0.85)]"
           aria-label="Get in touch"
         >
           Get in touch
         </Link>
         <div className="flex flex-col gap-1 justify-center text-foreground/70 font-light text-lg px-6 py-8 md:px-0 md:py-0 md:w-1/2">
-          <div className="relative overflow-hidden rounded-lg h-full w-full">
+          <div className="relative overflow-hidden h-full w-full">
             <Image
               src={heroUrl}
               alt=""

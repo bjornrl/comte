@@ -1,31 +1,33 @@
 import SectionShell from "./SectionShell";
+import TiltedHeading from "../TiltedHeading";
 
 const BG = "#1F3A32";
-const FG = "#F5F5E9";
+const TILT_COLOR = "#FF5252";
+
+// Hardcoded two-line tilted heading for motto. heroText from the CMS is
+// ignored here — split on \n to override if/when the schema gains a multi-
+// line field. Both lines render in the rotated block.
+const LINES = ["Design to", "evolve"];
 
 type Props = {
+  // Kept in the props signature so HomePageClient keeps compiling; not used.
   heroText?: string;
 };
 
-export default function SectionMotto({ heroText }: Props) {
-  if (!heroText) return <SectionShell id="motto" bgColor={BG}>{null}</SectionShell>;
+export default function SectionMotto(_props: Props) {
+  const lines = LINES;
 
   return (
-    <SectionShell id="motto" bgColor={BG}>
-      <div className="absolute inset-0 flex items-center justify-center px-[clamp(1rem,5vw,5rem)]">
-        <p
-          className="text-center font-[family-name:var(--font-abhaya-libre)] font-semibold"
-          style={{
-            fontSize: "clamp(2rem, 6vw, 5rem)",
-            lineHeight: 1.15,
-            letterSpacing: "-0.01em",
-            maxWidth: "20ch",
-            color: FG,
-          }}
-        >
-          {heroText}
-        </p>
-      </div>
+    <SectionShell
+      id="motto"
+      bgColor={BG}
+      // overflow: visible lets the tilted heading bleed LEFT into the home
+      // panel (half of "Design to" sits over home's bg, half over motto's),
+      // and TOP/BOTTOM beyond the viewport (clipped by the horizontal-scroll
+      // wrapper's overflow-y-hidden).
+      style={{ overflow: "visible" }}
+    >
+      <TiltedHeading lines={lines} color={TILT_COLOR} parallaxFactor={0.18} />
     </SectionShell>
   );
 }
