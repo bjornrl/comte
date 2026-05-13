@@ -89,16 +89,20 @@ function ParallaxMap({
       style={{ pointerEvents: "none" }}
       aria-hidden="true"
     >
+      {/*
+       * Plain block-flow wrapper sized 130% wide and pulled 15% to the left.
+       * MapLibre measures clientWidth/clientHeight of the Map's container
+       * once on mount; absolute-positioned ancestors with negative left/right
+       * computed widths can race with that measurement and leave the canvas
+       * at 0×0. Sticking to width + margin avoids the issue while preserving
+       * the "wider than the frame, clipped by overflow-hidden" effect.
+       */}
       <div
         ref={innerRef}
-        // Inner extends 15% past each side so the parallax translate has
-        // room to slide without exposing the background.
-        className="absolute"
+        className="h-full"
         style={{
-          top: 0,
-          bottom: 0,
-          left: "-15%",
-          right: "-15%",
+          width: "130%",
+          marginLeft: "-15%",
           willChange: "transform",
         }}
       >
@@ -107,8 +111,6 @@ function ParallaxMap({
           zoom={zoom}
           // Disable every map interaction (drag, zoom, rotate, keyboard, etc.)
           interactive={false}
-          // No "improve this map" link / attribution dropdown to click.
-          attributionControl={false}
           className="comte-map h-full w-full"
         >
           <MapMarker longitude={longitude} latitude={latitude}>
