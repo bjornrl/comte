@@ -39,9 +39,11 @@ const TOP_MARGIN = "clamp(1rem, 2.5vw, 2.5rem)";
 const LOGO_ASPECT = 247 / 71;
 const LOGO_WIDTH = Math.round(BOX_HEIGHT * LOGO_ASPECT);
 
-// Card-deck collapse timing.
-const ITEM_ANIM_MS = 380;
-const STAGGER_MS = 50;
+// Collapse timing. STAGGER_MS = 0 makes every nav item slide in unison —
+// a single continuous slide under the hamburger rather than a cascading
+// deck-fold. Bump it for a staggered fall again.
+const ITEM_ANIM_MS = 420;
+const STAGGER_MS = 0;
 
 type Props = {
   onNavigate?: (sectionId: string) => void;
