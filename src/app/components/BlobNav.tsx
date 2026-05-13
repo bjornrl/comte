@@ -20,11 +20,15 @@ const BLACK = "#1F3A32"; // foreground on the white Contact button
 const WHITE = "#FFFFFF";
 const BOX_HEIGHT = 48; // every red box (logo, hamburger, nav items, contact) shares this height
 
-// No gap between nav items — adjacent items touch, and a 1px right border on
-// each item provides the visible divider that doubles as the "stroke" the
-// collapse animation shows when items overlap.
-const GAP = 0;
-const ITEM_BORDER = `1px solid rgba(245, 245, 233, 0.35)`;
+// Outer gap between the logo / hamburger / nav-items wrapper — restored to
+// the original 4px so the three blocks read as separate elements.
+const OUTER_GAP = 4;
+// Visual gap on each nav item's right edge, produced by clip-path. The
+// clipped region is fully transparent, so the section background (or video,
+// or anything else behind the nav) shows through. As items overlap during
+// the deck-collapse, each layer keeps its own transparent slit, leaving a
+// clean break between cards instead of a solid stroke.
+const ITEM_GAP_PX = 4;
 
 // Matches PANEL_PADDING in SectionShell so the logo/nav line up with the hero text.
 const SIDE_MARGIN = "clamp(2rem, 5vw, 5rem)";
@@ -184,7 +188,7 @@ export default function BlobNav({ onNavigate, activeSection, isScrolling }: Prop
           zIndex: 100,
           display: "flex",
           alignItems: "center",
-          gap: GAP,
+          gap: OUTER_GAP,
           pointerEvents: "auto",
         }}
       >
@@ -264,10 +268,15 @@ export default function BlobNav({ onNavigate, activeSection, isScrolling }: Prop
                   style={{
                     ...boxStyle({
                       filter: isActive ? "brightness(0.92)" : undefined,
-                      borderRight: ITEM_BORDER,
                     }),
                     position: "relative",
                     flexShrink: 0,
+                    // clip-path knocks the right ITEM_GAP_PX of each item to
+                    // transparency. In the open state this is the visible gap
+                    // between items. While they overlap during the collapse,
+                    // every layer keeps its own transparent slit, so the deck
+                    // stays readable without needing a solid stroke divider.
+                    clipPath: `inset(0 ${ITEM_GAP_PX}px 0 0)`,
                     transform: open
                       ? "translateX(0)"
                       : `translateX(${closedTranslate}px)`,
