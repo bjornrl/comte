@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import Image from "next/image";
 import { ChevronLeft } from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
@@ -19,7 +19,13 @@ const CREAM = "#F5F5E9"; // foreground on the red boxes
 const BLACK = "#1F3A32"; // foreground on the white Contact button
 const WHITE = "#FFFFFF";
 const BOX_HEIGHT = 48; // every red box (logo, hamburger, nav items, contact) shares this height
-const GAP = 4;
+
+// No gap between nav items — adjacent items touch, and a 1px right border on
+// each item provides the visible divider that doubles as the "stroke" the
+// collapse animation shows when items overlap.
+const GAP = 0;
+const ITEM_BORDER = `1px solid rgba(245, 245, 233, 0.35)`;
+
 // Matches PANEL_PADDING in SectionShell so the logo/nav line up with the hero text.
 const SIDE_MARGIN = "clamp(2rem, 5vw, 5rem)";
 // Half of SIDE_MARGIN at every viewport width.
@@ -28,6 +34,10 @@ const TOP_MARGIN = "clamp(1rem, 2.5vw, 2.5rem)";
 // Logo SVG viewBox is 247×71, so width follows height by this ratio.
 const LOGO_ASPECT = 247 / 71;
 const LOGO_WIDTH = Math.round(BOX_HEIGHT * LOGO_ASPECT);
+
+// Card-deck collapse timing.
+const ITEM_ANIM_MS = 380;
+const STAGGER_MS = 50;
 
 type Props = {
   onNavigate?: (sectionId: string) => void;
@@ -121,6 +131,46 @@ export default function BlobNav({ onNavigate, activeSection, isScrolling }: Prop
     [onNavigate, pathname, router],
   );
 
+  // Measure each nav item's natural offsetLeft within the row. When the nav
+  // closes, item i translates by -offsetLefts[i] so it lands at position 0
+  // — the row's left edge, which sits directly to the right of the hamburger.
+  // Stagger + z-index then turn that uniform "land at 0" into a card-deck
+  // collapse: the last item moves first, slides under each predecessor on the
+  // way, and the stack ends up tucked behind the hamburger as the row's
+  // max-width also animates down to 0.
+  const itemRefs = useRef<(HTMLButtonElement | null)[]>([]);
+  const [offsetLefts, setOffsetLefts] = useState<number[]>([]);
+  const [naturalWidth, setNaturalWidth] = useState<number>(0);
+
+  useLayoutEffect(() => {
+    const measure = () => {
+      const lefts = itemRefs.current.map((el) => el?.offsetLeft ?? 0);
+      setOffsetLefts(lefts);
+      // Total natural width = last item's offsetLeft + width.
+      const last = itemRefs.current[itemRefs.current.length - 1];
+      if (last) {
+        setNaturalWidth(last.offsetLeft + last.offsetWidth);
+      }
+    };
+    measure();
+    window.addEventListener("resize", measure);
+    return () => window.removeEventListener("resize", measure);
+  }, []);
+
+  const totalAnimMs = ITEM_ANIM_MS + (NAV_ITEMS.length - 1) * STAGGER_MS;
+
+  // Row max-width transition:
+  //  - Opening: row expands immediately so items have space to slide into.
+  //  - Closing: row waits for the staggered item slide to nearly finish, then
+  //    collapses to 0. This way the deck-collapse is visible mid-flight rather
+  //    than clipped away by an early max-width snap.
+  const rowMaxWidthTransition = open
+    ? `max-width ${ITEM_ANIM_MS}ms cubic-bezier(0.25, 1, 0.5, 1) 0ms`
+    : `max-width ${ITEM_ANIM_MS}ms cubic-bezier(0.25, 1, 0.5, 1) ${Math.max(
+        0,
+        totalAnimMs - ITEM_ANIM_MS,
+      )}ms`;
+
   return (
     <>
       {/* Left cluster: logo + hamburger + sliding nav items */}
@@ -164,47 +214,68 @@ export default function BlobNav({ onNavigate, activeSection, isScrolling }: Prop
           />
         </a>
 
-        {/* Hamburger / chevron toggle (stays fixed in place) */}
+        {/* Hamburger / chevron toggle (stays fixed in place). z-index sits
+            above the nav items so they truly tuck under it on close. */}
         <button
           type="button"
           onClick={() => setOpen((v) => !v)}
           aria-label={open ? "Close navigation" : "Open navigation"}
           aria-expanded={open}
           aria-controls="comte-nav-items"
-          style={{ ...boxStyle({ width: BOX_HEIGHT, padding: 0 }), zIndex: 2 }}
+          style={{
+            ...boxStyle({ width: BOX_HEIGHT, padding: 0 }),
+            position: "relative",
+            zIndex: 30,
+          }}
         >
           <HamburgerIcon open={open} />
         </button>
 
-        {/* Nav items — slide out from behind the hamburger toward the right */}
+        {/* Nav items — card-deck collapse. Container max-width drives the
+            layout space; per-item translateX with stagger and z-index drives
+            the deck animation. */}
         <div
           id="comte-nav-items"
           style={{
             overflow: "hidden",
-            maxWidth: open ? 1400 : 0,
-            transition: "max-width 0.5s cubic-bezier(0.25, 1, 0.5, 1)",
+            maxWidth: open ? Math.max(naturalWidth, 1) : 0,
+            transition: rowMaxWidthTransition,
           }}
         >
-          <div
-            style={{
-              display: "flex",
-              gap: GAP,
-              transform: open ? "translateX(0)" : "translateX(-20px)",
-              opacity: open ? 1 : 0,
-              transition:
-                "transform 0.45s cubic-bezier(0.25, 1, 0.5, 1), opacity 0.3s ease",
-            }}
-          >
-            {NAV_ITEMS.map((item) => {
+          <div style={{ display: "flex", position: "relative" }}>
+            {NAV_ITEMS.map((item, i) => {
+              const reverseI = NAV_ITEMS.length - 1 - i;
+              // Closing: rightmost item moves first (it falls under its left
+              // neighbour, which then moves with it under the next, etc.).
+              // Opening: leftmost first (the deck fans out).
+              const delay = open ? i * STAGGER_MS : reverseI * STAGGER_MS;
               const isActive = activeSection === item.sectionId;
+              const closedTranslate = -(offsetLefts[i] ?? 0);
               return (
                 <button
                   key={item.sectionId}
+                  ref={(el) => {
+                    itemRefs.current[i] = el;
+                  }}
                   type="button"
                   onClick={() => navigate(item.sectionId)}
                   tabIndex={open ? 0 : -1}
                   aria-current={isActive ? "page" : undefined}
-                  style={boxStyle({ filter: isActive ? "brightness(0.92)" : undefined })}
+                  style={{
+                    ...boxStyle({
+                      filter: isActive ? "brightness(0.92)" : undefined,
+                      borderRight: ITEM_BORDER,
+                    }),
+                    position: "relative",
+                    flexShrink: 0,
+                    transform: open
+                      ? "translateX(0)"
+                      : `translateX(${closedTranslate}px)`,
+                    transition: `transform ${ITEM_ANIM_MS}ms cubic-bezier(0.25, 1, 0.5, 1) ${delay}ms, filter 0.2s ease`,
+                    // Earlier items render on top → later items slide under
+                    // them, deck-style, as they translate leftward.
+                    zIndex: NAV_ITEMS.length - i,
+                  }}
                   onMouseEnter={(e) => {
                     (e.currentTarget as HTMLElement).style.filter = "brightness(0.92)";
                   }}

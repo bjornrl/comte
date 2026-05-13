@@ -20,7 +20,7 @@ const LOGO_ASPECT = 71 / 247;
 // the visible portion becomes the SVG's empty middle. The pink box
 // overshoots both edges and is clipped by overflow-hidden; the section
 // background is the same pink so nothing visible is lost.
-const LOGO_SCALE = 2;
+const LOGO_SCALE = 1;
 
 type Props = {
   imageUrl?: string;
