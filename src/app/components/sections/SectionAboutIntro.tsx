@@ -9,10 +9,12 @@ const PLACEHOLDER_IMAGE =
 // Logo SVG viewBox is 247×71. Rotated 90°CCW, its width / height = 71/247.
 const LOGO_ASPECT = 71 / 247;
 
-// LOGO_SCALE = 1 → the rotated logo's box matches the column dimensions
-// exactly. Any padding between the box edge and the artwork lives inside
-// the SVG itself and is preserved as-is.
-const LOGO_SCALE = 1;
+// LOGO_SCALE > 1 oversizes the SVG so the artwork (which has whitespace
+// around it inside the SVG's own viewBox) reaches the column's top and
+// bottom edges. The SVG box itself overshoots and is clipped by the
+// column's overflow-hidden — the section background is the same pink, so
+// nothing visible is lost.
+const LOGO_SCALE = 1.3;
 
 type Props = {
   imageUrl?: string;
