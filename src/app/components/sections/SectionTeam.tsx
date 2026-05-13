@@ -5,7 +5,8 @@ import PersonCard from "../PersonCard";
 import { comteColors } from "@/lib/comte-colors";
 import { urlFor } from "@/sanity/lib/image";
 
-const DEFAULT_BG = "#F9F9ED";
+const BG = "#5F7C8B";
+const FG = "#F5F5E9";
 const PLACEHOLDER_IMAGE =
   "https://images.unsplash.com/photo-1773558058134-9ff1a3212ef0?q=80&w=1572&auto=format&fit=crop";
 
@@ -22,7 +23,6 @@ function sanityImageUrl(imageField: any, width = 800): string | null {
 }
 
 type Props = {
-  backgroundColor?: string;
   heading?: string;
   teamMembers: any[];
 };
@@ -37,9 +37,9 @@ type Props = {
  * provides the "user must scroll through the employees before snapping to the
  * next section" threshold.
  */
-export default function SectionTeam({ backgroundColor, heading: _heading, teamMembers }: Props) {
+export default function SectionTeam({ heading: _heading, teamMembers }: Props) {
   return (
-    <SectionShell id="team" bgColor={backgroundColor ?? DEFAULT_BG} style={{ padding: 0 }}>
+    <SectionShell id="team" bgColor={BG} style={{ padding: 0, color: FG }}>
       <div className="flex h-full flex-col" style={{ paddingTop: CONTENT_TOP }}>
         <div
           className="flex-1 min-h-0 overflow-x-auto overflow-y-hidden"

@@ -3,7 +3,8 @@
 import SectionShell from "./SectionShell";
 import { Map, MapMarker, MarkerContent } from "@/components/ui/map";
 
-const DEFAULT_BG = "#F9F9ED";
+const BG = "#F5F5E9";
+const FG = "#1F3A32";
 
 export type OfficeLocation = {
   title?: string;
@@ -14,7 +15,6 @@ export type OfficeLocation = {
 };
 
 type Props = {
-  backgroundColor?: string;
   locations?: OfficeLocation[];
 };
 
@@ -22,11 +22,11 @@ const DEFAULT_LOCATIONS: OfficeLocation[] = [
   { title: "Oslo", description: "", longitude: 10.736, latitude: 59.9202, zoom: 12 },
 ];
 
-export default function SectionAboutOffice({ backgroundColor, locations }: Props) {
+export default function SectionAboutOffice({ locations }: Props) {
   const items = (locations && locations.length > 0 ? locations : DEFAULT_LOCATIONS).slice(0, 4);
 
   return (
-    <SectionShell id="about-office" bgColor={backgroundColor ?? DEFAULT_BG}>
+    <SectionShell id="about-office" bgColor={BG} style={{ color: FG }}>
       <div className="flex h-full flex-col gap-6">
         {items.map((loc, i) => {
           const lng = loc.longitude ?? 10.736;
@@ -50,11 +50,14 @@ export default function SectionAboutOffice({ backgroundColor, locations }: Props
 
               {/* Title + description, right */}
               <div className="flex min-h-0 flex-col justify-start pt-2">
-                <h3 className="mb-2 font-[family-name:var(--font-manrope)] text-2xl font-bold text-foreground">
+                <h3 className="mb-2 font-[family-name:var(--font-manrope)] text-2xl font-bold">
                   {loc.title ?? `Office ${i + 1}`}
                 </h3>
                 {loc.description && (
-                  <p className="text-foreground/80 font-[family-name:var(--font-manrope)] text-base font-light leading-relaxed whitespace-pre-line">
+                  <p
+                    className="font-[family-name:var(--font-manrope)] text-base font-light leading-relaxed whitespace-pre-line"
+                    style={{ color: FG, opacity: 0.85 }}
+                  >
                     {loc.description}
                   </p>
                 )}

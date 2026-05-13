@@ -14,18 +14,16 @@ import SectionCardGrid, { type CardItem } from "./sections/SectionCardGrid";
 import Interstitial, { type InterstitialData } from "./sections/Interstitial";
 import { type Project, type Connection, setProjectData } from "./projectNetworkData";
 
-type SectionShared = {
-  backgroundColor?: string;
-  interstitial?: InterstitialData;
-};
+type WithInterstitial = { interstitial?: InterstitialData };
 
 export type HomeData = {
-  home: SectionShared & {
+  home: WithInterstitial & {
     heroText?: string;
+    backgroundColor?: string;
     backgroundVideoUrl?: string;
   };
-  motto: SectionShared & { heroText?: string };
-  aboutIntro: SectionShared & {
+  motto: WithInterstitial & { heroText?: string };
+  aboutIntro: WithInterstitial & {
     imageUrl?: string;
     imageAlt?: string;
     whoIsComteTitle?: string;
@@ -33,17 +31,17 @@ export type HomeData = {
     whoAreWeTitle?: string;
     whoAreWe?: string;
   };
-  aboutOffice: SectionShared & { locations: OfficeLocation[] };
-  whatWeDo: SectionShared & {
+  aboutOffice: WithInterstitial & { locations: OfficeLocation[] };
+  whatWeDo: WithInterstitial & {
     textbox?: string;
     datapoint1?: { value?: string; label?: string };
     datapoint2?: { value?: string; label?: string };
     datapoint3?: { value?: string; label?: string };
   };
-  projects: SectionShared & { heading?: string };
-  team: SectionShared & { heading?: string; members: any[] };
-  publications: SectionShared & { heading?: string; items: CardItem[] };
-  ventures: SectionShared & { heading?: string; items: CardItem[] };
+  projects: WithInterstitial & { backgroundColor?: string; heading?: string };
+  team: WithInterstitial & { heading?: string; members: any[] };
+  publications: WithInterstitial & { heading?: string; items: CardItem[] };
+  ventures: WithInterstitial & { heading?: string; items: CardItem[] };
 };
 
 type Props = {
@@ -77,7 +75,7 @@ export default function HomePageClient({ data, projects, connections }: Props) {
     },
     {
       id: "motto",
-      content: <SectionMotto {...data.motto} />,
+      content: <SectionMotto heroText={data.motto.heroText} />,
       interstitial: maybeInterstitial(data.motto.interstitial),
     },
     {
@@ -87,7 +85,7 @@ export default function HomePageClient({ data, projects, connections }: Props) {
     },
     {
       id: "about-office",
-      content: <SectionAboutOffice {...data.aboutOffice} />,
+      content: <SectionAboutOffice locations={data.aboutOffice.locations} />,
       interstitial: maybeInterstitial(data.aboutOffice.interstitial),
     },
     {
@@ -104,7 +102,6 @@ export default function HomePageClient({ data, projects, connections }: Props) {
       id: "team",
       content: (
         <SectionTeam
-          backgroundColor={data.team.backgroundColor}
           heading={data.team.heading}
           teamMembers={data.team.members}
         />
@@ -116,8 +113,8 @@ export default function HomePageClient({ data, projects, connections }: Props) {
       content: (
         <SectionCardGrid
           id="publications"
-          defaultBg="#F9F9ED"
-          backgroundColor={data.publications.backgroundColor}
+          backgroundColor="#FFD2D2"
+          foregroundColor="#1F3A32"
           heading={data.publications.heading}
           items={data.publications.items}
         />
@@ -129,8 +126,8 @@ export default function HomePageClient({ data, projects, connections }: Props) {
       content: (
         <SectionCardGrid
           id="ventures"
-          defaultBg="#F9F9ED"
-          backgroundColor={data.ventures.backgroundColor}
+          backgroundColor="#1F3A32"
+          foregroundColor="#FFD2D2"
           heading={data.ventures.heading}
           items={data.ventures.items}
         />

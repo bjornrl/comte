@@ -6,12 +6,6 @@ export const aboutIntro = defineType({
   type: "document",
   fields: [
     defineField({
-      name: "backgroundColor",
-      title: "Background Color",
-      type: "string",
-      description: "Hex code, e.g. #1F3A32. Leave empty for default.",
-    }),
-    defineField({
       name: "image",
       title: "Image (left ~60%)",
       type: "image",

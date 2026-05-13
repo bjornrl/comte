@@ -62,14 +62,12 @@ export const HOME_SECTION_QUERY = groq`
 export const MOTTO_SECTION_QUERY = groq`
   *[_type == "mottoSection"][0] {
     heroText,
-    backgroundColor,
     ${INTERSTITIAL_FIELDS}
   }
 `;
 
 export const ABOUT_INTRO_QUERY = groq`
   *[_type == "aboutIntro"][0] {
-    backgroundColor,
     whoIsComteTitle,
     whoIsComte,
     whoAreWeTitle,
@@ -86,7 +84,6 @@ export const ABOUT_INTRO_QUERY = groq`
 
 export const ABOUT_OFFICE_QUERY = groq`
   *[_type == "aboutOffice"][0] {
-    backgroundColor,
     locations[] {
       title,
       description,
@@ -100,7 +97,6 @@ export const ABOUT_OFFICE_QUERY = groq`
 
 export const WHAT_WE_DO_QUERY = groq`
   *[_type == "whatWeDo"][0] {
-    backgroundColor,
     textbox,
     datapoint1,
     datapoint2,
@@ -119,7 +115,6 @@ export const PROJECTS_SECTION_QUERY = groq`
 
 export const TEAM_SECTION_QUERY = groq`
   *[_type == "teamSection"][0] {
-    backgroundColor,
     heading,
     ${INTERSTITIAL_FIELDS}
   }
@@ -127,7 +122,6 @@ export const TEAM_SECTION_QUERY = groq`
 
 export const PUBLICATIONS_SECTION_QUERY = groq`
   *[_type == "publicationsSection"][0] {
-    backgroundColor,
     heading,
     ${INTERSTITIAL_FIELDS}
   }
@@ -135,7 +129,6 @@ export const PUBLICATIONS_SECTION_QUERY = groq`
 
 export const VENTURES_SECTION_QUERY = groq`
   *[_type == "venturesSection"][0] {
-    backgroundColor,
     heading,
     ${INTERSTITIAL_FIELDS}
   }

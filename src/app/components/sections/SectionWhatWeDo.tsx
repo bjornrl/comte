@@ -1,6 +1,7 @@
 import SectionShell from "./SectionShell";
 
-const DEFAULT_BG = "#F9F9ED";
+const BG = "#F5F5E9";
+const FG = "#FF5252";
 
 type Datapoint = { value?: string; label?: string } | null | undefined;
 
@@ -22,7 +23,6 @@ function DatapointCard({ data, accent }: { data: Datapoint; accent: string }) {
 }
 
 type Props = {
-  backgroundColor?: string;
   textbox?: string;
   datapoint1?: Datapoint;
   datapoint2?: Datapoint;
@@ -30,21 +30,27 @@ type Props = {
 };
 
 export default function SectionWhatWeDo({
-  backgroundColor,
   textbox,
   datapoint1,
   datapoint2,
   datapoint3,
 }: Props) {
+  // Datapoint card backgrounds stay on the brand palette; only the main textbox
+  // adopts the section's FG colour.
   const accents = ["#1F3A32", "#F27887", "#5F7C8A"];
   const datapoints = [datapoint1, datapoint2, datapoint3];
 
   return (
-    <SectionShell id="what-we-do" bgColor={backgroundColor ?? DEFAULT_BG}>
+    <SectionShell id="what-we-do" bgColor={BG} style={{ color: FG }}>
       <div className="flex h-full flex-col">
         {textbox && (
-          <p className="max-w-[40ch] font-[family-name:var(--font-manrope)] font-light text-foreground/85 whitespace-pre-line"
-            style={{ fontSize: "clamp(1.25rem, 2vw, 1.75rem)", lineHeight: 1.4 }}
+          <p
+            className="max-w-[40ch] font-[family-name:var(--font-manrope)] font-light whitespace-pre-line"
+            style={{
+              fontSize: "clamp(1.25rem, 2vw, 1.75rem)",
+              lineHeight: 1.4,
+              color: FG,
+            }}
           >
             {textbox}
           </p>

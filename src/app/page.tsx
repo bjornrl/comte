@@ -135,11 +135,9 @@ export default async function Home() {
     },
     motto: {
       heroText: motto?.heroText,
-      backgroundColor: motto?.backgroundColor,
       interstitial: mapInterstitial(motto?.interstitial),
     },
     aboutIntro: {
-      backgroundColor: aboutIntro?.backgroundColor,
       imageUrl: sanityImageUrl(aboutIntro?.image),
       imageAlt: aboutIntro?.image?.alt,
       whoIsComteTitle: aboutIntro?.whoIsComteTitle,
@@ -149,12 +147,10 @@ export default async function Home() {
       interstitial: mapInterstitial(aboutIntro?.interstitial),
     },
     aboutOffice: {
-      backgroundColor: aboutOffice?.backgroundColor,
       locations: aboutOffice?.locations ?? [],
       interstitial: mapInterstitial(aboutOffice?.interstitial),
     },
     whatWeDo: {
-      backgroundColor: whatWeDo?.backgroundColor,
       textbox: whatWeDo?.textbox,
       datapoint1: whatWeDo?.datapoint1,
       datapoint2: whatWeDo?.datapoint2,
@@ -167,19 +163,16 @@ export default async function Home() {
       interstitial: mapInterstitial(projectsSection?.interstitial),
     },
     team: {
-      backgroundColor: teamSection?.backgroundColor,
       heading: teamSection?.heading,
       members: team ?? [],
       interstitial: mapInterstitial(teamSection?.interstitial),
     },
     publications: {
-      backgroundColor: publicationsSection?.backgroundColor,
       heading: publicationsSection?.heading,
       items: publications ?? [],
       interstitial: mapInterstitial(publicationsSection?.interstitial),
     },
     ventures: {
-      backgroundColor: venturesSection?.backgroundColor,
       heading: venturesSection?.heading,
       items: ventures ?? [],
       interstitial: mapInterstitial(venturesSection?.interstitial),

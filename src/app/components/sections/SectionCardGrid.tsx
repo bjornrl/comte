@@ -19,19 +19,29 @@ export type CardItem = {
 
 type Props = {
   id: string;
-  backgroundColor?: string;
-  defaultBg: string;
+  /** Background colour for this section. */
+  backgroundColor: string;
+  /** Foreground (text) colour for headings + card titles + descriptions. */
+  foregroundColor: string;
   heading?: string;
   items: CardItem[];
 };
 
-export default function SectionCardGrid({ id, backgroundColor, defaultBg, heading, items }: Props) {
+export default function SectionCardGrid({
+  id,
+  backgroundColor,
+  foregroundColor,
+  heading,
+  items,
+}: Props) {
   return (
-    <SectionShell id={id} bgColor={backgroundColor ?? defaultBg}>
+    <SectionShell id={id} bgColor={backgroundColor} style={{ color: foregroundColor }}>
       <div className="flex h-full flex-col gap-6 overflow-hidden">
         {heading && (
-          <h2 className="font-[family-name:var(--font-manrope)] font-bold text-foreground"
-            style={{ fontSize: "clamp(1.5rem, 3vw, 2.5rem)" }}>
+          <h2
+            className="font-[family-name:var(--font-manrope)] font-bold"
+            style={{ fontSize: "clamp(1.5rem, 3vw, 2.5rem)" }}
+          >
             {heading}
           </h2>
         )}
@@ -50,11 +60,14 @@ export default function SectionCardGrid({ id, backgroundColor, defaultBg, headin
                   />
                 </div>
                 <div>
-                  <h3 className="font-[family-name:var(--font-manrope)] text-xl font-bold text-foreground">
+                  <h3 className="font-[family-name:var(--font-manrope)] text-xl font-bold">
                     {item.title}
                   </h3>
                   {item.description && (
-                    <p className="mt-1 text-foreground/70 font-[family-name:var(--font-manrope)] text-base font-light leading-relaxed whitespace-pre-line">
+                    <p
+                      className="mt-1 font-[family-name:var(--font-manrope)] text-base font-light leading-relaxed whitespace-pre-line"
+                      style={{ color: foregroundColor, opacity: 0.78 }}
+                    >
                       {item.description}
                     </p>
                   )}

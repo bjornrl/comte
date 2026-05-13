@@ -6,12 +6,6 @@ export const aboutOffice = defineType({
   type: "document",
   fields: [
     defineField({
-      name: "backgroundColor",
-      title: "Background Color",
-      type: "string",
-      description: "Hex code. Leave empty for default.",
-    }),
-    defineField({
       name: "locations",
       title: "Office Locations",
       type: "array",
