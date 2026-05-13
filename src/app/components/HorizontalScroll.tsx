@@ -17,11 +17,18 @@ type Props = {
   sections: Section[];
   navRef?: React.MutableRefObject<HorizontalScrollNavApi | null>;
   onActiveSectionChange?: (id: string) => void;
-  /** Fires true on the first scroll event, false after scrolling has been
-   * idle for ~200ms. Lets parents reflect a transient "scrolling now" state. */
+  /** True on the first scroll event, false ~200ms after the last. */
   onScrollingChange?: (scrolling: boolean) => void;
 };
 
+/**
+ * Horizontally scrolling section list with infinite-loop behaviour.
+ *
+ * Renders [clone-of-last] [real sections] [clone-of-first]. On mount we
+ * silently park at the first real panel. When the user lands on a clone
+ * (after scrolling past either end) we teleport to the matching real
+ * panel — visually seamless because the content is identical.
+ */
 export default function HorizontalScroll({
   sections,
   navRef,
@@ -31,34 +38,57 @@ export default function HorizontalScroll({
   const containerRef = useRef<HTMLDivElement>(null);
   const sectionsRef = useRef(sections);
   sectionsRef.current = sections;
+  const isAdjusting = useRef(false);
 
-  const scrollToIndex = useCallback((index: number, smooth = true) => {
+  const numReal = sections.length;
+  const numPanels = numReal + 2; // + clone-last + clone-first
+
+  const scrollToPanel = useCallback((panelIndex: number, smooth = true) => {
     const el = containerRef.current;
     if (!el) return;
-    el.scrollTo({ left: el.clientWidth * index, behavior: smooth ? "smooth" : "auto" });
+    el.scrollTo({
+      left: el.clientWidth * panelIndex,
+      behavior: smooth ? "smooth" : "auto",
+    });
   }, []);
+
+  // Same as scrollToPanel, but suppresses the scroll handler's
+  // "scrolling=true" report for the next couple of frames so the
+  // teleport doesn't briefly look like user-driven motion.
+  const adjustScrollToPanel = useCallback(
+    (panelIndex: number) => {
+      isAdjusting.current = true;
+      scrollToPanel(panelIndex, false);
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          isAdjusting.current = false;
+        });
+      });
+    },
+    [scrollToPanel],
+  );
+
+  const scrollToSection = useCallback(
+    (id: string) => {
+      const realIdx = sectionsRef.current.findIndex((s) => s.id === id);
+      if (realIdx >= 0) scrollToPanel(realIdx + 1, true);
+    },
+    [scrollToPanel],
+  );
 
   const goNext = useCallback(() => {
     const el = containerRef.current;
     if (!el) return;
-    const currentIndex = Math.round(el.scrollLeft / el.clientWidth);
-    if (currentIndex < sectionsRef.current.length - 1) scrollToIndex(currentIndex + 1, true);
-  }, [scrollToIndex]);
+    const panelIndex = Math.round(el.scrollLeft / el.clientWidth);
+    scrollToPanel(panelIndex + 1, true);
+  }, [scrollToPanel]);
 
   const goPrev = useCallback(() => {
     const el = containerRef.current;
     if (!el) return;
-    const currentIndex = Math.round(el.scrollLeft / el.clientWidth);
-    if (currentIndex > 0) scrollToIndex(currentIndex - 1, true);
-  }, [scrollToIndex]);
-
-  const scrollToSection = useCallback(
-    (id: string) => {
-      const index = sectionsRef.current.findIndex((s) => s.id === id);
-      if (index >= 0) scrollToIndex(index, true);
-    },
-    [scrollToIndex],
-  );
+    const panelIndex = Math.round(el.scrollLeft / el.clientWidth);
+    scrollToPanel(panelIndex - 1, true);
+  }, [scrollToPanel]);
 
   useEffect(() => {
     if (!navRef) return;
@@ -68,13 +98,21 @@ export default function HorizontalScroll({
     };
   }, [navRef, goNext, goPrev, scrollToSection]);
 
-  // Track active section + transient "scrolling" state
+  // On mount: park silently on the first real panel (index 1).
+  useEffect(() => {
+    adjustScrollToPanel(1);
+  }, [adjustScrollToPanel]);
+
+  // Scroll tracking + teleport on landing on a clone.
   useEffect(() => {
     const el = containerRef.current;
     if (!el) return;
     let stopTimeout: ReturnType<typeof setTimeout>;
     let scrolling = false;
+
     const handleScroll = () => {
+      if (isAdjusting.current) return;
+
       if (!scrolling) {
         scrolling = true;
         onScrollingChange?.(true);
@@ -83,23 +121,43 @@ export default function HorizontalScroll({
       stopTimeout = setTimeout(() => {
         scrolling = false;
         onScrollingChange?.(false);
-        const idx = Math.round(el.scrollLeft / el.clientWidth);
-        const section = sectionsRef.current[idx];
+
+        const panelIndex = Math.round(el.scrollLeft / el.clientWidth);
+
+        // Landed on clone-of-last → teleport to real last.
+        if (panelIndex === 0) {
+          adjustScrollToPanel(numReal);
+          const last = sectionsRef.current[numReal - 1];
+          if (last) onActiveSectionChange?.(last.id);
+          return;
+        }
+        // Landed on clone-of-first → teleport to real first.
+        if (panelIndex === numPanels - 1) {
+          adjustScrollToPanel(1);
+          const first = sectionsRef.current[0];
+          if (first) onActiveSectionChange?.(first.id);
+          return;
+        }
+
+        const realIdx = panelIndex - 1;
+        const section = sectionsRef.current[realIdx];
         if (section) onActiveSectionChange?.(section.id);
       }, 200);
     };
+
     el.addEventListener("scroll", handleScroll, { passive: true });
-    // Initial active-section report (no scroll yet → not "scrolling")
-    const idx = Math.round(el.scrollLeft / el.clientWidth);
-    const initial = sectionsRef.current[idx];
-    if (initial) onActiveSectionChange?.(initial.id);
+
+    // Initial active-section report (assume we're parked on the first real panel)
+    const first = sectionsRef.current[0];
+    if (first) onActiveSectionChange?.(first.id);
+
     return () => {
       el.removeEventListener("scroll", handleScroll);
       clearTimeout(stopTimeout);
     };
-  }, [onActiveSectionChange, onScrollingChange]);
+  }, [onActiveSectionChange, onScrollingChange, adjustScrollToPanel, numReal, numPanels]);
 
-  // Listen for nav events from the fallback BlobNav dispatcher
+  // Listen for nav events from the fallback BlobNav dispatcher.
   useEffect(() => {
     const onNavigate = (e: Event) => {
       const detail = (e as CustomEvent<{ sectionId: string }>).detail;
@@ -109,14 +167,16 @@ export default function HorizontalScroll({
     return () => window.removeEventListener("comte:navigate", onNavigate as EventListener);
   }, [scrollToSection]);
 
-  // Honour initial hash (e.g. /#projects) on mount
+  // Honour initial hash (e.g. /#projects) on mount.
   useEffect(() => {
     const hash = typeof window !== "undefined" ? window.location.hash.replace(/^#/, "") : "";
     if (hash) {
-      // Wait a frame so the container has measured its width
       requestAnimationFrame(() => scrollToSection(hash));
     }
   }, [scrollToSection]);
+
+  const cloneLast = sections[sections.length - 1];
+  const cloneFirst = sections[0];
 
   return (
     <div
@@ -128,6 +188,17 @@ export default function HorizontalScroll({
         WebkitOverflowScrolling: "touch",
       }}
     >
+      {cloneLast && (
+        <div
+          key="clone-last"
+          className="flex h-svh w-screen flex-shrink-0"
+          style={{ scrollSnapAlign: "start", scrollSnapStop: "always" }}
+          aria-hidden="true"
+        >
+          {cloneLast.content}
+        </div>
+      )}
+
       {sections.map((section) => (
         <div
           key={section.id}
@@ -137,6 +208,17 @@ export default function HorizontalScroll({
           {section.content}
         </div>
       ))}
+
+      {cloneFirst && (
+        <div
+          key="clone-first"
+          className="flex h-svh w-screen flex-shrink-0"
+          style={{ scrollSnapAlign: "start", scrollSnapStop: "always" }}
+          aria-hidden="true"
+        >
+          {cloneFirst.content}
+        </div>
+      )}
     </div>
   );
 }
