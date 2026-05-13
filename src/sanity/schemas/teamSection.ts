@@ -16,6 +16,11 @@ export const teamSection = defineType({
       title: "Section Heading",
       type: "string",
     }),
+    defineField({
+      name: "interstitial",
+      title: "Interstitial (narrow panel to the left)",
+      type: "interstitial",
+    }),
   ],
   preview: { prepare: () => ({ title: "Team – Section Settings" }) },
 });

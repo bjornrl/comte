@@ -42,6 +42,11 @@ export const aboutIntro = defineType({
       type: "text",
       rows: 6,
     }),
+    defineField({
+      name: "interstitial",
+      title: "Interstitial (narrow panel to the left)",
+      type: "interstitial",
+    }),
   ],
   preview: { prepare: () => ({ title: "Intro" }) },
 });

@@ -33,6 +33,18 @@ function sanityImageUrl(imageField: any, width = 1600): string | undefined {
   return urlFor(imageField).width(width).auto("format").quality(80).url();
 }
 
+function mapInterstitial(raw: any) {
+  if (!raw) return undefined;
+  const hasContent = !!(raw.text || raw.image || raw.videoUrl);
+  if (!hasContent) return undefined;
+  return {
+    text: raw.text ?? undefined,
+    image: raw.image ?? undefined,
+    videoUrl: raw.videoUrl ?? undefined,
+    backgroundColor: raw.backgroundColor ?? undefined,
+  };
+}
+
 function mapSanityProject(doc: any): Project {
   const tags: string[] = doc.tags ?? [];
   const displayTags = tags
@@ -119,10 +131,12 @@ export default async function Home() {
       heroText: home?.heroText,
       backgroundColor: home?.backgroundColor,
       backgroundVideoUrl: home?.backgroundVideoUrl,
+      interstitial: mapInterstitial(home?.interstitial),
     },
     motto: {
       heroText: motto?.heroText,
       backgroundColor: motto?.backgroundColor,
+      interstitial: mapInterstitial(motto?.interstitial),
     },
     aboutIntro: {
       backgroundColor: aboutIntro?.backgroundColor,
@@ -132,10 +146,12 @@ export default async function Home() {
       whoIsComte: aboutIntro?.whoIsComte,
       whoAreWeTitle: aboutIntro?.whoAreWeTitle,
       whoAreWe: aboutIntro?.whoAreWe,
+      interstitial: mapInterstitial(aboutIntro?.interstitial),
     },
     aboutOffice: {
       backgroundColor: aboutOffice?.backgroundColor,
       locations: aboutOffice?.locations ?? [],
+      interstitial: mapInterstitial(aboutOffice?.interstitial),
     },
     whatWeDo: {
       backgroundColor: whatWeDo?.backgroundColor,
@@ -143,25 +159,30 @@ export default async function Home() {
       datapoint1: whatWeDo?.datapoint1,
       datapoint2: whatWeDo?.datapoint2,
       datapoint3: whatWeDo?.datapoint3,
+      interstitial: mapInterstitial(whatWeDo?.interstitial),
     },
     projects: {
       backgroundColor: projectsSection?.backgroundColor,
       heading: projectsSection?.heading,
+      interstitial: mapInterstitial(projectsSection?.interstitial),
     },
     team: {
       backgroundColor: teamSection?.backgroundColor,
       heading: teamSection?.heading,
       members: team ?? [],
+      interstitial: mapInterstitial(teamSection?.interstitial),
     },
     publications: {
       backgroundColor: publicationsSection?.backgroundColor,
       heading: publicationsSection?.heading,
       items: publications ?? [],
+      interstitial: mapInterstitial(publicationsSection?.interstitial),
     },
     ventures: {
       backgroundColor: venturesSection?.backgroundColor,
       heading: venturesSection?.heading,
       items: ventures ?? [],
+      interstitial: mapInterstitial(venturesSection?.interstitial),
     },
   };
 

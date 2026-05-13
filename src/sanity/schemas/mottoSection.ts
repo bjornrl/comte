@@ -16,6 +16,11 @@ export const mottoSection = defineType({
       title: "Hero Text",
       type: "string",
     }),
+    defineField({
+      name: "interstitial",
+      title: "Interstitial (narrow panel to the left)",
+      type: "interstitial",
+    }),
   ],
   preview: { prepare: () => ({ title: "Motto" }) },
 });

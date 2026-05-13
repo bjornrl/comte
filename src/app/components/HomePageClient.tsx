@@ -11,17 +11,21 @@ import SectionWhatWeDo from "./sections/SectionWhatWeDo";
 import SectionProjects from "./sections/SectionProjects";
 import SectionTeam from "./sections/SectionTeam";
 import SectionCardGrid, { type CardItem } from "./sections/SectionCardGrid";
+import Interstitial, { type InterstitialData } from "./sections/Interstitial";
 import { type Project, type Connection, setProjectData } from "./projectNetworkData";
 
+type SectionShared = {
+  backgroundColor?: string;
+  interstitial?: InterstitialData;
+};
+
 export type HomeData = {
-  home: {
+  home: SectionShared & {
     heroText?: string;
-    backgroundColor?: string;
     backgroundVideoUrl?: string;
   };
-  motto: { heroText?: string; backgroundColor?: string };
-  aboutIntro: {
-    backgroundColor?: string;
+  motto: SectionShared & { heroText?: string };
+  aboutIntro: SectionShared & {
     imageUrl?: string;
     imageAlt?: string;
     whoIsComteTitle?: string;
@@ -29,18 +33,17 @@ export type HomeData = {
     whoAreWeTitle?: string;
     whoAreWe?: string;
   };
-  aboutOffice: { backgroundColor?: string; locations: OfficeLocation[] };
-  whatWeDo: {
-    backgroundColor?: string;
+  aboutOffice: SectionShared & { locations: OfficeLocation[] };
+  whatWeDo: SectionShared & {
     textbox?: string;
     datapoint1?: { value?: string; label?: string };
     datapoint2?: { value?: string; label?: string };
     datapoint3?: { value?: string; label?: string };
   };
-  projects: { backgroundColor?: string; heading?: string };
-  team: { backgroundColor?: string; heading?: string; members: any[] };
-  publications: { backgroundColor?: string; heading?: string; items: CardItem[] };
-  ventures: { backgroundColor?: string; heading?: string; items: CardItem[] };
+  projects: SectionShared & { heading?: string };
+  team: SectionShared & { heading?: string; members: any[] };
+  publications: SectionShared & { heading?: string; items: CardItem[] };
+  ventures: SectionShared & { heading?: string; items: CardItem[] };
 };
 
 type Props = {
@@ -48,6 +51,12 @@ type Props = {
   projects: Project[];
   connections: Connection[];
 };
+
+function maybeInterstitial(data: InterstitialData | undefined) {
+  if (!data) return undefined;
+  if (!data.text && !data.image && !data.videoUrl) return undefined;
+  return <Interstitial data={data} />;
+}
 
 export default function HomePageClient({ data, projects, connections }: Props) {
   const scrollNavRef = useRef<HorizontalScrollNavApi | null>(null);
@@ -61,12 +70,36 @@ export default function HomePageClient({ data, projects, connections }: Props) {
   }
 
   const sections = [
-    { id: "home", content: <SectionHome {...data.home} /> },
-    { id: "motto", content: <SectionMotto {...data.motto} /> },
-    { id: "about-intro", content: <SectionAboutIntro {...data.aboutIntro} /> },
-    { id: "about-office", content: <SectionAboutOffice {...data.aboutOffice} /> },
-    { id: "what-we-do", content: <SectionWhatWeDo {...data.whatWeDo} /> },
-    { id: "projects", content: <SectionProjects {...data.projects} projects={projects} /> },
+    {
+      id: "home",
+      content: <SectionHome {...data.home} />,
+      interstitial: maybeInterstitial(data.home.interstitial),
+    },
+    {
+      id: "motto",
+      content: <SectionMotto {...data.motto} />,
+      interstitial: maybeInterstitial(data.motto.interstitial),
+    },
+    {
+      id: "about-intro",
+      content: <SectionAboutIntro {...data.aboutIntro} />,
+      interstitial: maybeInterstitial(data.aboutIntro.interstitial),
+    },
+    {
+      id: "about-office",
+      content: <SectionAboutOffice {...data.aboutOffice} />,
+      interstitial: maybeInterstitial(data.aboutOffice.interstitial),
+    },
+    {
+      id: "what-we-do",
+      content: <SectionWhatWeDo {...data.whatWeDo} />,
+      interstitial: maybeInterstitial(data.whatWeDo.interstitial),
+    },
+    {
+      id: "projects",
+      content: <SectionProjects {...data.projects} projects={projects} />,
+      interstitial: maybeInterstitial(data.projects.interstitial),
+    },
     {
       id: "team",
       content: (
@@ -76,6 +109,7 @@ export default function HomePageClient({ data, projects, connections }: Props) {
           teamMembers={data.team.members}
         />
       ),
+      interstitial: maybeInterstitial(data.team.interstitial),
     },
     {
       id: "publications",
@@ -88,6 +122,7 @@ export default function HomePageClient({ data, projects, connections }: Props) {
           items={data.publications.items}
         />
       ),
+      interstitial: maybeInterstitial(data.publications.interstitial),
     },
     {
       id: "ventures",
@@ -100,6 +135,7 @@ export default function HomePageClient({ data, projects, connections }: Props) {
           items={data.ventures.items}
         />
       ),
+      interstitial: maybeInterstitial(data.ventures.interstitial),
     },
   ];
 

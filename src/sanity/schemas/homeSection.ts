@@ -24,6 +24,11 @@ export const homeSection = defineType({
       type: "string",
       initialValue: "Innovation for societal impact",
     }),
+    defineField({
+      name: "interstitial",
+      title: "Interstitial (narrow panel to the left)",
+      type: "interstitial",
+    }),
   ],
   preview: { prepare: () => ({ title: "Home" }) },
 });

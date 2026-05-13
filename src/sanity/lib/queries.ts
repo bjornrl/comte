@@ -1,5 +1,16 @@
 import { groq } from "next-sanity";
 
+// Re-usable interstitial projection. Each section singleton query spreads
+// this so the editor can attach a narrow parallax panel to any section.
+const INTERSTITIAL_FIELDS = groq`
+  interstitial {
+    text,
+    image { asset-> { _id, url }, alt, hotspot, crop },
+    "videoUrl": video.asset->url,
+    backgroundColor
+  }
+`;
+
 // All projects
 export const PROJECTS_QUERY = groq`
   *[_type == "project"] | order(order asc, year desc) {
@@ -43,12 +54,17 @@ export const HOME_SECTION_QUERY = groq`
   *[_type == "homeSection"][0] {
     heroText,
     backgroundColor,
-    "backgroundVideoUrl": backgroundVideo.asset->url
+    "backgroundVideoUrl": backgroundVideo.asset->url,
+    ${INTERSTITIAL_FIELDS}
   }
 `;
 
 export const MOTTO_SECTION_QUERY = groq`
-  *[_type == "mottoSection"][0] { heroText, backgroundColor }
+  *[_type == "mottoSection"][0] {
+    heroText,
+    backgroundColor,
+    ${INTERSTITIAL_FIELDS}
+  }
 `;
 
 export const ABOUT_INTRO_QUERY = groq`
@@ -63,7 +79,8 @@ export const ABOUT_INTRO_QUERY = groq`
       alt,
       hotspot,
       crop
-    }
+    },
+    ${INTERSTITIAL_FIELDS}
   }
 `;
 
@@ -76,7 +93,8 @@ export const ABOUT_OFFICE_QUERY = groq`
       longitude,
       latitude,
       zoom
-    }
+    },
+    ${INTERSTITIAL_FIELDS}
   }
 `;
 
@@ -86,24 +104,41 @@ export const WHAT_WE_DO_QUERY = groq`
     textbox,
     datapoint1,
     datapoint2,
-    datapoint3
+    datapoint3,
+    ${INTERSTITIAL_FIELDS}
   }
 `;
 
 export const PROJECTS_SECTION_QUERY = groq`
-  *[_type == "projectsSection"][0] { backgroundColor, heading }
+  *[_type == "projectsSection"][0] {
+    backgroundColor,
+    heading,
+    ${INTERSTITIAL_FIELDS}
+  }
 `;
 
 export const TEAM_SECTION_QUERY = groq`
-  *[_type == "teamSection"][0] { backgroundColor, heading }
+  *[_type == "teamSection"][0] {
+    backgroundColor,
+    heading,
+    ${INTERSTITIAL_FIELDS}
+  }
 `;
 
 export const PUBLICATIONS_SECTION_QUERY = groq`
-  *[_type == "publicationsSection"][0] { backgroundColor, heading }
+  *[_type == "publicationsSection"][0] {
+    backgroundColor,
+    heading,
+    ${INTERSTITIAL_FIELDS}
+  }
 `;
 
 export const VENTURES_SECTION_QUERY = groq`
-  *[_type == "venturesSection"][0] { backgroundColor, heading }
+  *[_type == "venturesSection"][0] {
+    backgroundColor,
+    heading,
+    ${INTERSTITIAL_FIELDS}
+  }
 `;
 
 // Team members

@@ -36,6 +36,11 @@ export const whatWeDo = defineType({
     datapoint("datapoint1", "Datapoint 1"),
     datapoint("datapoint2", "Datapoint 2"),
     datapoint("datapoint3", "Datapoint 3"),
+    defineField({
+      name: "interstitial",
+      title: "Interstitial (narrow panel to the left)",
+      type: "interstitial",
+    }),
   ],
   preview: { prepare: () => ({ title: "What do we do?" }) },
 });

@@ -13,6 +13,7 @@ import { publication } from "./publication";
 import { venture } from "./venture";
 import { siteSettings } from "./siteSettings";
 import { serviceCategory } from "./serviceCategory";
+import { interstitial } from "./interstitial";
 
 export const schemaTypes = [
   // Page-section singletons
@@ -35,4 +36,7 @@ export const schemaTypes = [
 
   // Internal
   serviceCategory,
+
+  // Inline object types
+  interstitial,
 ];
