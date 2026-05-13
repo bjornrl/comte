@@ -50,14 +50,21 @@ export default function SectionHome({ backgroundColor, backgroundVideoUrl }: Pro
            * the dot in the Comte logo. All offsets are em-based so the dot
            * scales with the hero font-size.
            */}
+          {/*
+           * left = (widest-line width in em) − dot-size, so the dot's RIGHT
+           * edge lines up with the rightmost letter ("e" in "change") of
+           * the longest line. The 7.22em width of "creates change" is a
+           * font/letter-spacing constant for this hero text — re-measure if
+           * the copy changes.
+           */}
           <span
             aria-hidden="true"
             style={{
               position: "absolute",
               top: "-0.15em",
-              left: "5.5em",
-              width: "0.28em",
-              height: "0.28em",
+              left: "6.9em",
+              width: "0.32em",
+              height: "0.32em",
               borderRadius: "9999px",
               background: "white",
             }}

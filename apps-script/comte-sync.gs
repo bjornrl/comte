@@ -38,7 +38,10 @@
 
 // ─────────────────────────── Configuration ───────────────────────────
 
-var SHEET_NAME = "Projects";
+// The tab name inside the spreadsheet (NOT the spreadsheet's title). The
+// spreadsheet itself is auto-detected via `SpreadsheetApp.getActive()`, so
+// its name (e.g. "Nettsideprosjekter") doesn't matter — only this tab name.
+var SHEET_NAME = "production";
 var MULTI_SEP = " / ";
 var API_VERSION = "v2024-01-01";
 

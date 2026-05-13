@@ -10,7 +10,7 @@ export const NAV_ITEMS: NavItem[] = [
   { label: "About", sectionId: "about-intro" },
   { label: "Projects", sectionId: "projects" },
   { label: "Team", sectionId: "team" },
-  { label: "Publications and ventures", sectionId: "publications" },
+  { label: "Publications & ventures", sectionId: "publications" },
 ];
 
 const RED = "#FF5252";
@@ -79,9 +79,11 @@ function HamburgerIcon({ open }: { open: boolean }) {
   // the original 1/9 split for a tighter, more refined look.
   const HAM_TOP_Y = 3;
   const HAM_BOTTOM_Y = 7;
-  // Chevron corners + tip.
-  const CHEV_TOP_Y = 0;
-  const CHEV_BOTTOM_Y = 10;
+  // Chevron corners + tip. Symmetric widening past the SVG's 0–10 viewBox
+  // (the SVG has `overflow: visible`) so the chevron's lower arm extends
+  // down to the same y as the nav-item text line.
+  const CHEV_TOP_Y = 1;
+  const CHEV_BOTTOM_Y = 9;
   const CHEV_TIP_Y = 5;
 
   const d = open
@@ -114,13 +116,26 @@ const boxStyle = (extra?: React.CSSProperties): React.CSSProperties => ({
   color: CREAM,
   borderRadius: 0,
   border: "none",
-  padding: "0 14px",
+  // Asymmetric vertical padding biases the centred text a few px below the
+  // box's true vertical centre — sits more comfortably with the cap-height of
+  // Work Sans inside a 48px box. Using explicit longhands so the nav-item
+  // override of paddingLeft/paddingRight (for the clip-path gap) actually
+  // wins — React's style serializer silently drops longhands that collide
+  // with a `padding` shorthand sitting earlier in the same object.
+  paddingTop: 4,
+  paddingRight: 14,
+  paddingBottom: 0,
+  paddingLeft: 14,
   display: "inline-flex",
   alignItems: "center",
   justifyContent: "center",
   fontFamily: "var(--font-work-sans), system-ui, sans-serif",
   fontWeight: 400,
   fontSize: "0.95rem",
+  // All nav-element labels display in lowercase (e.g. "about" not "About").
+  // We keep the source strings sentence-cased so screen readers and PR
+  // descriptions still read naturally — CSS lowercases at render time.
+  textTransform: "lowercase" as const,
   letterSpacing: "0.01em",
   cursor: "pointer",
   whiteSpace: "nowrap",
