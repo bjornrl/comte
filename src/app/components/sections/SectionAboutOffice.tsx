@@ -51,23 +51,24 @@ const DEFAULT_LOCATIONS: OfficeLocation[] = [
 ];
 
 /**
- * A non-interactive map with a subtle scroll-driven parallax shift. The map
- * is intentionally larger than its container and clipped, so when the inner
- * element translates the user sees different parts of the map without any
- * black edges. The map is fully passive — no pan, zoom or click interaction.
+ * Shared inner-parallax effect. The `inner` element shifts horizontally as the
+ * horizontal-scroll container moves, at MAP_PARALLAX× the scroll delta past
+ * the section's snap point. Clamped to ±INNER_OVERHANG × wrap.clientWidth so
+ * the inner's edges never expose the wrap's underlying background.
+ *
+ * Requirements:
+ * - `inner` must be wider than `wrap` by ≥ 2× INNER_OVERHANG (typical: width
+ *   130% + marginLeft -15%).
+ * - `wrap` must have `overflow: hidden` to clip the inner.
+ * - The closest ancestor with `data-snap-id` is treated as the panel; an
+ *   optional `[data-snap-anchor]` descendant of the panel overrides the
+ *   reference point for the snap calculation (so off-kilter snaps are
+ *   respected).
  */
-function ParallaxMap({
-  longitude,
-  latitude,
-  zoom,
-}: {
-  longitude: number;
-  latitude: number;
-  zoom: number;
-}) {
-  const wrapRef = useRef<HTMLDivElement>(null);
-  const innerRef = useRef<HTMLDivElement>(null);
-
+function useInnerParallax(
+  wrapRef: React.RefObject<HTMLElement | null>,
+  innerRef: React.RefObject<HTMLElement | null>,
+) {
   useEffect(() => {
     const wrap = wrapRef.current;
     const inner = innerRef.current;
@@ -80,11 +81,9 @@ function ParallaxMap({
     }
     if (!scroller) return;
 
-    // Find the snap reference for this panel: the data-snap-anchor element
-    // if present (so off-kilter snaps like office's -15vw pullback are
-    // respected), otherwise the panel itself. The anchor's distance from the
-    // scroller's left edge equals how far we've scrolled past this section's
-    // snap point — which is the only signal parallax should react to.
+    // Snap reference: the panel's data-snap-anchor if present, else the
+    // panel itself. Anchor's distance from the scroller's left edge equals
+    // how far we've scrolled past this section's snap point.
     let panel: HTMLElement | null = wrap.parentElement;
     while (panel && !panel.dataset.snapId) panel = panel.parentElement;
     const reference: HTMLElement =
@@ -111,7 +110,27 @@ function ParallaxMap({
       scroller!.removeEventListener("scroll", update);
       window.removeEventListener("resize", update);
     };
-  }, []);
+  }, [wrapRef, innerRef]);
+}
+
+/**
+ * A non-interactive map with a subtle scroll-driven parallax shift. The map
+ * is intentionally larger than its container and clipped, so when the inner
+ * element translates the user sees different parts of the map without any
+ * black edges. The map is fully passive — no pan, zoom or click interaction.
+ */
+function ParallaxMap({
+  longitude,
+  latitude,
+  zoom,
+}: {
+  longitude: number;
+  latitude: number;
+  zoom: number;
+}) {
+  const wrapRef = useRef<HTMLDivElement>(null);
+  const innerRef = useRef<HTMLDivElement>(null);
+  useInnerParallax(wrapRef, innerRef);
 
   return (
     <div
@@ -157,6 +176,64 @@ function ParallaxMap({
   );
 }
 
+/**
+ * The right-side image or video with the same inner-parallax shift as
+ * ParallaxMap. The media is rendered into an inner element that's 130% wide
+ * with -15% left margin so it overhangs the visible wrap by 15% on each side;
+ * the parallax shift pulls the inner left/right within that slack as the user
+ * scrolls past the section's snap point. Video wins if both are provided.
+ */
+function ParallaxMedia({
+  imageUrl,
+  imageAlt,
+  videoUrl,
+}: {
+  imageUrl?: string;
+  imageAlt?: string;
+  videoUrl?: string;
+}) {
+  const wrapRef = useRef<HTMLDivElement>(null);
+  const innerRef = useRef<HTMLDivElement>(null);
+  useInnerParallax(wrapRef, innerRef);
+
+  return (
+    <div
+      ref={wrapRef}
+      className="relative h-full w-full overflow-hidden"
+    >
+      <div
+        ref={innerRef}
+        className="relative h-full"
+        style={{
+          width: "130%",
+          marginLeft: "-15%",
+          willChange: "transform",
+        }}
+      >
+        {videoUrl ? (
+          <video
+            src={videoUrl}
+            autoPlay
+            muted
+            loop
+            playsInline
+            className="absolute inset-0 h-full w-full object-cover"
+          />
+        ) : imageUrl ? (
+          <Image
+            src={imageUrl}
+            alt={imageAlt ?? ""}
+            fill
+            className="object-cover"
+            // Inner is 130% of the 30vw frame → source area is ~39vw wide.
+            sizes="39vw"
+          />
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
 export default function SectionAboutOffice({
   locations,
   mediaImageUrl,
@@ -172,34 +249,23 @@ export default function SectionAboutOffice({
       bgColor={BG}
       style={{
         color: FG,
-        // Hard transition: intro's pink for the first PINK_EXTENSION, then BG.
-        background: `linear-gradient(to right, ${INTRO_PINK} 0, ${INTRO_PINK} ${PINK_EXTENSION}, ${BG} ${PINK_EXTENSION}, ${BG} 100%)`,
-        // Full-bleed left; padding is reapplied inside the locations column.
-        // Right padding pushes the content (locations + media) back into the
-        // first 94vw of section width, leaving the panel's extra 36vw on the
-        // right as empty cream where the tilted "What do we do?" heading can
-        // slide cleanly without overlapping the office image.
-        // 36vw padding = 130vw panel − 94vw content area.
+        // One continuous pink block on the left of the section, full height,
+        // with cream taking over before the map's right edge (the maps
+        // intentionally extend past the pink). The 22% stop is a touch
+        // before where each map ends (map cell ~27% of section width × 95%
+        // map fill ≈ 25.7%, so 22% leaves ~3.7% of section for cream-behind-
+        // map breathing room before the map's right edge).
+        background: `linear-gradient(to right, ${INTRO_PINK} 0, ${INTRO_PINK} 22%, ${BG} 22%, ${BG} 100%)`,
+        // Layout: 52vw locations + 30vw image = 82vw panel.
         padding: 0,
-        paddingRight: "36vw",
+        paddingRight: 0,
+        // overflow: visible so each map cell's negative left margin can bleed
+        // a sliver of the map off-screen to the left at office snap.
+        overflow: "visible",
       }}
     >
-      {/*
-       * Off-kilter snap anchor: viewport's left edge lands at -SNAP_PULLBACK
-       * relative to the panel's natural offsetLeft, so a slice of intro's
-       * right edge stays visible when this section is the active snap.
-       */}
-      <div
-        data-snap-anchor=""
-        aria-hidden="true"
-        style={{
-          position: "absolute",
-          left: `calc(-1 * ${SNAP_PULLBACK})`,
-          top: 0,
-          width: 0,
-          height: 0,
-        }}
-      />
+      {/* No snap anchor — office snaps flush at its panel offset so the
+          left edge of the panel lines up exactly with intro's right edge. */}
       <div
         className="grid h-full w-full"
         style={{
@@ -210,7 +276,9 @@ export default function SectionAboutOffice({
         <div
           className="flex min-w-0 flex-col gap-6"
           style={{
-            paddingTop: CONTENT_TOP,
+            // Matches the intro text column's lifted top so map tops stay
+            // aligned with the intro's "Who is Comte" / "Who are we" tops.
+            paddingTop: `calc(${CONTENT_TOP} - 1.5rem)`,
             paddingRight: PANEL_PADDING,
             paddingBottom: PANEL_PADDING,
             paddingLeft: 0,
@@ -229,14 +297,28 @@ export default function SectionAboutOffice({
                 // collapsing the map cell to ~30–90px. `grid-rows-1` (single
                 // row, 1fr) forces the row to fill the container so the map
                 // cell stretches to the full available height on md+.
-                className="grid min-h-0 flex-1 grid-cols-1 grid-rows-[200px_1fr] gap-4 md:grid-cols-[2fr_3fr] md:grid-rows-1"
+                className="grid min-h-0 flex-1 grid-cols-1 grid-rows-[200px_1fr] gap-4 md:grid-cols-[3fr_2fr] md:grid-rows-1"
               >
-                {/* Map rectangle, left */}
-                <ParallaxMap longitude={lng} latitude={lat} zoom={zoom} />
+                {/* Map cell: transparent (the section-level pink gradient
+                    sits behind). Both maps anchor top-left so the title in
+                    the adjacent text column lines up with the top of the
+                    map. Negative left margin lets the map's left bleed
+                    past the section/intro boundary at office snap. */}
+                <div
+                  className="relative h-full"
+                  style={{ marginLeft: "-5vw" }}
+                >
+                  <div
+                    className="absolute top-0 left-0 overflow-hidden"
+                    style={{ width: "95%", height: "82%" }}
+                  >
+                    <ParallaxMap longitude={lng} latitude={lat} zoom={zoom} />
+                  </div>
+                </div>
 
                 {/* Title + description, right */}
                 <div className="flex min-h-0 flex-col justify-start pt-2">
-                  <h3 className="mb-2 font-[family-name:var(--font-manrope)] text-2xl font-bold">
+                  <h3 className="mb-2 font-[family-name:var(--font-manrope)] text-4xl font-bold">
                     {loc.title ?? `Office ${i + 1}`}
                   </h3>
                   {loc.description && (
@@ -253,29 +335,15 @@ export default function SectionAboutOffice({
           })}
         </div>
 
-        {/* Right-side media — flush with the section's right edge, video
-            wins if both video and image are provided. */}
+        {/* Right-side media — flush with the section's right edge. Same
+            inner-parallax shift as the maps so the image/video glides in
+            sync with them as the user scrolls past the snap point. */}
         {hasMedia && (
-          <div className="relative h-full w-full overflow-hidden">
-            {mediaVideoUrl ? (
-              <video
-                src={mediaVideoUrl}
-                autoPlay
-                muted
-                loop
-                playsInline
-                className="absolute inset-0 h-full w-full object-cover"
-              />
-            ) : mediaImageUrl ? (
-              <Image
-                src={mediaImageUrl}
-                alt={mediaImageAlt ?? ""}
-                fill
-                className="object-cover"
-                sizes="30vw"
-              />
-            ) : null}
-          </div>
+          <ParallaxMedia
+            imageUrl={mediaImageUrl}
+            imageAlt={mediaImageAlt}
+            videoUrl={mediaVideoUrl}
+          />
         )}
       </div>
     </SectionShell>

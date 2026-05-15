@@ -1,5 +1,5 @@
 import Image from "next/image";
-import SectionShell from "./SectionShell";
+import SectionShell, { CONTENT_TOP, PANEL_PADDING } from "./SectionShell";
 // The logo uses a plain <img> instead of next/image because next/image
 // applies a `max-width: 100%` style that clamps the rendered size to the
 // parent, defeating the rotated-and-oversized layout we want here.
@@ -93,28 +93,56 @@ export default function SectionAboutIntro({
           />
         </div>
 
-        {/* Image — now 40vw wide */}
-        <div className="relative h-full overflow-hidden">
+        {/* Image — 40vw wide. The image is bottom-anchored to the column
+            (flex items-end) instead of using `fill + object-cover`, so the
+            asset's BOTTOM edge always lands at the page bottom regardless
+            of the image's intrinsic aspect. If the asset is taller than the
+            column it crops at the top; shorter, you'll see a strip of the
+            section's pink bg above. */}
+        <div className="relative h-full overflow-hidden flex items-end">
           <Image
             src={imageUrl ?? PLACEHOLDER_IMAGE}
             alt={imageAlt ?? ""}
-            fill
-            className="object-cover"
+            width={500}
+            height={750}
+            className="w-full h-auto block"
             sizes="40vw"
             priority
+            // 1.19× scale from the bottom-centre pivot — the asset visually
+            // grows 19% (cropped at the top + sides via overflow-hidden)
+            // while its bottom edge stays anchored to the column bottom.
+            style={{ transform: "scale(1.19)", transformOrigin: "bottom center" }}
           />
         </div>
 
-        {/* Two text blocks */}
-        <div className="flex h-full flex-col justify-center gap-12 px-[clamp(1.5rem,4vw,4rem)] py-[clamp(2rem,5vw,5rem)]">
+        {/* Two text blocks.
+            Padding + gap-6 + flex-1 items mirror the office locations stack
+            so the top of "Who is Comte" lines up with the top of office's
+            first map, and "Who are we" lines up with the second map. */}
+        <div
+          className="flex h-full min-w-0 flex-col gap-6"
+          style={{
+            // Trim 1.5rem off CONTENT_TOP so the text rides a little higher.
+            // Office's locations column uses the same offset so map tops
+            // continue to align with text-block tops.
+            paddingTop: `calc(${CONTENT_TOP} - 1.5rem)`,
+            paddingRight: "clamp(1.5rem, 4vw, 4rem)",
+            paddingBottom: PANEL_PADDING,
+            // Wider left pad → more gap between text and the image column.
+            paddingLeft: "clamp(2.5rem, 5vw, 5rem)",
+          }}
+        >
           {(whoIsComteTitle || whoIsComte) && (
-            <div>
-              <h2 className="mb-3 font-[family-name:var(--font-manrope)] text-2xl font-bold">
+            <div className="max-w-[33ch] flex-1">
+              <h2
+                className="mb-3 font-[family-name:var(--font-manrope)] text-4xl font-bold"
+                style={{ color: "#1F3A32" }}
+              >
                 {whoIsComteTitle ?? "Who is Comte"}
               </h2>
               {whoIsComte && (
                 <p
-                  className="font-[family-name:var(--font-manrope)] text-base font-light leading-relaxed whitespace-pre-line"
+                  className="font-[family-name:var(--font-manrope)] text-base font-bold leading-tight whitespace-pre-line"
                   style={{ color: FG, opacity: 0.92 }}
                 >
                   {whoIsComte}
@@ -124,13 +152,16 @@ export default function SectionAboutIntro({
           )}
 
           {(whoAreWeTitle || whoAreWe) && (
-            <div>
-              <h2 className="mb-3 font-[family-name:var(--font-manrope)] text-2xl font-bold">
+            <div className="max-w-[33ch] flex-1">
+              <h2
+                className="mb-3 font-[family-name:var(--font-manrope)] text-4xl font-bold"
+                style={{ color: "#1F3A32" }}
+              >
                 {whoAreWeTitle ?? "Who are we"}
               </h2>
               {whoAreWe && (
                 <p
-                  className="font-[family-name:var(--font-manrope)] text-base font-light leading-relaxed whitespace-pre-line"
+                  className="font-[family-name:var(--font-manrope)] text-base font-bold leading-tight whitespace-pre-line"
                   style={{ color: FG, opacity: 0.92 }}
                 >
                   {whoAreWe}

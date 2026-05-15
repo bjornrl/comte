@@ -18,6 +18,15 @@ type Props = {
    * the office map's parallax magnitude.
    */
   parallaxFactor?: number;
+  /**
+   * Horizontal offset of the rotated block's centre from the parent's left
+   * edge, in em (= line-height). Defaults to 0.5 — at that value the first
+   * line's strip is bisected by the parent boundary. Lower values shift the
+   * visual LEFT (line break moves toward the parent's left edge); use ~0.2
+   * to align the line break with the viewport's RIGHT edge at the previous
+   * section's snap when this heading lives in a forward-snap-aware panel.
+   */
+  leftOffsetEm?: number;
 };
 
 // Provisional font-size used for the first paint before the layout effect
@@ -51,6 +60,7 @@ export default function TiltedHeading({
   color = "#FF5252",
   className,
   parallaxFactor = 0,
+  leftOffsetEm = 0.5,
 }: Props) {
   // Wrapper handles parallax translateX. Inner handles the rotation + font
   // sizing. Splitting them avoids fighting the composed `translate(-50%, -50%)
@@ -151,7 +161,7 @@ export default function TiltedHeading({
           // Bias the visual centre down by half the difference between bottom
           // and top bleeds so the bottom overflows more than the top.
           top: `calc(50% + ${(BOTTOM_BLEED_PX - TOP_BLEED_PX) / 2}px)`,
-          left: "0.5em",
+          left: `${leftOffsetEm}em`,
           fontSize: `${fontSize}px`,
           fontFamily: "var(--font-manrope), system-ui, sans-serif",
           fontWeight: 800,

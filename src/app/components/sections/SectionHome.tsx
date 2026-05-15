@@ -68,16 +68,13 @@ export default function SectionHome({ backgroundColor, backgroundVideoUrl }: Pro
           }}
         >
           {/*
-           * Suspended dot — placed in the upper-right of the wordmark, like
-           * the dot in the Comte logo. All offsets are em-based so the dot
-           * scales with the hero font-size.
-           */}
-          {/*
-           * left = (widest-line width in em) − dot-size, so the dot's RIGHT
-           * edge lines up with the rightmost letter ("e" in "change") of
-           * the longest line. The 7.22em width of "creates change" is a
-           * font/letter-spacing constant for this hero text — re-measure if
-           * the copy changes.
+           * Suspended dot — vertically anchored to the "Comte" line via
+           * top: -0.15em, but horizontally CENTRED on the viewport. The
+           * `left` math takes the dot out of h1's local coord space:
+           *   target-x in viewport = 50vw
+           *   h1.left in viewport  = PANEL_PADDING
+           *   left (from h1's left) = 50vw − PANEL_PADDING − 0.16em
+           *   (the 0.16em is half the dot-size so its CENTRE lands on 50vw)
            */}
           <span
             aria-hidden="true"
@@ -85,13 +82,15 @@ export default function SectionHome({ backgroundColor, backgroundVideoUrl }: Pro
             style={{
               position: "absolute",
               top: "-0.15em",
-              left: "6.9em",
+              left: `calc(50vw - ${PANEL_PADDING} - 0.16em)`,
               width: "0.32em",
               height: "0.32em",
               borderRadius: "9999px",
               background: "white",
               opacity: 0,
-              animation: "heroFadeIn 700ms cubic-bezier(0.25,1,0.5,1) forwards",
+              // The dot uses a scale-and-fade keyframe — it stays anchored
+              // in place while the surrounding text slides up.
+              animation: "heroDotIn 700ms cubic-bezier(0.25,1,0.5,1) forwards",
               animationDelay: `${HERO_DOT_DELAY_MS}ms`,
             }}
           />
@@ -112,15 +111,21 @@ export default function SectionHome({ backgroundColor, backgroundVideoUrl }: Pro
         </h1>
       </div>
 
-      {/* @keyframes for the cascading hero fade-in. Kept inline so the
+      {/* @keyframes for the cascading hero entry. Text lines slide+fade,
+          the white dot only scales+fades (stays put). Inline so the
           animation ships with this section and isn't a global concern. */}
       <style>{`
         @keyframes heroFadeIn {
           from { opacity: 0; transform: translateY(8px); }
           to   { opacity: 1; transform: translateY(0); }
         }
+        @keyframes heroDotIn {
+          from { opacity: 0; transform: scale(0); }
+          to   { opacity: 1; transform: scale(1); }
+        }
         @media (prefers-reduced-motion: reduce) {
-          [data-snap-id="home"] [style*="heroFadeIn"] {
+          [data-snap-id="home"] [style*="heroFadeIn"],
+          [data-snap-id="home"] [style*="heroDotIn"] {
             animation-duration: 1ms !important;
             animation-delay: 0ms !important;
           }

@@ -103,11 +103,12 @@ export default function HomePageClient({ data, projects, connections }: Props) {
         />
       ),
       interstitial: maybeInterstitial(data.aboutOffice.interstitial),
-      // Office panel is wider than the viewport — the extra 30vw on the right
-      // is empty cream space where the tilted "What do we do?" heading slides
-      // through cleanly without colliding with the office image. Same wider-
-      // panel pattern as the team section.
-      width: "130vw",
+      // Office panel is slightly narrower than the viewport so its right
+      // edge (where what-we-do begins, and where the tilted heading is
+      // anchored) lands close to the viewport's right edge at snap. With
+      // the parallax slide, the heading's line-break visually rests at the
+      // viewport edge: "What do" is in view, "we do" is just off-screen.
+      width: "82vw",
     },
     {
       id: "what-we-do",

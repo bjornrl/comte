@@ -3,7 +3,7 @@
 import ProjectCluster from "../ProjectCluster";
 import type { Project } from "../projectNetworkData";
 
-const DEFAULT_BG = "#1F3A32";
+const DEFAULT_BG = "#F5F5E9";
 
 type Props = {
   backgroundColor?: string;
