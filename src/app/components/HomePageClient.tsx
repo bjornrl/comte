@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import HorizontalScroll, { type HorizontalScrollNavApi } from "./HorizontalScroll";
 import BlobNav from "./BlobNav";
 import SectionHome from "./sections/SectionHome";
@@ -71,7 +71,7 @@ export default function HomePageClient({ data, projects, connections }: Props) {
     initialized.current = true;
   }
 
-  const sections = [
+  const sections = useMemo(() => [
     {
       id: "home",
       content: (
@@ -131,7 +131,7 @@ export default function HomePageClient({ data, projects, connections }: Props) {
       interstitial: maybeInterstitial(data.team.interstitial),
       width: getTeamSectionWidth(data.team.members.length),
     },
-  ];
+  ], [data, projects]);
 
   return (
     <div className="h-svh overflow-hidden">

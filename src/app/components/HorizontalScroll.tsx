@@ -281,15 +281,24 @@ export default function HorizontalScroll({
         return;
       }
 
-      // Loop seam: clones are always snapped to so we can teleport seamlessly.
+      // Loop seam: when we land on a clone, teleport to its real counterpart
+      // synchronously — no intermediate smooth-scroll. The clone shows the
+      // same content as the real panel, so a direct jump is visually
+      // identical AND can't be cancelled mid-animation by user input. The
+      // previous two-step (smoothScroll → onComplete teleport) would silently
+      // strand the user past the loop seam if they wheeled during the snap:
+      // stopAnimation cancels the rAF, onComplete never fires, and at the
+      // scroll-extremes the browser clamps scrollLeft so no further scroll
+      // events arrive to retrigger handleIdle.
       if (isCloneIndex(nearestIdx)) {
-        smoothScrollTo(getSnapTarget(nearest), SNAP_DURATION_MS, () => {
-          const targetIdx = nearestIdx === 0 ? numReal() : 1;
-          jumpToScrollLeft(getSnapTarget(panels[targetIdx]));
+        const targetIdx = nearestIdx === 0 ? numReal() : 1;
+        const target = panels[targetIdx];
+        if (target) {
+          jumpToScrollLeft(getSnapTarget(target));
           updateActiveSection(targetIdx);
-          scrolling = false;
-          onScrollingChange?.(false);
-        });
+        }
+        scrolling = false;
+        onScrollingChange?.(false);
         return;
       }
 
