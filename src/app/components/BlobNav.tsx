@@ -10,7 +10,6 @@ export const NAV_ITEMS: NavItem[] = [
   { label: "About", sectionId: "about-intro" },
   { label: "Projects", sectionId: "projects" },
   { label: "Team", sectionId: "team" },
-  { label: "Publications & ventures", sectionId: "publications" },
 ];
 
 const RED = "#FF5252";

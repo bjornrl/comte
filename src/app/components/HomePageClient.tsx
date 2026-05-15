@@ -131,32 +131,6 @@ export default function HomePageClient({ data, projects, connections }: Props) {
       interstitial: maybeInterstitial(data.team.interstitial),
       width: getTeamSectionWidth(data.team.members.length),
     },
-    {
-      id: "publications",
-      content: (
-        <SectionCardGrid
-          id="publications"
-          backgroundColor="#FFD2D2"
-          foregroundColor="#1F3A32"
-          heading={data.publications.heading}
-          items={data.publications.items}
-        />
-      ),
-      interstitial: maybeInterstitial(data.publications.interstitial),
-    },
-    {
-      id: "ventures",
-      content: (
-        <SectionCardGrid
-          id="ventures"
-          backgroundColor="#1F3A32"
-          foregroundColor="#FFD2D2"
-          heading={data.ventures.heading}
-          items={data.ventures.items}
-        />
-      ),
-      interstitial: maybeInterstitial(data.ventures.interstitial),
-    },
   ];
 
   return (

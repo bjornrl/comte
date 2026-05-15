@@ -111,21 +111,26 @@ function mapInterstitial(raw: any) {
 }
 
 function mapSanityProject(doc: any): Project {
-  // Prefer the new `mainCategory` field; fall back to the first legacy tag.
-  const mainCategoryRaw: string | undefined = doc.mainCategory;
-  const domain: Domain =
-    mainCategoryRaw && mainCategoryRaw in DOMAIN_LABELS
-      ? (mainCategoryRaw as Domain)
-      : firstTagAsDomain(doc.tags);
-
-  // Sub-categories: prefer `allCategories`, fall back to legacy `tags`. In
-  // either case strip the main category so it isn't doubled up on the card.
-  const sourceCategories: string[] =
-    (doc.allCategories?.length ? doc.allCategories : doc.tags) ?? [];
-  const subCategories = sourceCategories
-    .filter((t: string): t is Domain => t in DOMAIN_LABELS)
-    .filter((t: Domain) => t !== domain)
-    .map((t: Domain) => ({ id: t, label: DOMAIN_LABELS[t], color: DOMAIN_COLORS[t] }));
+  // Categories: `allCategories` is the source of truth (ordered, first = main).
+  // Legacy fallbacks: `mainCategory` (pre-migration docs), then `tags[0]`.
+  const rawCategories: string[] = Array.isArray(doc.allCategories) ? doc.allCategories : [];
+  const validCategories = rawCategories.filter((c): c is Domain => c in DOMAIN_LABELS);
+  const fallbackPrimary: Domain | null =
+    doc.mainCategory && doc.mainCategory in DOMAIN_LABELS
+      ? (doc.mainCategory as Domain)
+      : Array.isArray(doc.tags) && doc.tags.length
+        ? firstTagAsDomain(doc.tags)
+        : null;
+  const allCategoryIds: Domain[] =
+    validCategories.length > 0
+      ? Array.from(new Set(validCategories))
+      : fallbackPrimary
+        ? [fallbackPrimary]
+        : ["digital"];
+  const domain: Domain = allCategoryIds[0];
+  const subCategories = allCategoryIds
+    .slice(1)
+    .map((t) => ({ id: t, label: DOMAIN_LABELS[t], color: DOMAIN_COLORS[t] }));
 
   // Customers: prefer the multi-value field; fall back to the legacy single
   // `client` string wrapped in an array.
@@ -170,6 +175,7 @@ function mapSanityProject(doc: any): Project {
     galleryUrls,
     cardLinks,
     subCategories,
+    allCategoryIds,
     displayTags: subCategories,
     responsible,
   };

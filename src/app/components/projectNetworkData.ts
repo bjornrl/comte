@@ -30,7 +30,13 @@ export type Project = {
   client: string;
   /** Full list of customers. Multiple render with a dot separator. */
   customers?: string[];
+  /** Primary category — equivalent to `allCategoryIds[0]`. Kept as its own
+   *  field so existing call sites (dot colour, filter, fallback data) don't
+   *  need to know about the array. */
   domain: Domain;
+  /** Ordered category list, primary first. Drives the connector edges:
+   *  two projects are linked if `allCategoryIds` overlaps. */
+  allCategoryIds?: Domain[];
   /**
    * Extra categories shown as outlined chips on the card. Excludes the
    * main category (which already renders as the filled chip).
@@ -227,20 +233,26 @@ export function generateConnections(projects: Project[]): Connection[] {
     }
   };
 
+  const idsOf = (p: Project): readonly Domain[] => p.allCategoryIds ?? [p.domain];
   for (let i = 0; i < projects.length; i++) {
     for (let j = i + 1; j < projects.length; j++) {
       const a = projects[i];
       const b = projects[j];
-      // Domain connections
-      if (a.domain === b.domain) {
+      const aCats = idsOf(a);
+      const bCats = idsOf(b);
+      // Primary connection: same primary category.
+      if (aCats[0] === bCats[0]) {
         add(a.id, b.id, "domain");
+      } else if (aCats.some((c) => bCats.includes(c))) {
+        // Secondary connection: any other shared category.
+        add(a.id, b.id, "theme");
       }
-      // Method connections (share at least one method, different domains)
-      if (a.domain !== b.domain && a.methods.some((m) => b.methods.includes(m))) {
+      // Method connections (share at least one method, different primary).
+      if (aCats[0] !== bCats[0] && a.methods.some((m) => b.methods.includes(m))) {
         add(a.id, b.id, "method");
       }
-      // Scale connections (same scale, different domains)
-      if (a.domain !== b.domain && a.scale === b.scale) {
+      // Scale connections (same scale, different primary).
+      if (aCats[0] !== bCats[0] && a.scale === b.scale) {
         add(a.id, b.id, "scale");
       }
     }

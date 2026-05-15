@@ -21,8 +21,8 @@ export const PROJECTS_QUERY = groq`
     client, // legacy fallback
     summary,
     year,
-    mainCategory,
     allCategories,
+    mainCategory, // legacy fallback for un-migrated docs
     tags, // legacy fallback
     scale,
     methods,

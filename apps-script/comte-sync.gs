@@ -19,10 +19,12 @@
  *
  * HEADER ROW CONTRACT (row 1, exact names — column order doesn't matter)
  *     ID | Title | Year | Description | Customer | Contact | Mail | Phone |
- *     Main Category | All Categories | Scale | Method
+ *     All Categories | Scale | Method
  *
  * CELL FORMATS
  *   - Customer / All Categories / Method: multiple values joined by " / ".
+ *   - All Categories: ordered, the FIRST entry is the project's primary
+ *     category (drives the dot colour). Subsequent entries are secondary.
  *   - Mail and Phone: READ-ONLY mirrors of the responsible team member.
  *     The script fills them on pull and never writes them back to Sanity.
  *   - Contact: the responsible team member's full name (first + last).
@@ -55,7 +57,6 @@ var HEADER_TO_FIELD = {
   "Contact": "contact",
   "Mail": "mail",
   "Phone": "phone",
-  "Main Category": "mainCategory",
   "All Categories": "allCategories",
   "Scale": "scale",
   "Method": "methods",
@@ -165,7 +166,7 @@ function pullAll_() {
   var headers = getHeaderMap_(sheet);
 
   var query = '*[_type == "project"] | order(year desc) {' +
-    '  _id, title, year, summary, customers, client, mainCategory,' +
+    '  _id, title, year, summary, customers, client,' +
     '  allCategories, tags, scale, methods,' +
     '  "responsible": responsible-> { name, email, phone }' +
     '}';
@@ -221,7 +222,6 @@ function pushRow_(sheet, row, headers) {
     year: data.year !== "" && data.year != null ? Number(data.year) : null,
     summary: data.description ? String(data.description) : "",
     customers: parseMulti_(data.customers),
-    mainCategory: CATEGORY_VALUES[String(data.mainCategory || "").trim()] || null,
     allCategories: parseMulti_(data.allCategories)
       .map(function (v) { return CATEGORY_VALUES[v]; })
       .filter(Boolean),
@@ -265,7 +265,6 @@ function writeProjectRow_(sheet, row, headers, p) {
     "Contact":         responsible.name || "",
     "Mail":            responsible.email || "",
     "Phone":           responsible.phone || "",
-    "Main Category":   CATEGORY_LABELS[p.mainCategory] || "",
     "All Categories":  allCats.map(function (v) { return CATEGORY_LABELS[v]; }).filter(Boolean).join(MULTI_SEP),
     "Scale":           SCALE_LABELS[p.scale] || "",
     "Method":          (p.methods || []).map(function (v) { return METHOD_LABELS[v]; }).filter(Boolean).join(MULTI_SEP),

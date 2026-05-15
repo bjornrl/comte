@@ -232,73 +232,91 @@ export default function ProjectCluster({ projects, backgroundColor, heading }: P
     return positions;
   }, [containerSize, activeProjects]);
 
-  // Constellation lines — every node ends up with at most MAX_DEGREE edges.
-  // For each project we shuffle its NEAREST_POOL closest neighbours and walk
-  // them in random order, accepting an edge only if neither endpoint has
-  // already hit the degree cap. The result is a sparse web (≈ N edges for
-  // N nodes) where the picks favour the local neighbourhood but the random
-  // walk introduces enough variation that lines aren't strictly to the very
-  // nearest neighbour. Endpoint IDs are kept so the filter / animation
-  // logic can address each line by its endpoints.
+  // Constellation lines — driven by shared categories, not proximity.
+  //
+  //   * Primary edge:  two projects share their PRIMARY category
+  //                    (allCategoryIds[0] / .domain). Rendered at full
+  //                    strength — these are the within-cluster lines.
+  //   * Secondary edge: they don't share the primary, but they overlap on
+  //                     some other category in allCategoryIds. Rendered
+  //                     fainter (PRIMARY_FACTOR × SECONDARY_FACTOR) and
+  //                     reaches across cluster colours.
+  //
+  // We rank all category-overlapping pairs (primary first, then by
+  // proximity) and greedily assign edges until each node hits MAX_DEGREE.
+  // Sparse-by-design: ~MAX_DEGREE × N / 2 edges total, geometry only as
+  // tie-breaker.
+  const SECONDARY_OPACITY_FACTOR = 0.4;
   const lines = useMemo(() => {
     if (dotPositions.size === 0) return [];
-    const rng = seededRandom("comte-projects-connections");
-    const NEAREST_POOL = 7;
-    const MAX_DEGREE = 2;
+    const MAX_DEGREE = 4;
+    const cats = new Map<string, readonly Domain[]>();
+    for (const p of activeProjects) cats.set(p.id, p.allCategoryIds ?? [p.domain]);
+
+    type EdgeStrength = "primary" | "secondary";
+    type Candidate = {
+      fromId: string;
+      toId: string;
+      strength: EdgeStrength;
+      dist: number;
+    };
+    const candidates: Candidate[] = [];
+    for (let i = 0; i < activeProjects.length; i++) {
+      for (let j = i + 1; j < activeProjects.length; j++) {
+        const a = activeProjects[i];
+        const b = activeProjects[j];
+        const aCats = cats.get(a.id) ?? [];
+        const bCats = cats.get(b.id) ?? [];
+        if (aCats.length === 0 || bCats.length === 0) continue;
+        let strength: EdgeStrength | null = null;
+        if (aCats[0] === bCats[0]) strength = "primary";
+        else if (aCats.some((c) => bCats.includes(c))) strength = "secondary";
+        if (!strength) continue;
+        const pa = dotPositions.get(a.id);
+        const pb = dotPositions.get(b.id);
+        if (!pa || !pb) continue;
+        candidates.push({
+          fromId: a.id,
+          toId: b.id,
+          strength,
+          dist: Math.hypot(pa.x - pb.x, pa.y - pb.y),
+        });
+      }
+    }
+
+    candidates.sort((x, y) => {
+      if (x.strength !== y.strength) return x.strength === "primary" ? -1 : 1;
+      return x.dist - y.dist;
+    });
+
+    const degree = new Map<string, number>();
+    const getDeg = (id: string) => degree.get(id) ?? 0;
     const result: {
       fromId: string;
       toId: string;
+      strength: EdgeStrength;
       x1: number;
       y1: number;
       x2: number;
       y2: number;
     }[] = [];
-    const connected = new Set<string>();
-    const degree = new Map<string, number>();
-    const getDeg = (id: string) => degree.get(id) ?? 0;
-
-    for (const project of activeProjects) {
-      if (getDeg(project.id) >= MAX_DEGREE) continue;
-      const pos = dotPositions.get(project.id);
-      if (!pos) continue;
-      const ranked = activeProjects
-        .filter((p) => p.id !== project.id)
-        .map((p) => {
-          const nPos = dotPositions.get(p.id);
-          if (!nPos) return null;
-          return {
-            id: p.id,
-            dist: Math.hypot(nPos.x - pos.x, nPos.y - pos.y),
-            pos: nPos,
-          };
-        })
-        .filter((n): n is { id: string; dist: number; pos: { x: number; y: number } } => n !== null)
-        .sort((a, b) => a.dist - b.dist);
-
-      // Shuffled nearest pool (Fisher-Yates via the seeded RNG).
-      const nearPool = ranked.slice(0, NEAREST_POOL).slice();
-      for (let i = nearPool.length - 1; i > 0; i--) {
-        const j = Math.floor(rng() * (i + 1));
-        [nearPool[i], nearPool[j]] = [nearPool[j], nearPool[i]];
-      }
-
-      for (const n of nearPool) {
-        if (getDeg(project.id) >= MAX_DEGREE) break;
-        if (getDeg(n.id) >= MAX_DEGREE) continue;
-        const key = [project.id, n.id].sort().join("-");
-        if (connected.has(key)) continue;
-        connected.add(key);
-        degree.set(project.id, getDeg(project.id) + 1);
-        degree.set(n.id, getDeg(n.id) + 1);
-        result.push({
-          fromId: project.id,
-          toId: n.id,
-          x1: pos.x,
-          y1: pos.y,
-          x2: n.pos.x,
-          y2: n.pos.y,
-        });
-      }
+    for (const c of candidates) {
+      if (getDeg(c.fromId) >= MAX_DEGREE) continue;
+      if (getDeg(c.toId) >= MAX_DEGREE) continue;
+      const pa = dotPositions.get(c.fromId);
+      const pb = dotPositions.get(c.toId);
+      if (!pa || !pb) continue;
+      degree.set(c.fromId, getDeg(c.fromId) + 1);
+      degree.set(c.toId, getDeg(c.toId) + 1);
+      result.push({
+        fromId: c.fromId,
+        toId: c.toId,
+        strength: c.strength,
+        x1: pa.x,
+        y1: pa.y,
+        x2: pb.x,
+        y2: pb.y,
+      });
     }
     return result;
   }, [dotPositions, activeProjects]);
@@ -657,6 +675,12 @@ export default function ProjectCluster({ projects, backgroundColor, heading }: P
             if (hoveredProject) {
               const touches = line.fromId === hoveredProject || line.toId === hoveredProject;
               lineOpacity = touches ? 0.28 : 0.05;
+            }
+            // Secondary edges (cross-cluster, sharing a non-primary category)
+            // render lighter than primary ones so the within-cluster lines
+            // remain the dominant visual story.
+            if (line.strength === "secondary") {
+              lineOpacity *= SECONDARY_OPACITY_FACTOR;
             }
             return (
               <line

@@ -87,24 +87,15 @@ export const project = defineType({
         "The team member who leads this project. Their photo, email, and phone are surfaced on the card.",
     }),
     defineField({
-      name: "mainCategory",
-      title: "Main category",
-      type: "string",
-      group: "main",
-      options: { list: [...PROJECT_TAGS] },
-      description:
-        "Drives the project's cluster + dot colour on the network map. Exactly one.",
-      validation: (Rule) => Rule.required(),
-    }),
-    defineField({
       name: "allCategories",
-      title: "All categories",
+      title: "Categories",
       type: "array",
       group: "main",
       of: [{ type: "string", options: { list: [...PROJECT_TAGS] } }],
       options: { layout: "tags" },
       description:
-        "Additional categories shown as outlined chips on the card. Does NOT affect filtering. Omit the main category — it's added automatically.",
+        "Ordered list of categories. The FIRST entry is the project's primary category — it drives the dot colour and the cluster the project sits in on the network map. Additional entries render as outlined chips on the card and create cross-cluster connector lines to projects that share them.",
+      validation: (Rule) => Rule.required().min(1),
     }),
     defineField({
       name: "scale",
@@ -217,7 +208,7 @@ export const project = defineType({
       group: "legacy",
       of: [{ type: "string" }],
       options: { list: [...PROJECT_TAGS] },
-      description: "Replaced by `mainCategory` + `allCategories`. Kept so existing docs still render.",
+      description: "Replaced by `allCategories`. Kept so older docs still resolve a colour.",
     }),
   ],
   orderings: [
