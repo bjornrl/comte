@@ -6,10 +6,16 @@
  * 1. In the Google Sheet: Extensions → Apps Script. Replace the default
  *    Code.gs with this file's contents.
  * 2. In the Apps Script editor: Project Settings → Script Properties.
- *    Add three properties:
+ *    Add four properties:
  *       SANITY_PROJECT_ID  =  <your sanity project id, e.g. "ab12cd34">
  *       SANITY_DATASET     =  production
  *       SANITY_TOKEN       =  <an Editor-or-Write API token from manage.sanity.io>
+ *       PHOTOS_FOLDER_ID   =  <Drive folder ID containing the project photos>
+ *
+ *    To get the PHOTOS_FOLDER_ID: open the folder in Google Drive — the URL
+ *    is `https://drive.google.com/drive/folders/<FOLDER_ID>`. Copy that ID.
+ *    Drop your project photos into this folder and reference them from the
+ *    sheet by exact filename in the `photoFilename` column.
  * 3. Reload the sheet. A "Comte Sync" menu appears (`onOpen` fires).
  * 4. (Optional) Triggers → Add Trigger:
  *       function: pullAll_
@@ -19,7 +25,7 @@
  *
  * HEADER ROW CONTRACT (row 1, exact names — column order doesn't matter)
  *     ID | Title | Year | Description | Customer | Contact | Mail | Phone |
- *     Main Category | All Categories | Scale | Method
+ *     Main Category | All Categories | Scale | Method | photoFilename
  *
  * CELL FORMATS
  *   - Customer / All Categories / Method: multiple values joined by " / ".
@@ -29,6 +35,11 @@
  *     The script resolves it to a teamMember document by name (case-insensitive).
  *   - ID: leave empty for new rows. The script fills it with the Sanity _id
  *     after the first push. From then on, edits to that row update that _id.
+ *   - photoFilename: exact filename of the photo (e.g. "oslo-care.jpg") in
+ *     the Drive folder set by PHOTOS_FOLDER_ID. On push, the script uploads
+ *     the file to Sanity and links it as the project's photo. If the
+ *     filename hasn't changed since the last push, no re-upload happens.
+ *     Leave empty to clear the photo on next push.
  *
  * TRIGGERS
  *   - onEdit (simple trigger): edits to a data row push that row immediately.
@@ -59,6 +70,7 @@ var HEADER_TO_FIELD = {
   "All Categories": "allCategories",
   "Scale": "scale",
   "Method": "methods",
+  "photoFilename": "photoFilename",
 };
 
 // Friendly category label (what users pick in the dropdown) → schema value
@@ -167,7 +179,8 @@ function pullAll_() {
   var query = '*[_type == "project"] | order(year desc) {' +
     '  _id, title, year, summary, customers, client, mainCategory,' +
     '  allCategories, tags, scale, methods,' +
-    '  "responsible": responsible-> { name, email, phone }' +
+    '  "responsible": responsible-> { name, email, phone },' +
+    '  "photoFilename": gallery[0].asset->originalFilename' +
     '}';
   var result = sanityQuery_(query, {});
   var projects = (result && result.result) || [];
@@ -235,6 +248,19 @@ function pushRow_(sheet, row, headers) {
   }
 
   var existingId = data.id && String(data.id).trim();
+
+  // Resolve the project photo. Only touch `gallery` if the sheet has a
+  // photoFilename column at all — otherwise the field is left out of the
+  // doc and createOrReplace will clear it, which would wipe images uploaded
+  // through Sanity Studio.
+  if (headers["photoFilename"]) {
+    doc.gallery = buildGallery_(
+      String(data.photoFilename || "").trim(),
+      existingId || null,
+      String(data.title).trim()
+    );
+  }
+
   if (existingId) {
     doc._id = existingId;
     sanityMutate_([{ createOrReplace: doc }]);
@@ -269,11 +295,87 @@ function writeProjectRow_(sheet, row, headers, p) {
     "All Categories":  allCats.map(function (v) { return CATEGORY_LABELS[v]; }).filter(Boolean).join(MULTI_SEP),
     "Scale":           SCALE_LABELS[p.scale] || "",
     "Method":          (p.methods || []).map(function (v) { return METHOD_LABELS[v]; }).filter(Boolean).join(MULTI_SEP),
+    "photoFilename":   p.photoFilename || "",
   };
   Object.keys(writes).forEach(function (header) {
     var col = headers[header];
     if (col) sheet.getRange(row, col).setValue(writes[header]);
   });
+}
+
+// ─────────────────────────── Photo upload ───────────────────────────
+
+/**
+ * Returns the `gallery` array for a project. Three regimes:
+ *   1. `filename` is empty → []  (clears the photo).
+ *   2. `filename` matches what's already on this project in Sanity → reuse
+ *      the existing asset reference (no upload, no extra bytes).
+ *   3. Otherwise → look up the file in the Drive folder, upload to Sanity,
+ *      and reference the new asset.
+ */
+function buildGallery_(filename, existingProjectId, altText) {
+  if (!filename) return [];
+
+  // (2) Cheap reuse: if the existing project already references an asset
+  // whose originalFilename matches, keep that asset.
+  if (existingProjectId) {
+    var existing = sanityQuery_(
+      '*[_id == $id][0]{ "ref": gallery[0].asset._ref, "name": gallery[0].asset->originalFilename }',
+      { id: existingProjectId }
+    );
+    var current = existing && existing.result;
+    if (current && current.ref && current.name === filename) {
+      return [{
+        _key: shortKey_(),
+        _type: "image",
+        alt: altText || "",
+        asset: { _type: "reference", _ref: current.ref },
+      }];
+    }
+  }
+
+  // (3) Upload a new asset.
+  var blob = findDriveFile_(filename);
+  if (!blob) {
+    Logger.log("Photo not found in Drive folder: " + filename);
+    return existingProjectId ? undefined : []; // leave gallery untouched on update, empty on create
+  }
+  var assetId = uploadImageToSanity_(blob, filename);
+  if (!assetId) return [];
+
+  return [{
+    _key: shortKey_(),
+    _type: "image",
+    alt: altText || "",
+    asset: { _type: "reference", _ref: assetId },
+  }];
+}
+
+function findDriveFile_(filename) {
+  var folderId = getProp_("PHOTOS_FOLDER_ID");
+  var folder;
+  try {
+    folder = DriveApp.getFolderById(folderId);
+  } catch (err) {
+    throw new Error("PHOTOS_FOLDER_ID points to a folder this script can't open: " + err);
+  }
+  var files = folder.getFilesByName(filename);
+  if (!files.hasNext()) return null;
+  return files.next().getBlob();
+}
+
+function uploadImageToSanity_(blob, filename) {
+  var url = sanityBase_() + "/assets/images/" + getProp_("SANITY_DATASET") +
+    "?filename=" + encodeURIComponent(filename);
+  var response = UrlFetchApp.fetch(url, {
+    method: "post",
+    contentType: blob.getContentType(),
+    headers: { Authorization: "Bearer " + getProp_("SANITY_TOKEN") },
+    payload: blob.getBytes(),
+    muteHttpExceptions: true,
+  });
+  var result = parseResponse_(response, "asset upload");
+  return result && result.document && result.document._id;
 }
 
 // ─────────────────────────── Sanity HTTP API ───────────────────────────
@@ -387,6 +489,10 @@ function invert_(obj) {
   var out = {};
   Object.keys(obj).forEach(function (k) { out[obj[k]] = k; });
   return out;
+}
+
+function shortKey_() {
+  return Utilities.getUuid().replace(/-/g, "").slice(0, 12);
 }
 
 function toast_(message) {

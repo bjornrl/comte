@@ -86,6 +86,7 @@ export default function HomePageClient({ data, projects, connections }: Props) {
       id: "motto",
       content: <SectionMotto heroText={data.motto.heroText} />,
       interstitial: maybeInterstitial(data.motto.interstitial),
+      width: "50vw",
     },
     {
       id: "about-intro",
@@ -114,6 +115,9 @@ export default function HomePageClient({ data, projects, connections }: Props) {
       id: "what-we-do",
       content: <SectionWhatWeDo {...data.whatWeDo} />,
       interstitial: maybeInterstitial(data.whatWeDo.interstitial),
+      // Narrower than full viewport so ~15vw on the right reveals the start
+      // of the projects panel at this snap.
+      width: "85vw",
     },
     {
       id: "projects",

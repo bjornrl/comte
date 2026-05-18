@@ -80,11 +80,15 @@ export default function PersonCard({
       onMouseMove={handleMove}
       className={`group relative h-[60vh] min-h-[45vh] overflow-hidden bg-gray-100 cursor-pointer ${className}`}
     >
-      {/* image */}
-      <div
-        className="absolute inset-0 bg-cover bg-center transition-opacity duration-500 ease-out group-hover:opacity-30"
-        style={{ backgroundImage: `url(${imageUrl})` }}
-      />
+      {/* Photo fills the entire card (edge-to-edge under overlays). */}
+      <div className="absolute inset-0 overflow-hidden bg-gray-100">
+        <img
+          src={imageUrl}
+          alt=""
+          decoding="async"
+          className="pointer-events-none absolute inset-0 h-full w-full object-cover object-center transition-opacity duration-500 ease-out group-hover:opacity-30"
+        />
+      </div>
 
       {/* hover overlay (customizable) */}
       <div

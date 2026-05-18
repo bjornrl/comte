@@ -27,6 +27,9 @@ type Props = {
   teamMembers: any[];
 };
 
+/** Viewport fraction per team card column (was 1/4.5 ≈ 0.222; narrower columns). */
+const TEAM_CARD_VW_DIVISOR = 6;
+
 /**
  * Width the Team panel must take so all cards fit inline as one wide block,
  * including the same left/right insets as every other section
@@ -34,12 +37,12 @@ type Props = {
  * Used by HomePageClient to set the panel wrapper's width in HorizontalScroll.
  *
  *   cols  = ceil(N / 2)       (2 rows)
- *   width = max(100vw, cols * (100vw / 4.5) + (cols - 1) * 0.5rem
+ *   width = max(100vw, cols * (100vw / TEAM_CARD_VW_DIVISOR) + (cols - 1) * 0.5rem
  *                       + 2 * PANEL_PADDING)
  */
 export function getTeamSectionWidth(memberCount: number): string {
   const cols = Math.max(1, Math.ceil(Math.max(memberCount, 1) / 2));
-  return `max(100vw, calc(${cols} * (100vw / 4.5) + ${Math.max(0, cols - 1)} * 0.5rem + 2 * ${PANEL_PADDING}))`;
+  return `max(100vw, calc(${cols} * (100vw / ${TEAM_CARD_VW_DIVISOR}) + ${Math.max(0, cols - 1)} * 0.5rem + 2 * ${PANEL_PADDING}))`;
 }
 
 /**
@@ -69,7 +72,7 @@ export default function SectionTeam({ heading: _heading, teamMembers }: Props) {
           style={{
             gridTemplateRows: "1fr 1fr",
             gridAutoFlow: "column",
-            gridAutoColumns: "calc(100vw / 4.5)",
+            gridAutoColumns: `calc(100vw / ${TEAM_CARD_VW_DIVISOR})`,
           }}
         >
           {teamMembers.map((member: any, i: number) => {

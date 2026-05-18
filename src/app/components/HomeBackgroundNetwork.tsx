@@ -9,12 +9,17 @@ import { DOMAIN_COLORS } from "./projectNetworkData";
 const COLOR_LIST = Object.values({ ...DOMAIN_COLORS, health: "#88C9A6" });
 
 // Dot population split. Home gets the dense cluster anchored to the hero
-// white dot; motto gets a sparser "isolated" cluster on the right half of
-// the canvas. As the user scrolls past the home→motto boundary, right-
+// white dot; motto gets a sparser "isolated" cluster in the band to the
+// right of the home panel on the canvas. As the user scrolls past the home→motto boundary, right-
 // leaning home dots one by one drop their hero-anchor line and snap a new
 // line to a randomly assigned motto dot.
 const HOME_DOT_COUNT = 60;
 const MOTTO_DOT_COUNT = 25;
+
+/** Canvas spans home + motto snap panels (must match HorizontalScroll widths). */
+const HOME_PANEL_VW = 100;
+const MOTTO_PANEL_VW = 50;
+const HOME_MOTTO_CANVAS_VW = HOME_PANEL_VW + MOTTO_PANEL_VW;
 
 // ── Cursor interaction ─────────────────────────────────────────────────
 // Each dot has a threshold field of THRESHOLD_RADIUS that initially follows
@@ -101,7 +106,7 @@ type Dot = {
 };
 
 /**
- * Single canvas spanning the home + motto panels (200vw wide). The canvas
+ * Single canvas spanning the home + motto panels ((100+50)vw wide). The canvas
  * is positioned inside the home section, extending past its right edge into
  * motto's visual area. Home section uses `overflow: visible` so the canvas
  * is visible there; TiltedHeading and hero text wrappers carry z-10 so they
@@ -134,7 +139,7 @@ export default function HomeBackgroundNetwork() {
 
     let widthCss = 0;
     let heightCss = 0;
-    /** Boundary x between the home half and the motto half of the canvas. */
+    /** Left edge of the motto region in canvas-local px (right of home panel). */
     let homeWidthCss = 0;
 
     const resize = () => {
@@ -142,7 +147,7 @@ export default function HomeBackgroundNetwork() {
       const rect = canvas.getBoundingClientRect();
       widthCss = rect.width;
       heightCss = rect.height;
-      homeWidthCss = widthCss / 2; // canvas is 200vw, home half is the left 100vw
+      homeWidthCss = widthCss * (HOME_PANEL_VW / HOME_MOTTO_CANVAS_VW);
       canvas.width = Math.max(1, Math.floor(widthCss * dpr));
       canvas.height = Math.max(1, Math.floor(heightCss * dpr));
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
@@ -481,12 +486,12 @@ export default function HomeBackgroundNetwork() {
     <canvas
       ref={canvasRef}
       aria-hidden="true"
-      // 200vw wide so the canvas spans home AND motto. z-index:1 puts it in
+      // (100+50)vw so the canvas spans home AND motto. z-index:1 puts it in
       // CSS step-7 (positive stack levels) — painted AFTER step-6 where
       // motto's section bg lives. Below z-10 wrappers (hero text, tilted
       // heading) so those still cover the network where they overlap.
       className="pointer-events-none absolute left-0 top-0 h-full"
-      style={{ width: "200vw", zIndex: 1 }}
+      style={{ width: `${HOME_MOTTO_CANVAS_VW}vw`, zIndex: 1 }}
     />
   );
 }
