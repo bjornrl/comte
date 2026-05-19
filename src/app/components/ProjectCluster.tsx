@@ -374,17 +374,26 @@ export default function ProjectCluster({ projects, backgroundColor, heading }: P
     const tick = (now: number) => {
       const t = (now - t0) / 1000;
       const rect = section.getBoundingClientRect();
+      const W = rect.width;
+      const H = rect.height;
       const mx = mousePosRef.current.x - rect.left;
       const my = mousePosRef.current.y - rect.top;
 
-      // Single pass to find the project whose anchor is nearest the cursor.
-      // ONLY that project gets the snap + hover treatment — every other dot
-      // is purely on drift. This guarantees one-dot-at-a-time interaction
-      // and makes hover detection deterministic (no reliance on the browser
-      // getting mouseover/enter timing right across rapidly-moving buttons).
+      // Keep translated dot hit-boxes inside the same padded “field” used for
+      // scatter placement (must stay in sync with dotPositions memo).
+      const mobile = W < 768;
+      const padX = mobile ? 24 : 80;
+      const padTop = mobile ? 140 : 180;
+      const padBottom = mobile ? 200 : 200;
+      const HIT = 44; // px — must match dot button wrapper
+
+      // Single pass: nearest anchor to cursor wins snap/hover for that frame.
+      // With an active domain filter, only dots in that domain compete so
+      // faded projects never steal snap/hover. Everyone else stays on drift only.
       let nearestId: string | null = null;
       let nearestDist = Infinity;
       for (const project of activeProjects) {
+        if (activeFilter && project.domain !== activeFilter) continue;
         const anchor = dotPositions.get(project.id);
         if (!anchor) continue;
         const d = Math.hypot(mx - anchor.x, my - anchor.y);
@@ -436,8 +445,22 @@ export default function ProjectCluster({ projects, backgroundColor, heading }: P
         const driftY =
           Math.cos(2 * Math.PI * ph.fy * t + ph.py) * DRIFT_AMP * driftMult;
 
-        const offX = driftX + snapX;
-        const offY = driftY + snapY;
+        let offX = driftX + snapX;
+        let offY = driftY + snapY;
+
+        // Clamp translation so the 44×44 hit target never slides into reserved
+        // strips (especially the bottom tag bar) when the cursor leaves the field.
+        const minOffX = padX - anchor.x + HIT / 2;
+        const maxOffX = W - padX - anchor.x - HIT / 2;
+        const minOffY = padTop - anchor.y + HIT / 2;
+        const maxOffY = H - padBottom - anchor.y - HIT / 2;
+        if (minOffX <= maxOffX) {
+          offX = Math.max(minOffX, Math.min(maxOffX, offX));
+        }
+        if (minOffY <= maxOffY) {
+          offY = Math.max(minOffY, Math.min(maxOffY, offY));
+        }
+
         offsetsRef.current.set(project.id, { x: offX, y: offY });
 
         const wrapper = dotWrappersRef.current.get(project.id);
@@ -467,7 +490,7 @@ export default function ProjectCluster({ projects, backgroundColor, heading }: P
     return () => {
       if (rafId !== null) cancelAnimationFrame(rafId);
     };
-  }, [dotPositions, activeProjects, lines]);
+  }, [dotPositions, activeProjects, lines, activeFilter]);
 
   const handleDotClick = useCallback((projectId: string) => {
     setActiveProject((prev) => (prev === projectId ? null : projectId));
@@ -723,9 +746,15 @@ export default function ProjectCluster({ projects, backgroundColor, heading }: P
                 background: "transparent",
                 border: "none",
                 padding: 0,
-                cursor: "pointer",
+                cursor:
+                  activeFilter && project.domain !== activeFilter ? "default" : "pointer",
                 outline: "none",
                 willChange: "transform",
+                // Sit below domain tags (z-10); clamped motion should keep overlap
+                // rare, but this guarantees pills stay clickable first.
+                zIndex: 5,
+                pointerEvents:
+                  activeFilter && project.domain !== activeFilter ? "none" : "auto",
               }}
             >
               {/* Visible coloured dot — purely visual; pointer-events: none
