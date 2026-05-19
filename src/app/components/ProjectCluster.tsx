@@ -147,7 +147,7 @@ export default function ProjectCluster({ projects, backgroundColor, heading }: P
   // motion. Keeping these out of React state means the animation never
   // triggers a re-render — we mutate DOM `transform`s and line endpoint
   // attributes directly each frame.
-  const dotWrappersRef = useRef<Map<string, HTMLButtonElement | null>>(new Map());
+  const dotWrappersRef = useRef<Map<string, HTMLElement>>(new Map());
   const lineRefsRef = useRef<Map<string, SVGLineElement | null>>(new Map());
   const offsetsRef = useRef<Map<string, { x: number; y: number }>>(new Map());
   // Mouse position mirrored into a ref so the rAF closure doesn't have to
@@ -709,7 +709,8 @@ export default function ProjectCluster({ projects, backgroundColor, heading }: P
             <button
               key={project.id}
               ref={(el) => {
-                dotWrappersRef.current.set(project.id, el);
+                if (el) dotWrappersRef.current.set(project.id, el);
+                else dotWrappersRef.current.delete(project.id);
               }}
               onClick={() => handleDotClick(project.id)}
               aria-label={`${project.name} — ${project.client}`}
