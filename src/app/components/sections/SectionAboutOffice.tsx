@@ -10,7 +10,7 @@ const FG = "#1F3A32";
 // The intro section's pink continues into the left of office, covering a bit
 // over half of the maps' visible width. With maps at ~40vw in office's
 // [2fr_3fr] grid, "a bit over half" lands around 22vw of pink.
-const INTRO_PINK = "#EE7883";
+const INTRO_PINK = "#FFD2D2";
 const PINK_EXTENSION = "22vw";
 // Office snaps slightly to the LEFT of its natural panel start, so part of
 // intro's pink right edge stays visible at office snap (the "right snap"

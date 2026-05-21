@@ -65,8 +65,7 @@ export const PROJECT_DETAIL_QUERY = groq`
 // Page-section singletons
 export const HOME_SECTION_QUERY = groq`
   *[_type == "homeSection"][0] {
-    backgroundColor,
-    "backgroundVideoUrl": backgroundVideo.asset->url,
+    showInteractiveNetwork,
     ${INTERSTITIAL_FIELDS}
   }
 `;
@@ -74,6 +73,8 @@ export const HOME_SECTION_QUERY = groq`
 export const MOTTO_SECTION_QUERY = groq`
   *[_type == "mottoSection"][0] {
     heroText,
+    backgroundColor,
+    "backgroundVideoUrl": backgroundVideo.asset->url,
     ${INTERSTITIAL_FIELDS}
   }
 `;
@@ -143,6 +144,16 @@ export const PUBLICATIONS_SECTION_QUERY = groq`
 export const VENTURES_SECTION_QUERY = groq`
   *[_type == "venturesSection"][0] {
     heading,
+    ${INTERSTITIAL_FIELDS}
+  }
+`;
+
+export const CONTACT_SECTION_QUERY = groq`
+  *[_type == "contactSection"][0] {
+    block1Title,
+    block1Body,
+    block2Title,
+    block2Body,
     ${INTERSTITIAL_FIELDS}
   }
 `;

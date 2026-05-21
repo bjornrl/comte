@@ -9,6 +9,7 @@ import { projectsSection } from "./projectsSection";
 import { teamSection } from "./teamSection";
 import { publicationsSection } from "./publicationsSection";
 import { venturesSection } from "./venturesSection";
+import { contactSection } from "./contactSection";
 import { publication } from "./publication";
 import { venture } from "./venture";
 import { siteSettings } from "./siteSettings";
@@ -26,6 +27,7 @@ export const schemaTypes = [
   teamSection,
   publicationsSection,
   venturesSection,
+  contactSection,
   siteSettings,
 
   // Document lists

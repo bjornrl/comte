@@ -9,6 +9,7 @@ import {
   TEAM_SECTION_QUERY,
   PUBLICATIONS_SECTION_QUERY,
   VENTURES_SECTION_QUERY,
+  CONTACT_SECTION_QUERY,
   PROJECTS_QUERY,
   TEAM_QUERY,
   PUBLICATIONS_QUERY,
@@ -185,6 +186,7 @@ export default async function Home() {
   let teamSection: any = null;
   let publicationsSection: any = null;
   let venturesSection: any = null;
+  let contactSection: any = null;
   let sanityProjects: any[] | null = null;
   let team: any[] | null = null;
   let publications: any[] | null = null;
@@ -201,6 +203,7 @@ export default async function Home() {
       teamSection,
       publicationsSection,
       venturesSection,
+      contactSection,
       sanityProjects,
       team,
       publications,
@@ -215,6 +218,7 @@ export default async function Home() {
       client.fetch(TEAM_SECTION_QUERY),
       client.fetch(PUBLICATIONS_SECTION_QUERY),
       client.fetch(VENTURES_SECTION_QUERY),
+      client.fetch(CONTACT_SECTION_QUERY),
       client.fetch(PROJECTS_QUERY),
       client.fetch(TEAM_QUERY),
       client.fetch(PUBLICATIONS_QUERY),
@@ -232,12 +236,13 @@ export default async function Home() {
 
   const data: HomeData = {
     home: {
-      backgroundColor: home?.backgroundColor,
-      backgroundVideoUrl: home?.backgroundVideoUrl,
+      showInteractiveNetwork: home?.showInteractiveNetwork !== false,
       interstitial: mapInterstitial(home?.interstitial),
     },
     motto: {
       heroText: motto?.heroText,
+      backgroundColor: motto?.backgroundColor,
+      backgroundVideoUrl: motto?.backgroundVideoUrl,
       interstitial: mapInterstitial(motto?.interstitial),
     },
     aboutIntro: {
@@ -282,6 +287,13 @@ export default async function Home() {
       heading: venturesSection?.heading,
       items: ventures ?? [],
       interstitial: mapInterstitial(venturesSection?.interstitial),
+    },
+    contact: {
+      block1Title: contactSection?.block1Title,
+      block1Body: contactSection?.block1Body,
+      block2Title: contactSection?.block2Title,
+      block2Body: contactSection?.block2Body,
+      interstitial: mapInterstitial(contactSection?.interstitial),
     },
   };
 

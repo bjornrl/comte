@@ -1,27 +1,33 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import HorizontalScroll, { type HorizontalScrollNavApi } from "./HorizontalScroll";
 import BlobNav from "./BlobNav";
-import SectionHome from "./sections/SectionHome";
-import SectionMotto from "./sections/SectionMotto";
+import LandingStage from "./LandingStage";
+import LandingSpacer from "./LandingSpacer";
 import SectionAboutIntro from "./sections/SectionAboutIntro";
 import SectionAboutOffice, { type OfficeLocation } from "./sections/SectionAboutOffice";
 import SectionWhatWeDo from "./sections/SectionWhatWeDo";
 import SectionProjects from "./sections/SectionProjects";
 import SectionTeam, { getTeamSectionWidth } from "./sections/SectionTeam";
 import SectionCardGrid, { type CardItem } from "./sections/SectionCardGrid";
+import SectionContact from "./sections/SectionContact";
 import Interstitial, { type InterstitialData } from "./sections/Interstitial";
 import { type Project, type Connection, setProjectData } from "./projectNetworkData";
+import { HOME_PANEL_VW, MOTTO_DEFAULT_BG, MOTTO_PANEL_VW } from "./homeLayout";
+import { comteColors } from "@/lib/comte-colors";
 
 type WithInterstitial = { interstitial?: InterstitialData };
 
 export type HomeData = {
   home: WithInterstitial & {
+    showInteractiveNetwork?: boolean;
+  };
+  motto: WithInterstitial & {
+    heroText?: string;
     backgroundColor?: string;
     backgroundVideoUrl?: string;
   };
-  motto: WithInterstitial & { heroText?: string };
   aboutIntro: WithInterstitial & {
     imageUrl?: string;
     imageAlt?: string;
@@ -46,6 +52,12 @@ export type HomeData = {
   team: WithInterstitial & { heading?: string; members: any[] };
   publications: WithInterstitial & { heading?: string; items: CardItem[] };
   ventures: WithInterstitial & { heading?: string; items: CardItem[] };
+  contact: WithInterstitial & {
+    block1Title?: string;
+    block1Body?: string;
+    block2Title?: string;
+    block2Body?: string;
+  };
 };
 
 type Props = {
@@ -64,6 +76,10 @@ export default function HomePageClient({ data, projects, connections }: Props) {
   const scrollNavRef = useRef<HorizontalScrollNavApi | null>(null);
   const [activeSection, setActiveSection] = useState<string>("home");
   const [isScrolling, setIsScrolling] = useState(false);
+  const [landingEpoch, setLandingEpoch] = useState(1);
+  const bumpLandingEpoch = useCallback(() => {
+    setLandingEpoch((n) => n + 1);
+  }, []);
 
   const initialized = useRef(false);
   if (!initialized.current) {
@@ -74,19 +90,19 @@ export default function HomePageClient({ data, projects, connections }: Props) {
   const sections = [
     {
       id: "home",
-      content: (
-        <SectionHome
-          backgroundColor={data.home.backgroundColor}
-          backgroundVideoUrl={data.home.backgroundVideoUrl}
-        />
-      ),
+      content: <LandingSpacer bgColor={comteColors.darkGreen} />,
       interstitial: maybeInterstitial(data.home.interstitial),
+      // Wider home pushes the motto / lights panel toward the right edge at
+      // the landing snap (~32vw of motto visible).
+      width: `${HOME_PANEL_VW}vw`,
     },
     {
       id: "motto",
-      content: <SectionMotto heroText={data.motto.heroText} />,
+      content: (
+        <LandingSpacer bgColor={data.motto.backgroundColor ?? MOTTO_DEFAULT_BG} />
+      ),
       interstitial: maybeInterstitial(data.motto.interstitial),
-      width: "50vw",
+      width: `${MOTTO_PANEL_VW}vw`,
     },
     {
       id: "about-intro",
@@ -161,10 +177,26 @@ export default function HomePageClient({ data, projects, connections }: Props) {
       ),
       interstitial: maybeInterstitial(data.ventures.interstitial),
     },
+    {
+      id: "contact",
+      content: <SectionContact {...data.contact} />,
+      interstitial: maybeInterstitial(data.contact.interstitial),
+      width: "50vw",
+    },
   ];
 
   return (
     <div className="h-svh overflow-hidden">
+      <LandingStage
+        landingEpoch={landingEpoch}
+        onLandingReturn={bumpLandingEpoch}
+        showInteractiveNetwork={data.home.showInteractiveNetwork}
+        motto={{
+          heroText: data.motto.heroText,
+          backgroundColor: data.motto.backgroundColor,
+          backgroundVideoUrl: data.motto.backgroundVideoUrl,
+        }}
+      />
       <BlobNav
         onNavigate={(id) => scrollNavRef.current?.scrollToSection(id)}
         activeSection={activeSection}

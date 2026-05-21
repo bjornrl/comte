@@ -27,6 +27,20 @@ type Props = {
    * section's snap when this heading lives in a forward-snap-aware panel.
    */
   leftOffsetEm?: number;
+  /**
+   * When set (0–1), keep default vertical centre + rotation but shift
+   * horizontally so the rotated block's horizontal centre sits at this
+   * fraction across the parent panel width. Use 0.5 to centre over the panel
+   * (e.g. motto lights frame).
+   */
+  blockAlignPanelXFraction?: number;
+  /** When this snap panel has fully left the viewport, parallax offset resets
+   *  to 0 until the panel re-enters view (e.g. motto heading vs home panel). */
+  parallaxResetWhenHiddenSnapId?: string;
+  /** Initial-load fade-in synced with another intro element (e.g. hero line). */
+  fadeIn?: { delayMs: number; durationMs?: number };
+  /** When true, show fully visible without replaying the fade-in. */
+  introSettled?: boolean;
 };
 
 // Provisional font-size used for the first paint before the layout effect
@@ -61,6 +75,10 @@ export default function TiltedHeading({
   className,
   parallaxFactor = 0,
   leftOffsetEm = 0.5,
+  blockAlignPanelXFraction,
+  parallaxResetWhenHiddenSnapId,
+  fadeIn,
+  introSettled = false,
 }: Props) {
   // Wrapper handles parallax translateX. Inner handles the rotation + font
   // sizing. Splitting them avoids fighting the composed `translate(-50%, -50%)
@@ -69,9 +87,12 @@ export default function TiltedHeading({
   const wrapperRef = useRef<HTMLDivElement>(null);
   const innerRef = useRef<HTMLDivElement>(null);
   const [fontSize, setFontSize] = useState<number>(PROBE_FS_PX);
+  /** Extra left shift (px) for block horizontal alignment in the panel. */
+  const [blockAlignShiftPx, setBlockAlignShiftPx] = useState(0);
 
   useLayoutEffect(() => {
     const el = innerRef.current;
+    const wrapper = wrapperRef.current;
     if (!el) return;
 
     const recompute = () => {
@@ -89,13 +110,28 @@ export default function TiltedHeading({
       }
       if (maxWidth <= 0) return;
       const target = window.innerHeight + TOP_BLEED_PX + BOTTOM_BLEED_PX;
-      setFontSize(PROBE_FS_PX * (target / maxWidth));
+      const fs = PROBE_FS_PX * (target / maxWidth);
+      el.style.fontSize = `${fs}px`;
+      setFontSize(fs);
+
+      if (blockAlignPanelXFraction != null && wrapper) {
+        const panelRect = wrapper.getBoundingClientRect();
+        const blockRect = el.getBoundingClientRect();
+        const targetX =
+          panelRect.width *
+          Math.max(0, Math.min(1, blockAlignPanelXFraction));
+        const blockCenterRel =
+          (blockRect.left + blockRect.right) / 2 - panelRect.left;
+        setBlockAlignShiftPx(targetX - blockCenterRel);
+      } else {
+        setBlockAlignShiftPx(0);
+      }
     };
 
     recompute();
     window.addEventListener("resize", recompute);
     return () => window.removeEventListener("resize", recompute);
-  }, [lines]);
+  }, [lines, blockAlignPanelXFraction]);
 
   useEffect(() => {
     if (parallaxFactor <= 0) return;
@@ -105,6 +141,9 @@ export default function TiltedHeading({
     let scroller: HTMLElement | null = wrapper.parentElement;
     while (scroller && scroller.dataset.horizontalScroll !== "true") {
       scroller = scroller.parentElement;
+    }
+    if (!scroller) {
+      scroller = document.querySelector<HTMLElement>('[data-horizontal-scroll="true"]');
     }
     if (!scroller) return;
 
@@ -118,6 +157,22 @@ export default function TiltedHeading({
 
     const update = () => {
       const sr = scroller!.getBoundingClientRect();
+
+      // Reset when the reference panel (e.g. home) has fully scrolled off
+      // left — prevents stale parallax drift when navigating back to landing.
+      if (parallaxResetWhenHiddenSnapId) {
+        const resetPanel = scroller!.querySelector<HTMLElement>(
+          `[data-snap-id="${parallaxResetWhenHiddenSnapId}"]`,
+        );
+        if (resetPanel) {
+          const resetRect = resetPanel.getBoundingClientRect();
+          if (resetRect.right <= sr.left + 1) {
+            wrapper.style.transform = "translateX(0px)";
+            return;
+          }
+        }
+      }
+
       const refRect = reference.getBoundingClientRect();
       // scrollDelta: how far past the panel's snap point we've scrolled.
       // Positive = scrolled forward past snap; negative = before snap.
@@ -136,12 +191,17 @@ export default function TiltedHeading({
       scroller!.removeEventListener("scroll", update);
       window.removeEventListener("resize", update);
     };
-  }, [parallaxFactor]);
+  }, [parallaxFactor, parallaxResetWhenHiddenSnapId]);
+
+  const fadeDurationMs = fadeIn?.durationMs ?? 700;
+  const showFadeIn = fadeIn && !introSettled;
 
   return (
+    <>
     <div
       ref={wrapperRef}
       aria-hidden="true"
+      data-tilted-heading-fade={showFadeIn ? "" : undefined}
       className={className}
       style={{
         position: "absolute",
@@ -152,6 +212,13 @@ export default function TiltedHeading({
         zIndex: 10,
         pointerEvents: "none",
         willChange: parallaxFactor > 0 ? "transform" : undefined,
+        opacity: showFadeIn ? 0 : 1,
+        ...(showFadeIn
+          ? {
+              animation: `tiltedHeadingFadeIn ${fadeDurationMs}ms cubic-bezier(0.25, 1, 0.5, 1) forwards`,
+              animationDelay: `${fadeIn.delayMs}ms`,
+            }
+          : {}),
       }}
     >
       <div
@@ -161,7 +228,7 @@ export default function TiltedHeading({
           // Bias the visual centre down by half the difference between bottom
           // and top bleeds so the bottom overflows more than the top.
           top: `calc(50% + ${(BOTTOM_BLEED_PX - TOP_BLEED_PX) / 2}px)`,
-          left: `${leftOffsetEm}em`,
+          left: `calc(${leftOffsetEm}em + ${blockAlignShiftPx}px)`,
           fontSize: `${fontSize}px`,
           fontFamily: "var(--font-manrope), system-ui, sans-serif",
           fontWeight: 800,
@@ -180,5 +247,20 @@ export default function TiltedHeading({
         ))}
       </div>
     </div>
+    {showFadeIn && (
+      <style>{`
+        @keyframes tiltedHeadingFadeIn {
+          from { opacity: 0; }
+          to   { opacity: 1; }
+        }
+        @media (prefers-reduced-motion: reduce) {
+          [data-tilted-heading-fade] {
+            animation-duration: 1ms !important;
+            animation-delay: 0ms !important;
+          }
+        }
+      `}</style>
+    )}
+    </>
   );
 }

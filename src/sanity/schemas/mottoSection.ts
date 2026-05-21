@@ -6,6 +6,22 @@ export const mottoSection = defineType({
   type: "document",
   fields: [
     defineField({
+      name: "backgroundVideo",
+      title: "Background Video",
+      type: "file",
+      options: { accept: "video/*" },
+      description:
+        "Optional. When set, replaces the default drifting-lights background. When empty, /lights.html is used.",
+    }),
+    defineField({
+      name: "backgroundColor",
+      title: "Background Color (fallback)",
+      type: "string",
+      description:
+        "Hex behind the lights or video. Defaults to #1F3A32. Only visible at edges if the background does not fully cover.",
+      initialValue: "#1F3A32",
+    }),
+    defineField({
       name: "heroText",
       title: "Hero Text",
       type: "string",

@@ -4,8 +4,9 @@ import SectionShell, { CONTENT_TOP, PANEL_PADDING } from "./SectionShell";
 // applies a `max-width: 100%` style that clamps the rendered size to the
 // parent, defeating the rotated-and-oversized layout we want here.
 
-const BG = "#EE7883";
-const FG = "#F5F5E9";
+const BG = "#FFD2D2";
+const TITLE = "#FF5252";
+const BODY = "#1F3A32";
 const PLACEHOLDER_IMAGE =
   "https://images.unsplash.com/photo-1773558058134-9ff1a3212ef0?q=80&w=1572&auto=format&fit=crop";
 
@@ -40,7 +41,7 @@ export default function SectionAboutIntro({
   whoAreWe,
 }: Props) {
   return (
-    <SectionShell id="about-intro" bgColor={BG} style={{ padding: 0, color: FG }}>
+    <SectionShell id="about-intro" bgColor={BG} style={{ padding: 0, color: BODY }}>
       {/*
        * Three-column layout:
        *   1. Comte logo, rotated 90°CCW, full height, no margin to section
@@ -57,7 +58,7 @@ export default function SectionAboutIntro({
         <div className="relative h-full overflow-hidden">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
-            src="/logo-pink.svg"
+            src="/logo-light.svg"
             alt=""
             style={{
               position: "absolute",
@@ -135,15 +136,15 @@ export default function SectionAboutIntro({
           {(whoIsComteTitle || whoIsComte) && (
             <div className="max-w-[33ch] flex-1">
               <h2
-                className="mb-3 font-[family-name:var(--font-manrope)] text-4xl font-bold"
-                style={{ color: "#1F3A32" }}
+                className="mb-3 font-[family-name:var(--font-manrope)] text-4xl font-medium"
+                style={{ color: TITLE }}
               >
                 {whoIsComteTitle ?? "Who is Comte"}
               </h2>
               {whoIsComte && (
                 <p
-                  className="font-[family-name:var(--font-manrope)] text-base font-bold leading-tight whitespace-pre-line"
-                  style={{ color: FG, opacity: 0.92 }}
+                  className="font-[family-name:var(--font-manrope)] text-base font-medium leading-tight whitespace-pre-line"
+                  style={{ color: BODY }}
                 >
                   {whoIsComte}
                 </p>
@@ -154,15 +155,15 @@ export default function SectionAboutIntro({
           {(whoAreWeTitle || whoAreWe) && (
             <div className="max-w-[33ch] flex-1">
               <h2
-                className="mb-3 font-[family-name:var(--font-manrope)] text-4xl font-bold"
-                style={{ color: "#1F3A32" }}
+                className="mb-3 font-[family-name:var(--font-manrope)] text-4xl font-medium"
+                style={{ color: TITLE }}
               >
                 {whoAreWeTitle ?? "Who are we"}
               </h2>
               {whoAreWe && (
                 <p
-                  className="font-[family-name:var(--font-manrope)] text-base font-bold leading-tight whitespace-pre-line"
-                  style={{ color: FG, opacity: 0.92 }}
+                  className="font-[family-name:var(--font-manrope)] text-base font-medium leading-tight whitespace-pre-line"
+                  style={{ color: BODY }}
                 >
                   {whoAreWe}
                 </p>

@@ -1,6 +1,9 @@
 "use client";
 
-import { Fragment, useRef, useEffect, useCallback, type ReactNode } from "react";
+import { Fragment, useRef, useEffect, useLayoutEffect, useCallback, useState, type ReactNode } from "react";
+import { dispatchSectionPrime } from "@/app/hooks/useSectionPrime";
+import { MOTTO_DEFAULT_BG } from "./homeLayout";
+import { comteColors } from "@/lib/comte-colors";
 
 export type HorizontalScrollNavApi = {
   goNext: () => void;
@@ -50,6 +53,88 @@ const SCROLL_IDLE_MS = 150;
 // panels.
 const MAX_WHEEL_DELTA_FRACTION = 1.1;
 
+/** Minimum index gap before nav reorders sections for a short hop. */
+const NAV_JUMP_MIN_GAP = 2;
+
+/** Landing sections — contact is one loop step to the left. */
+const LANDING_SECTION_IDS = new Set(["home", "motto"]);
+
+function isLandingSectionId(id: string | undefined): boolean {
+  return id != null && LANDING_SECTION_IDS.has(id);
+}
+
+function getSectionIdAtSnapIndex(snapIdx: number, list: Section[]): string | undefined {
+  const n = list.length;
+  if (snapIdx === 0) return list[n - 1]?.id;
+  if (snapIdx === n + 1) return list[0]?.id;
+  return list[snapIdx - 1]?.id;
+}
+
+/** Navbar jumps always insert one section ahead of the current snap (the
+ * partially-visible neighbour). Wraps from last → first (contact → home). */
+function getNavInsertAfterIdx(sectionCount: number, currentIdx: number): number {
+  return (currentIdx + 1) % sectionCount;
+}
+
+/** Move target to immediately after insertAfterIdx; preserve all other order. */
+function buildNavJumpOrder(
+  sections: Section[],
+  targetIdx: number,
+  insertAfterIdx: number,
+): Section[] {
+  const target = sections[targetIdx];
+  const withoutTarget = sections.filter((s) => s.id !== target.id);
+  const anchorId = sections[insertAfterIdx].id;
+  let anchorPos = withoutTarget.findIndex((s) => s.id === anchorId);
+
+  // Target is the anchor section (e.g. navigating to home from contact).
+  if (anchorPos < 0 && target.id === anchorId) {
+    return [target, ...withoutTarget];
+  }
+  if (anchorPos < 0) return sections;
+
+  const insertAt = anchorPos + 1;
+  return [
+    ...withoutTarget.slice(0, insertAt),
+    target,
+    ...withoutTarget.slice(insertAt),
+  ];
+}
+
+function buildNavJumpOrderForNav(
+  sections: Section[],
+  currentId: string,
+  currentIdx: number,
+  targetIdx: number,
+): Section[] {
+  let insertAfterIdx = getNavInsertAfterIdx(sections.length, currentIdx);
+  let order = buildNavJumpOrder(sections, targetIdx, insertAfterIdx);
+
+  const targetId = sections[targetIdx].id;
+  const targetPos = order.findIndex((s) => s.id === targetId);
+  const currentPos = order.findIndex((s) => s.id === currentId);
+
+  // Navbar jumps always scroll right — if the destination would sit at or
+  // before the current section, fall back to inserting after current.
+  if (
+    targetPos >= 0 &&
+    currentPos >= 0 &&
+    targetPos <= currentPos &&
+    insertAfterIdx !== currentIdx
+  ) {
+    insertAfterIdx = currentIdx;
+    order = buildNavJumpOrder(sections, targetIdx, insertAfterIdx);
+  }
+
+  return order;
+}
+
+type PendingNav = {
+  step: "preserved" | "animating" | "restoring";
+  targetId: string;
+  currentId: string;
+};
+
 // ---------- Component ----------
 
 /**
@@ -69,13 +154,26 @@ export default function HorizontalScroll({
   onScrollingChange,
 }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
-  const sectionsRef = useRef(sections);
-  sectionsRef.current = sections;
+  const canonicalSectionsRef = useRef(sections);
+  canonicalSectionsRef.current = sections;
+
+  const [renderSections, setRenderSections] = useState(sections);
+  const renderSectionsRef = useRef(renderSections);
+  renderSectionsRef.current = renderSections;
+
+  const isNavJumpRef = useRef(false);
+  const pendingNavRef = useRef<PendingNav | null>(null);
 
   // True while a programmatic smooth-scroll is in flight. Scroll events fired
   // during that time should not be treated as user motion.
   const isAdjusting = useRef(false);
   const animFrameId = useRef<number | null>(null);
+  /** Last panel index we snapped to (real or clone). */
+  const lastSnappedIndexRef = useRef(1);
+  /** False until the initial snap-to-home on mount completes. */
+  const loopSeamsEnabledRef = useRef(false);
+  /** False when the user rests in the free zone between snap points. */
+  const isSnappedRef = useRef(true);
 
   // ---- helpers --------------------------------------------------------------
 
@@ -191,29 +289,141 @@ export default function HorizontalScroll({
   // ---- nav API --------------------------------------------------------------
 
   const scrollToSnapIndex = useCallback(
-    (snapIdx: number, smooth: boolean) => {
+    (snapIdx: number, smooth: boolean, onComplete?: () => void) => {
       const panels = getSnapPanels();
       const target = panels[snapIdx];
-      if (!target) return;
+      if (!target) {
+        onComplete?.();
+        return;
+      }
+      lastSnappedIndexRef.current = snapIdx;
+      isSnappedRef.current = true;
       const targetX = getSnapTarget(target);
       if (smooth) {
-        smoothScrollTo(targetX, SNAP_DURATION_MS);
+        smoothScrollTo(targetX, SNAP_DURATION_MS, onComplete);
       } else {
         jumpToScrollLeft(targetX);
+        requestAnimationFrame(() => {
+          requestAnimationFrame(() => onComplete?.());
+        });
       }
     },
     [getSnapPanels, getSnapTarget, smoothScrollTo, jumpToScrollLeft],
   );
 
-  const scrollToSection = useCallback(
-    (id: string) => {
-      const realIdx = sectionsRef.current.findIndex((s) => s.id === id);
-      if (realIdx < 0) return;
+  const scrollToSectionId = useCallback(
+    (id: string, smooth: boolean, onComplete?: () => void) => {
+      const realIdx = renderSectionsRef.current.findIndex((s) => s.id === id);
+      if (realIdx < 0) {
+        onComplete?.();
+        return;
+      }
       // snap-id index 0 is clone-last; real sections start at 1.
-      scrollToSnapIndex(realIdx + 1, true);
+      scrollToSnapIndex(realIdx + 1, smooth, onComplete);
     },
     [scrollToSnapIndex],
   );
+
+  const scrollToSection = useCallback(
+    (id: string) => {
+      const canonical = canonicalSectionsRef.current;
+      const targetIdx = canonical.findIndex((s) => s.id === id);
+      if (targetIdx < 0) return;
+
+      // Start destination entry animations during the scroll (landing intro
+      // is excluded — it only runs on initial page load).
+      if (id !== "home") {
+        dispatchSectionPrime(id);
+      }
+
+      const currentId = getSectionIdAtSnapIndex(
+        lastSnappedIndexRef.current,
+        renderSectionsRef.current,
+      );
+      const currentIdx = canonical.findIndex((s) => s.id === currentId);
+      if (currentIdx < 0 || currentIdx === targetIdx) return;
+
+      // Landing → contact: one panel left via the loop clone (not a long
+      // rightward hop through every section).
+      if (id === "contact" && isLandingSectionId(currentId)) {
+        onScrollingChange?.(true);
+        stopAnimation();
+        scrollToSnapIndex(0, true, () => {
+          const panels = getSnapPanels();
+          const n = renderSectionsRef.current.length;
+          const lastReal = panels[n];
+          if (lastReal) {
+            jumpToScrollLeft(getSnapTarget(lastReal));
+            lastSnappedIndexRef.current = n;
+            isSnappedRef.current = true;
+          }
+          onActiveSectionChange?.("contact");
+          onScrollingChange?.(false);
+        });
+        return;
+      }
+
+      const gap = Math.abs(targetIdx - currentIdx);
+      if (gap < NAV_JUMP_MIN_GAP) {
+        scrollToSectionId(id, true);
+        return;
+      }
+
+      if (pendingNavRef.current) return;
+
+      const tempOrder = buildNavJumpOrderForNav(
+        canonical,
+        currentId!,
+        currentIdx,
+        targetIdx,
+      );
+
+      isNavJumpRef.current = true;
+      onScrollingChange?.(true);
+      stopAnimation();
+
+      pendingNavRef.current = {
+        step: "preserved",
+        targetId: id,
+        currentId: currentId!,
+      };
+      setRenderSections(tempOrder);
+    },
+    [scrollToSectionId, scrollToSnapIndex, getSnapPanels, getSnapTarget, jumpToScrollLeft, onActiveSectionChange, onScrollingChange, stopAnimation],
+  );
+
+  // After a temporary reorder, preserve the current view, animate one panel
+  // hop to the destination, then silently restore canonical order.
+  useLayoutEffect(() => {
+    const pending = pendingNavRef.current;
+    if (!pending) return;
+
+    if (pending.step === "preserved") {
+      scrollToSectionId(pending.currentId, false);
+      pending.step = "animating";
+      requestAnimationFrame(() => {
+        scrollToSectionId(pending.targetId, true, () => {
+          pending.step = "restoring";
+          setRenderSections(canonicalSectionsRef.current);
+        });
+      });
+      return;
+    }
+
+    if (pending.step === "restoring") {
+      scrollToSectionId(pending.targetId, false, () => {
+        pendingNavRef.current = null;
+        isNavJumpRef.current = false;
+        onActiveSectionChange?.(pending.targetId);
+        onScrollingChange?.(false);
+      });
+    }
+  }, [
+    renderSections,
+    scrollToSectionId,
+    onActiveSectionChange,
+    onScrollingChange,
+  ]);
 
   const goNext = useCallback(() => {
     const { index } = findNearestSnapIndex();
@@ -239,6 +449,11 @@ export default function HorizontalScroll({
 
   useEffect(() => {
     scrollToSnapIndex(1, false);
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        loopSeamsEnabledRef.current = true;
+      });
+    });
   }, [scrollToSnapIndex]);
 
   // ---- scroll-end snap + active-section tracking ----------------------------
@@ -250,21 +465,71 @@ export default function HorizontalScroll({
     let idleTimeout: ReturnType<typeof setTimeout>;
     let scrolling = false;
 
-    const numReal = () => sectionsRef.current.length;
+    const numReal = () => renderSectionsRef.current.length;
     const isCloneIndex = (snapIdx: number) =>
       snapIdx === 0 || snapIdx === numReal() + 1;
 
     const updateActiveSection = (snapIdx: number) => {
       const n = numReal();
       let section: Section | undefined;
-      if (snapIdx === 0) section = sectionsRef.current[n - 1];
-      else if (snapIdx === n + 1) section = sectionsRef.current[0];
-      else section = sectionsRef.current[snapIdx - 1];
+      if (snapIdx === 0) section = renderSectionsRef.current[n - 1];
+      else if (snapIdx === n + 1) section = renderSectionsRef.current[0];
+      else section = renderSectionsRef.current[snapIdx - 1];
       if (section) onActiveSectionChange?.(section.id);
     };
 
+    /** Instant jump at clone seams — avoids stopping mid-panel when the
+     *  scroll range can't reach a clone's snap target (e.g. 68vw home). */
+    const maybeTeleportLoopSeam = (): boolean => {
+      if (!loopSeamsEnabledRef.current) return false;
+      const panels = getSnapPanels();
+      const n = numReal();
+      if (panels.length < n + 2) return false;
+
+      const scrollLeft = el.scrollLeft;
+      const maxScroll = Math.max(0, el.scrollWidth - el.clientWidth);
+      const cloneFirst = panels[n + 1];
+      const cloneLast = panels[0];
+      const firstReal = panels[1];
+      const lastReal = panels[n];
+      if (!cloneFirst || !cloneLast || !firstReal || !lastReal) return false;
+
+      const { index: nearestIdx } = findNearestSnapIndex();
+      const cloneFirstTarget = getSnapTarget(cloneFirst);
+
+      // Forward wrap: clone-first is dominant, loop end reached, or the
+      // full-width home preload panel has aligned (100vw = home + motto peek).
+      if (
+        nearestIdx === n + 1 ||
+        scrollLeft >= maxScroll - 2 ||
+        scrollLeft >= cloneFirstTarget - 2
+      ) {
+        jumpToScrollLeft(getSnapTarget(firstReal));
+        lastSnappedIndexRef.current = 1;
+        isSnappedRef.current = true;
+        updateActiveSection(1);
+        return true;
+      }
+
+      // Backward wrap: clone-last is dominant.
+      if (nearestIdx === 0) {
+        jumpToScrollLeft(getSnapTarget(lastReal));
+        lastSnappedIndexRef.current = n;
+        isSnappedRef.current = true;
+        updateActiveSection(n);
+        return true;
+      }
+
+      return false;
+    };
+
     const handleIdle = () => {
-      if (isAdjusting.current) return;
+      if (isAdjusting.current || isNavJumpRef.current) return;
+      if (maybeTeleportLoopSeam()) {
+        scrolling = false;
+        onScrollingChange?.(false);
+        return;
+      }
 
       const panels = getSnapPanels();
       if (!panels.length) {
@@ -281,21 +546,17 @@ export default function HorizontalScroll({
         return;
       }
 
-      // Loop seam: clones are always snapped to so we can teleport seamlessly.
+      // Loop seam: animate to clone then teleport (fallback if instant seam missed).
       if (isCloneIndex(nearestIdx)) {
-        smoothScrollTo(getSnapTarget(nearest), SNAP_DURATION_MS, () => {
-          const targetIdx = nearestIdx === 0 ? numReal() : 1;
-          jumpToScrollLeft(getSnapTarget(panels[targetIdx]));
-          updateActiveSection(targetIdx);
-          scrolling = false;
-          onScrollingChange?.(false);
-        });
+        maybeTeleportLoopSeam();
         return;
       }
 
       // Within the threshold of a real snap point → snap to it.
       if (nearestDist <= panelWidth * SNAP_THRESHOLD) {
         smoothScrollTo(getSnapTarget(nearest), SNAP_DURATION_MS, () => {
+          lastSnappedIndexRef.current = nearestIdx;
+          isSnappedRef.current = true;
           updateActiveSection(nearestIdx);
           scrolling = false;
           onScrollingChange?.(false);
@@ -305,13 +566,21 @@ export default function HorizontalScroll({
 
       // Free zone: stay where we are, just report which section is the
       // dominant one in the viewport.
+      isSnappedRef.current = false;
       updateActiveSection(nearestIdx);
       scrolling = false;
       onScrollingChange?.(false);
     };
 
     const handleScroll = () => {
-      if (isAdjusting.current) return;
+      if (isAdjusting.current || isNavJumpRef.current) return;
+      if (maybeTeleportLoopSeam()) {
+        clearTimeout(idleTimeout);
+        scrolling = false;
+        onScrollingChange?.(false);
+        return;
+      }
+      isSnappedRef.current = false;
       if (!scrolling) {
         scrolling = true;
         onScrollingChange?.(true);
@@ -341,6 +610,47 @@ export default function HorizontalScroll({
     smoothScrollTo,
     stopAnimation,
   ]);
+
+  // ---- resize: keep snapped section aligned when vw-based layout shifts ----
+
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+
+    const numReal = () => renderSectionsRef.current.length;
+    const isCloneIndex = (snapIdx: number) =>
+      snapIdx === 0 || snapIdx === numReal() + 1;
+
+    const resnapAfterResize = () => {
+      if (!isSnappedRef.current || isNavJumpRef.current) return;
+
+      const panels = getSnapPanels();
+      const idx = lastSnappedIndexRef.current;
+      const panel = panels[idx];
+      if (!panel || isCloneIndex(idx)) return;
+
+      stopAnimation();
+      jumpToScrollLeft(getSnapTarget(panel));
+      lastSnappedIndexRef.current = idx;
+      isSnappedRef.current = true;
+    };
+
+    let frameId = 0;
+    const scheduleResnap = () => {
+      cancelAnimationFrame(frameId);
+      // Two frames so vw widths + snap anchors finish reflowing.
+      frameId = requestAnimationFrame(() => {
+        frameId = requestAnimationFrame(resnapAfterResize);
+      });
+    };
+
+    const ro = new ResizeObserver(scheduleResnap);
+    ro.observe(el);
+    return () => {
+      ro.disconnect();
+      cancelAnimationFrame(frameId);
+    };
+  }, [getSnapPanels, getSnapTarget, jumpToScrollLeft, stopAnimation]);
 
   // ---- wheel: 1:1 vertical-to-horizontal translation ------------------------
 
@@ -405,8 +715,8 @@ export default function HorizontalScroll({
 
   // ---- render --------------------------------------------------------------
 
-  const cloneLast = sections[sections.length - 1];
-  const cloneFirst = sections[0];
+  const cloneLast = renderSections[renderSections.length - 1];
+  const cloneFirst = renderSections[0];
 
   const panelClass = "h-svh flex-shrink-0";
   const panelStyle = (w?: string): React.CSSProperties => ({
@@ -435,7 +745,7 @@ export default function HorizontalScroll({
         </div>
       )}
 
-      {sections.map((section) => (
+      {renderSections.map((section) => (
         <Fragment key={section.id}>
           {section.interstitial /* not a snap target */}
           <div
@@ -448,17 +758,42 @@ export default function HorizontalScroll({
         </Fragment>
       ))}
 
-      {cloneFirst && (
-        <div
-          key="clone-first"
-          data-snap-id="clone-first"
-          className={panelClass}
-          style={panelStyle(cloneFirst.width)}
-          aria-hidden="true"
-        >
-          {cloneFirst.content}
-        </div>
-      )}
+      {cloneFirst &&
+        (cloneFirst.id === "home" && cloneFirst.width && cloneFirst.width !== "100vw" ? (
+          <div
+            key="clone-first"
+            data-snap-id="clone-first"
+            className={`${panelClass} flex flex-shrink-0`}
+            style={{ width: "100vw" }}
+            aria-hidden="true"
+          >
+            <div
+              className="h-full flex-shrink-0"
+              style={{
+                width: cloneFirst.width,
+                backgroundColor: comteColors.darkGreen,
+              }}
+            />
+            <div
+              className="h-full flex-shrink-0"
+              style={{
+                width: `calc(100vw - ${cloneFirst.width})`,
+                backgroundColor: MOTTO_DEFAULT_BG,
+              }}
+              aria-hidden="true"
+            />
+          </div>
+        ) : (
+          <div
+            key="clone-first"
+            data-snap-id="clone-first"
+            className={panelClass}
+            style={panelStyle(cloneFirst.width)}
+            aria-hidden="true"
+          >
+            {cloneFirst.content}
+          </div>
+        ))}
     </div>
   );
 }

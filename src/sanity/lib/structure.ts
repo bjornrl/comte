@@ -81,6 +81,7 @@ export const structure = (S: StructureBuilder) =>
               S.documentTypeListItem("venture").title("All Ventures"),
             ]),
         ),
+      singleton(S, "contactSection", "Contact"),
       S.divider(),
       singleton(S, "siteSettings", "Site Settings"),
       S.divider(),

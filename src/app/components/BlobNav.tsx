@@ -10,14 +10,14 @@ export const NAV_ITEMS: NavItem[] = [
   { label: "About", sectionId: "about-intro" },
   { label: "Projects", sectionId: "projects" },
   { label: "Team", sectionId: "team" },
-  { label: "Publications & ventures", sectionId: "publications" },
+  { label: "Publications", sectionId: "publications" },
+  { label: "Ventures", sectionId: "ventures" },
 ];
 
-const RED = "#FF5252";
-const CREAM = "#F5F5E9"; // foreground on the red boxes
-const BLACK = "#1F3A32"; // foreground on the white Contact button
-const WHITE = "#FFFFFF";
-const BOX_HEIGHT = 48; // every red box (logo, hamburger, nav items, contact) shares this height
+const BOX_BG = "#F5F5E9";
+const BOX_FG = "#1F3A32";
+const BOX_HOVER_BG = "#FBFF00";
+const BOX_HEIGHT = 42; // every nav box (logo, hamburger, nav items, contact) shares this height
 
 // Outer gap between the logo / hamburger / nav-items wrapper — restored to
 // the original 4px so the three blocks read as separate elements.
@@ -43,6 +43,28 @@ const LOGO_WIDTH = Math.round(BOX_HEIGHT * LOGO_ASPECT);
 // deck-fold. Bump it for a staggered fall again.
 const ITEM_ANIM_MS = 420;
 const STAGGER_MS = 0;
+
+/** Sections that highlight the About nav item. */
+const ABOUT_SECTION_IDS = new Set(["about-intro", "about-office", "what-we-do"]);
+
+function isNavItemActive(sectionId: string, activeSection?: string): boolean {
+  if (!activeSection) return false;
+  if (activeSection === sectionId) return true;
+  if (sectionId === "about-intro" && ABOUT_SECTION_IDS.has(activeSection)) return true;
+  return false;
+}
+
+function isLogoActive(activeSection?: string): boolean {
+  return activeSection === "home" || activeSection === "motto";
+}
+
+function isContactActive(activeSection?: string): boolean {
+  return activeSection === "contact";
+}
+
+function navItemBackground(isActive: boolean): string {
+  return isActive ? BOX_HOVER_BG : BOX_BG;
+}
 
 type Props = {
   onNavigate?: (sectionId: string) => void;
@@ -100,7 +122,7 @@ function HamburgerIcon({ open }: { open: boolean }) {
     >
       <path
         d={d}
-        stroke={CREAM}
+        stroke={BOX_FG}
         strokeWidth={2}
         strokeLinecap="butt"
         fill="none"
@@ -112,26 +134,26 @@ function HamburgerIcon({ open }: { open: boolean }) {
 
 const boxStyle = (extra?: React.CSSProperties): React.CSSProperties => ({
   height: BOX_HEIGHT,
-  background: RED,
-  color: CREAM,
+  background: BOX_BG,
+  color: BOX_FG,
   borderRadius: 0,
   border: "none",
-  // Asymmetric vertical padding biases the centred text a few px below the
-  // box's true vertical centre — sits more comfortably with the cap-height of
-  // Work Sans inside a 48px box. Using explicit longhands so the nav-item
-  // override of paddingLeft/paddingRight (for the clip-path gap) actually
-  // wins — React's style serializer silently drops longhands that collide
-  // with a `padding` shorthand sitting earlier in the same object.
-  paddingTop: 4,
-  paddingRight: 14,
+  // Asymmetric vertical padding nudges text slightly above the box's true
+  // vertical centre — sits more comfortably with the cap-height of Work Sans
+  // inside a 42px box. Using explicit longhands so the nav-item override of
+  // paddingLeft/paddingRight (for the clip-path gap) actually wins — React's
+  // style serializer silently drops longhands that collide with a `padding`
+  // shorthand sitting earlier in the same object.
+  paddingTop: 2,
+  paddingRight: 16,
   paddingBottom: 0,
-  paddingLeft: 14,
+  paddingLeft: 16,
   display: "inline-flex",
   alignItems: "center",
   justifyContent: "center",
   fontFamily: "var(--font-work-sans), system-ui, sans-serif",
   fontWeight: 400,
-  fontSize: "0.95rem",
+  fontSize: "1rem",
   // All nav-element labels display in lowercase (e.g. "about" not "About").
   // We keep the source strings sentence-cased so screen readers and PR
   // descriptions still read naturally — CSS lowercases at render time.
@@ -139,23 +161,63 @@ const boxStyle = (extra?: React.CSSProperties): React.CSSProperties => ({
   letterSpacing: "0.01em",
   cursor: "pointer",
   whiteSpace: "nowrap",
-  transition: "filter 0.2s ease",
+  transition: "background 0.2s ease",
   ...extra,
 });
 
 export default function BlobNav({ onNavigate, activeSection, isScrolling }: Props) {
   const [open, setOpen] = useState(true); // page starts with menu open (we land on Home)
+  const [logoHovered, setLogoHovered] = useState(false);
+  /** Pointer is within the full nav row band (including gaps between items). */
+  const [navPointerInside, setNavPointerInside] = useState(false);
+  const navRowRef = useRef<HTMLDivElement>(null);
   const pathname = usePathname();
   const router = useRouter();
 
-  // The nav is only open when the page is stationary on the landing section.
-  // Any active scroll, or any active section other than "home", collapses it.
+  const logoActive = isLogoActive(activeSection);
+  const contactActive = isContactActive(activeSection);
+  const logoHighlighted = logoHovered || logoActive;
+
+  // Track whether the pointer sits inside the nav row. Gaps between logo,
+  // hamburger, items, and the space to Contact are all inside the row rect.
+  // Only clear when the pointer exits downward — not when crossing internal
+  // gaps or leaving sideways above the row.
   useEffect(() => {
-    setOpen(activeSection === "home" && !isScrolling);
-  }, [activeSection, isScrolling]);
+    const updatePointerInside = (e: PointerEvent) => {
+      const row = navRowRef.current;
+      if (!row) return;
+      const rect = row.getBoundingClientRect();
+      const inRow =
+        e.clientX >= rect.left &&
+        e.clientX <= rect.right &&
+        e.clientY >= rect.top &&
+        e.clientY <= rect.bottom;
+      if (inRow) {
+        setNavPointerInside(true);
+      } else if (e.clientY >= rect.bottom) {
+        setNavPointerInside(false);
+      }
+    };
+
+    window.addEventListener("pointermove", updatePointerInside, { passive: true });
+    return () => window.removeEventListener("pointermove", updatePointerInside);
+  }, []);
+
+  // Open on the landing section when idle; during navbar navigation stay
+  // open while the pointer rests anywhere in the nav row.
+  useEffect(() => {
+    if (activeSection === "home" && !isScrolling) {
+      setOpen(true);
+    } else if (navPointerInside) {
+      setOpen(true);
+    } else {
+      setOpen(false);
+    }
+  }, [activeSection, isScrolling, navPointerInside]);
 
   const navigate = useCallback(
     (sectionId: string) => {
+      setNavPointerInside(true);
       if (onNavigate) {
         onNavigate(sectionId);
         return;
@@ -212,40 +274,55 @@ export default function BlobNav({ onNavigate, activeSection, isScrolling }: Prop
       )}ms`;
 
   return (
-    <>
+    <div
+      ref={navRowRef}
+      style={{
+        position: "fixed",
+        top: TOP_MARGIN,
+        left: SIDE_MARGIN,
+        right: SIDE_MARGIN,
+        height: BOX_HEIGHT,
+        zIndex: 100,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "space-between",
+        pointerEvents: "none",
+      }}
+    >
       {/* Left cluster: logo + hamburger + sliding nav items */}
       <div
         aria-label="Main navigation"
         role="navigation"
         style={{
-          position: "fixed",
-          top: TOP_MARGIN,
-          left: SIDE_MARGIN,
-          zIndex: 100,
           display: "flex",
           alignItems: "center",
           gap: OUTER_GAP,
           pointerEvents: "auto",
         }}
       >
-        {/* Logo (red rectangle is baked into the SVG) */}
+        {/* Logo */}
         <a
           href="#home"
           onClick={(e) => {
             e.preventDefault();
             navigate("home");
           }}
+          onMouseEnter={() => setLogoHovered(true)}
+          onMouseLeave={() => setLogoHovered(false)}
           aria-label="Comte – home"
+          aria-current={logoActive ? "page" : undefined}
           style={{
             display: "inline-flex",
             height: BOX_HEIGHT,
             width: LOGO_WIDTH,
-            background: RED,
+            background: logoHighlighted ? BOX_HOVER_BG : BOX_BG,
             lineHeight: 0,
+            cursor: "pointer",
+            transition: "background 0.2s ease",
           }}
         >
           <Image
-            src="/logo.svg"
+            src={logoHighlighted ? "/logo-yellow.svg" : "/logo-white.svg"}
             alt="Comte"
             width={LOGO_WIDTH}
             height={BOX_HEIGHT}
@@ -285,11 +362,12 @@ export default function BlobNav({ onNavigate, activeSection, isScrolling }: Prop
           <div style={{ display: "flex", position: "relative" }}>
             {NAV_ITEMS.map((item, i) => {
               const reverseI = NAV_ITEMS.length - 1 - i;
+              const isLastItem = i === NAV_ITEMS.length - 1;
               // Closing: rightmost item moves first (it falls under its left
               // neighbour, which then moves with it under the next, etc.).
               // Opening: leftmost first (the deck fans out).
               const delay = open ? i * STAGGER_MS : reverseI * STAGGER_MS;
-              const isActive = activeSection === item.sectionId;
+              const isActive = isNavItemActive(item.sectionId, activeSection);
               const closedTranslate = -(offsetLefts[i] ?? 0);
               return (
                 <button
@@ -298,18 +376,21 @@ export default function BlobNav({ onNavigate, activeSection, isScrolling }: Prop
                     itemRefs.current[i] = el;
                   }}
                   type="button"
+                  data-nav-item={item.sectionId}
                   onClick={() => navigate(item.sectionId)}
                   tabIndex={open ? 0 : -1}
                   aria-current={isActive ? "page" : undefined}
                   style={{
                     ...boxStyle({
-                      filter: isActive ? "brightness(0.92)" : undefined,
+                      background: navItemBackground(isActive),
                       // clip-path eats the rightmost ITEM_GAP_PX including
                       // the right padding. Pad the right by the same amount
                       // so the visible inner padding stays symmetrical with
-                      // the left (matches boxStyle's 14px).
-                      paddingLeft: 14,
-                      paddingRight: 14 + ITEM_GAP_PX,
+                      // the left (matches boxStyle's 16px). The last item
+                      // skips the clip — no gap follows it — so it keeps
+                      // normal right padding like the Contact button.
+                      paddingLeft: 16,
+                      paddingRight: isLastItem ? 16 : 16 + ITEM_GAP_PX,
                     }),
                     position: "relative",
                     flexShrink: 0,
@@ -320,22 +401,20 @@ export default function BlobNav({ onNavigate, activeSection, isScrolling }: Prop
                     // slit, so the deck stays readable without a colored
                     // stroke and whatever sits behind the nav (section bg,
                     // future video) shows through every gap.
-                    clipPath: `inset(0 ${ITEM_GAP_PX}px 0 0)`,
+                    ...(isLastItem ? {} : { clipPath: `inset(0 ${ITEM_GAP_PX}px 0 0)` }),
                     transform: open
                       ? "translateX(0)"
                       : `translateX(${closedTranslate}px)`,
-                    transition: `transform ${ITEM_ANIM_MS}ms cubic-bezier(0.25, 1, 0.5, 1) ${delay}ms, filter 0.2s ease`,
+                    transition: `transform ${ITEM_ANIM_MS}ms cubic-bezier(0.25, 1, 0.5, 1) ${delay}ms, background 0.2s ease`,
                     // Earlier items render on top → later items slide under
                     // them, deck-style, as they translate leftward.
                     zIndex: NAV_ITEMS.length - i,
                   }}
                   onMouseEnter={(e) => {
-                    (e.currentTarget as HTMLElement).style.filter = "brightness(0.92)";
+                    e.currentTarget.style.background = BOX_HOVER_BG;
                   }}
                   onMouseLeave={(e) => {
-                    (e.currentTarget as HTMLElement).style.filter = isActive
-                      ? "brightness(0.92)"
-                      : "";
+                    e.currentTarget.style.background = navItemBackground(isActive);
                   }}
                 >
                   {item.label}
@@ -347,30 +426,24 @@ export default function BlobNav({ onNavigate, activeSection, isScrolling }: Prop
       </div>
 
       {/* Right side: persistent Contact button (scrolls to Team section) */}
-      <div
+      <button
+        type="button"
+        onClick={() => navigate("contact")}
+        aria-label="Contact – go to Contact section"
+        aria-current={contactActive ? "page" : undefined}
         style={{
-          position: "fixed",
-          top: TOP_MARGIN,
-          right: SIDE_MARGIN,
-          zIndex: 100,
+          ...boxStyle({ background: navItemBackground(contactActive) }),
           pointerEvents: "auto",
         }}
+        onMouseEnter={(e) => {
+          e.currentTarget.style.background = BOX_HOVER_BG;
+        }}
+        onMouseLeave={(e) => {
+          e.currentTarget.style.background = navItemBackground(contactActive);
+        }}
       >
-        <button
-          type="button"
-          onClick={() => navigate("team")}
-          aria-label="Contact – go to Team section"
-          style={boxStyle()}
-          onMouseEnter={(e) => {
-            (e.currentTarget as HTMLElement).style.filter = "brightness(0.92)";
-          }}
-          onMouseLeave={(e) => {
-            (e.currentTarget as HTMLElement).style.filter = "";
-          }}
-        >
-          Contact
-        </button>
-      </div>
-    </>
+        Contact
+      </button>
+    </div>
   );
 }
