@@ -4,7 +4,7 @@ export const PANEL_PADDING = "clamp(2rem, 5vw, 5rem)";
 
 // Vertical space taken up by the nav at the top of every panel.
 // Must stay in sync with BlobNav: TOP_MARGIN + BOX_HEIGHT.
-const NAV_HEIGHT_TOTAL = "calc(clamp(1rem, 2.5vw, 2.5rem) + 48px)";
+export const NAV_HEIGHT_TOTAL = "calc(clamp(1rem, 2.5vw, 2.5rem) + 48px)";
 
 /**
  * Y-coordinate at which "regular" content starts inside a panel.

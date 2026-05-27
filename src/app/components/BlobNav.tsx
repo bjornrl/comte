@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, Fragment } from "react";
 import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 
@@ -12,11 +12,14 @@ export const NAV_ITEMS: NavItem[] = [
   { label: "Team", sectionId: "team" },
   { label: "Publications", sectionId: "publications" },
   { label: "Ventures", sectionId: "ventures" },
+  { label: "Contact", sectionId: "contact" },
 ];
 
 const BOX_BG = "#F5F5E9";
-const BOX_FG = "#1F3A32";
-const BOX_HOVER_BG = "#FBFF00";
+const BOX_FG = "#5A7482";
+const BOX_HOVER_BG = "#FF5252";
+const NAV_ITEM_BG = "#5A7482";
+const NAV_ITEM_FG = "#F4F4E8";
 const BOX_HEIGHT = 42; // every nav box (logo, hamburger, nav items, contact) shares this height
 
 // Outer gap between the logo / hamburger / nav-items wrapper — restored to
@@ -38,14 +41,18 @@ const TOP_MARGIN = "clamp(1rem, 2.5vw, 2.5rem)";
 const LOGO_ASPECT = 247 / 71;
 const LOGO_WIDTH = Math.round(BOX_HEIGHT * LOGO_ASPECT);
 
-// Collapse timing. STAGGER_MS = 0 makes every nav item slide in unison —
-// a single continuous slide under the hamburger rather than a cascading
-// deck-fold. Bump it for a staggered fall again.
+// Collapse timing. STAGGER_MS = 0 makes the whole row open and close in
+// one continuous motion — every element (including the inserted
+// publications item-title button) animates in unison rather than as a
+// staggered cascade. The back-button still sits in its natural slot
+// between Publications and Ventures; its wrapper-width animation grows
+// in lockstep with the row, so Ventures/Contact glide into place
+// without a visible "joint".
 const ITEM_ANIM_MS = 420;
 const STAGGER_MS = 0;
 
 /** Sections that highlight the About nav item. */
-const ABOUT_SECTION_IDS = new Set(["about-intro", "about-office", "what-we-do"]);
+const ABOUT_SECTION_IDS = new Set(["about-intro", "what-we-do"]);
 
 function isNavItemActive(sectionId: string, activeSection?: string): boolean {
   if (!activeSection) return false;
@@ -58,12 +65,27 @@ function isLogoActive(activeSection?: string): boolean {
   return activeSection === "home" || activeSection === "motto";
 }
 
-function isContactActive(activeSection?: string): boolean {
-  return activeSection === "contact";
+function navLogoSrc(activeSection: string | undefined, highlighted: boolean): string {
+  if (highlighted) return "/comte-coral.svg";
+  if (activeSection === "projects") return "/logo-blue.svg";
+  return "/logo-white.svg";
 }
 
-function navItemBackground(isActive: boolean): string {
-  return isActive ? BOX_HOVER_BG : BOX_BG;
+function navItemColors(isActive: boolean): { background: string; color: string } {
+  return isActive
+    ? { background: BOX_HOVER_BG, color: NAV_ITEM_FG }
+    : { background: NAV_ITEM_BG, color: NAV_ITEM_FG };
+}
+
+function applyNavItemColors(el: HTMLElement, isActive: boolean) {
+  const colors = navItemColors(isActive);
+  el.style.background = colors.background;
+  el.style.color = colors.color;
+}
+
+function applyNavHoverColors(el: HTMLElement) {
+  el.style.background = BOX_HOVER_BG;
+  el.style.color = NAV_ITEM_FG;
 }
 
 type Props = {
@@ -71,6 +93,14 @@ type Props = {
   activeSection?: string;
   /** When true, the nav forces itself closed regardless of activeSection. */
   isScrolling?: boolean;
+  /**
+   * When provided, the navbar stays open and the publications nav item is
+   * outlined in pink. The navbar expands in its ordinary width first; once
+   * that open animation has settled, a pink-filled button is inserted to
+   * its right showing the viewed item's title. Clicking either button
+   * returns to the publications overview.
+   */
+  publicationsItemView?: { onClick: () => void; itemTitle: string } | null;
 };
 
 /**
@@ -122,7 +152,7 @@ function HamburgerIcon({ open }: { open: boolean }) {
     >
       <path
         d={d}
-        stroke={BOX_FG}
+        stroke={NAV_ITEM_FG}
         strokeWidth={2}
         strokeLinecap="butt"
         fill="none"
@@ -161,13 +191,19 @@ const boxStyle = (extra?: React.CSSProperties): React.CSSProperties => ({
   letterSpacing: "0.01em",
   cursor: "pointer",
   whiteSpace: "nowrap",
-  transition: "background 0.2s ease",
+  transition: "background 0.2s ease, color 0.2s ease",
   ...extra,
 });
 
-export default function BlobNav({ onNavigate, activeSection, isScrolling }: Props) {
-  const [open, setOpen] = useState(true); // page starts with menu open (we land on Home)
+export default function BlobNav({
+  onNavigate,
+  activeSection,
+  isScrolling,
+  publicationsItemView,
+}: Props) {
+  const [open, setOpen] = useState(false);
   const [logoHovered, setLogoHovered] = useState(false);
+  const [backHovered, setBackHovered] = useState(false);
   /** Pointer is within the full nav row band (including gaps between items). */
   const [navPointerInside, setNavPointerInside] = useState(false);
   const navRowRef = useRef<HTMLDivElement>(null);
@@ -175,8 +211,152 @@ export default function BlobNav({ onNavigate, activeSection, isScrolling }: Prop
   const router = useRouter();
 
   const logoActive = isLogoActive(activeSection);
-  const contactActive = isContactActive(activeSection);
   const logoHighlighted = logoHovered || logoActive;
+
+  // Phase 1 — item view is active: force the nav open and outline the
+  // publications item at ordinary width. Phase 2 — once the nav's open
+  // animation has settled, mount the item-title button beside it.
+  const itemViewActive = !!publicationsItemView;
+
+  /** Whether the nav was already open at the moment item view began. If
+   *  so, there's no expansion animation to wait for before showing the
+   *  item-title button. */
+  const navWasOpenAtItemViewRef = useRef(false);
+  const prevItemViewActiveRef = useRef(false);
+  const [backButtonReady, setBackButtonReady] = useState(false);
+
+  useEffect(() => {
+    if (itemViewActive && !prevItemViewActiveRef.current) {
+      navWasOpenAtItemViewRef.current = open;
+    }
+    if (!itemViewActive) {
+      navWasOpenAtItemViewRef.current = false;
+      setBackButtonReady(false);
+    }
+    prevItemViewActiveRef.current = itemViewActive;
+  }, [itemViewActive, open]);
+
+  useEffect(() => {
+    if (!itemViewActive) return;
+    if (!open) return;
+    const delay = navWasOpenAtItemViewRef.current ? 0 : ITEM_ANIM_MS;
+    const t = window.setTimeout(() => setBackButtonReady(true), delay);
+    return () => window.clearTimeout(t);
+  }, [itemViewActive, open]);
+
+  // Mount-presence transition for the inserted item-title button. A small
+  // state machine drives both the wrapper *width* (which the flex layout
+  // uses to push the items to the right) and the inner button's
+  // *translateX* (which gives the button itself the "slide out from
+  // under publications" feel):
+  //
+  //   closed  -> title slot is not in the row.
+  //   opening -> slot mounts at gap width (net zero layout delta vs the
+  //              ordinary publications→ventures clip gap).
+  //   open    -> slot animates to the measured title width.
+  //   closing -> slot width + overlap margin animate back to zero.
+  //
+  // While `open`, swapping the item title re-measures the inner button
+  // and the wrapper width animates to the new content width, so items
+  // to the right (Ventures, Contact) glide along.
+  type BackButtonState = "closed" | "opening" | "open" | "closing";
+  const [backButtonState, setBackButtonState] = useState<BackButtonState>("closed");
+  const [persistedBackButton, setPersistedBackButton] = useState<
+    Props["publicationsItemView"]
+  >(null);
+  const backButtonInnerRef = useRef<HTMLButtonElement | null>(null);
+  const backButtonMeasureRef = useRef<HTMLButtonElement | null>(null);
+  const [backButtonContentWidth, setBackButtonContentWidth] = useState(0);
+
+  const measureBackButtonWidth = useCallback(() => {
+    const el = backButtonInnerRef.current ?? backButtonMeasureRef.current;
+    if (!el) return;
+    const next = el.scrollWidth;
+    setBackButtonContentWidth((prev) => (prev === next ? prev : next));
+  }, []);
+
+  const backButtonSource = itemViewActive ? publicationsItemView : null;
+
+  // Keep title/handler data in sync while item view is active.
+  useEffect(() => {
+    if (backButtonSource) {
+      setPersistedBackButton(backButtonSource);
+    }
+  }, [backButtonSource]);
+
+  // Phase 1: no title-button DOM — publications keeps its ordinary clip
+  // and the ventures gap is unchanged. Phase 2: mount at gap width first,
+  // then animate to the full title width so ventures never snap.
+  useEffect(() => {
+    if (!itemViewActive) {
+      setBackButtonState((current) =>
+        current === "open" || current === "opening" || current === "closing"
+          ? "closing"
+          : "closed",
+      );
+      return;
+    }
+    if (!backButtonReady || backButtonContentWidth <= 0) return;
+    setBackButtonState((current) =>
+      current === "open" || current === "opening" ? current : "opening",
+    );
+  }, [itemViewActive, backButtonReady, backButtonContentWidth]);
+
+  // Clear persisted data once fully closed (including phase-1 exits that
+  // never mounted the title button).
+  useEffect(() => {
+    if (!itemViewActive && backButtonState === "closed") {
+      setPersistedBackButton(null);
+    }
+  }, [itemViewActive, backButtonState]);
+
+  // Drive state transitions that need a timer:
+  //  - opening: paint at gap width first, then expand to the measured
+  //    title width on the next frame so the CSS width transition runs.
+  //  - closing: wait for width + margin to finish, then unmount.
+  useLayoutEffect(() => {
+    if (backButtonState !== "opening") return;
+    if (backButtonContentWidth <= 0) return;
+
+    let raf2 = 0;
+    const raf1 = requestAnimationFrame(() => {
+      raf2 = requestAnimationFrame(() => setBackButtonState("open"));
+    });
+    return () => {
+      cancelAnimationFrame(raf1);
+      if (raf2) cancelAnimationFrame(raf2);
+    };
+  }, [backButtonState, backButtonContentWidth]);
+
+  useEffect(() => {
+    if (backButtonState === "closing") {
+      const t = window.setTimeout(() => setBackButtonState("closed"), ITEM_ANIM_MS);
+      return () => window.clearTimeout(t);
+    }
+  }, [backButtonState]);
+
+  // Measure title width from a hidden probe during phase 1, then from
+  // the live button once the slot is mounted.
+  useLayoutEffect(() => {
+    measureBackButtonWidth();
+  }, [
+    itemViewActive,
+    publicationsItemView?.itemTitle,
+    backButtonState,
+    measureBackButtonWidth,
+  ]);
+
+  const backButtonMounted =
+    backButtonState !== "closed" && !!persistedBackButton;
+  const backButtonWrapperWidth =
+    backButtonState === "open"
+      ? backButtonContentWidth
+      : backButtonState === "opening"
+        ? ITEM_GAP_PX
+        : 0;
+  const backButtonSlotMarginLeft =
+    backButtonWrapperWidth > 0 ? -ITEM_GAP_PX : 0;
+  const backButtonSlotTransition = `width ${ITEM_ANIM_MS}ms cubic-bezier(0.25, 1, 0.5, 1), margin-left ${ITEM_ANIM_MS}ms cubic-bezier(0.25, 1, 0.5, 1)`;
 
   // Track whether the pointer sits inside the nav row. Gaps between logo,
   // hamburger, items, and the space to Contact are all inside the row rect.
@@ -203,17 +383,26 @@ export default function BlobNav({ onNavigate, activeSection, isScrolling }: Prop
     return () => window.removeEventListener("pointermove", updatePointerInside);
   }, []);
 
-  // Open on the landing section when idle; during navbar navigation stay
-  // open while the pointer rests anywhere in the nav row.
+  // Collapsed on entry; opens when the pointer enters the nav row. Stays
+  // closed while a section scroll is in flight (even in publications item
+  // view, so horizontal scrolling collapses the nav normally). When idle
+  // and in item view, the nav is forced open so the inserted item-title
+  // button is always reachable.
   useEffect(() => {
-    if (activeSection === "home" && !isScrolling) {
+    if (isScrolling) {
+      setOpen(false);
+      return;
+    }
+    if (itemViewActive) {
       setOpen(true);
-    } else if (navPointerInside) {
+      return;
+    }
+    if (navPointerInside) {
       setOpen(true);
     } else {
       setOpen(false);
     }
-  }, [activeSection, isScrolling, navPointerInside]);
+  }, [isScrolling, navPointerInside, itemViewActive]);
 
   const navigate = useCallback(
     (sectionId: string) => {
@@ -240,7 +429,7 @@ export default function BlobNav({ onNavigate, activeSection, isScrolling }: Prop
   // collapse: the last item moves first, slides under each predecessor on the
   // way, and the stack ends up tucked behind the hamburger as the row's
   // max-width also animates down to 0.
-  const itemRefs = useRef<(HTMLButtonElement | null)[]>([]);
+  const itemRefs = useRef<(HTMLDivElement | null)[]>([]);
   const [offsetLefts, setOffsetLefts] = useState<number[]>([]);
   const [naturalWidth, setNaturalWidth] = useState<number>(0);
 
@@ -248,26 +437,51 @@ export default function BlobNav({ onNavigate, activeSection, isScrolling }: Prop
     const measure = () => {
       const lefts = itemRefs.current.map((el) => el?.offsetLeft ?? 0);
       setOffsetLefts(lefts);
-      // Total natural width = last item's offsetLeft + width.
-      const last = itemRefs.current[itemRefs.current.length - 1];
-      if (last) {
-        setNaturalWidth(last.offsetLeft + last.offsetWidth);
-      }
+      // Natural width = sum of each nav item's own offsetWidth. We
+      // deliberately don't use `last.offsetLeft + last.offsetWidth`
+      // here because the inserted back-button (when present) sits
+      // between Publications and Ventures and pushes the later items
+      // right, which would inflate that reading. Summing the items'
+      // own widths gives us a *base* that ignores the back button,
+      // and the effective container max-width (further below) adds
+      // the back button's current content width on top — so the
+      // wrapper grows in lockstep with the inserted button and the
+      // rightmost items aren't clipped while the button is widening.
+      const widths = itemRefs.current.map((el) => el?.offsetWidth ?? 0);
+      const total = widths.reduce((a, b) => a + b, 0);
+      setNaturalWidth(total);
     };
     measure();
+    // Re-measure offsetLefts once the back-button width transition
+    // settles, so deck-collapse closedTranslate values for items right
+    // of the back button reflect their pushed positions.
+    const t = window.setTimeout(measure, ITEM_ANIM_MS);
     window.addEventListener("resize", measure);
-    return () => window.removeEventListener("resize", measure);
-  }, []);
+    return () => {
+      window.removeEventListener("resize", measure);
+      window.clearTimeout(t);
+    };
+  }, [backButtonMounted, backButtonContentWidth]);
 
   const totalAnimMs = ITEM_ANIM_MS + (NAV_ITEMS.length - 1) * STAGGER_MS;
+
+  // The container's max-width follows the back button's expansion so
+  // Ventures/Contact aren't clipped while the inserted button is
+  // animating in, out, or resizing on a title change.
+  const expandedBackButtonWidth = (() => {
+    if (!backButtonMounted) return 0;
+    if (backButtonState === "closing") return backButtonContentWidth;
+    return backButtonWrapperWidth;
+  })();
+  const effectiveNaturalWidth = naturalWidth + expandedBackButtonWidth;
 
   // Row max-width transition:
   //  - Opening: row expands immediately so items have space to slide into.
   //  - Closing: row waits for the staggered item slide to nearly finish, then
   //    collapses to 0. This way the deck-collapse is visible mid-flight rather
   //    than clipped away by an early max-width snap.
-  const rowMaxWidthTransition = open
-    ? `max-width ${ITEM_ANIM_MS}ms cubic-bezier(0.25, 1, 0.5, 1) 0ms`
+  const itemsMaxWidthTransition = open
+    ? `max-width ${ITEM_ANIM_MS}ms cubic-bezier(0.25, 1, 0.5, 1)`
     : `max-width ${ITEM_ANIM_MS}ms cubic-bezier(0.25, 1, 0.5, 1) ${Math.max(
         0,
         totalAnimMs - ITEM_ANIM_MS,
@@ -285,7 +499,6 @@ export default function BlobNav({ onNavigate, activeSection, isScrolling }: Prop
         zIndex: 100,
         display: "flex",
         alignItems: "center",
-        justifyContent: "space-between",
         pointerEvents: "none",
       }}
     >
@@ -298,8 +511,34 @@ export default function BlobNav({ onNavigate, activeSection, isScrolling }: Prop
           alignItems: "center",
           gap: OUTER_GAP,
           pointerEvents: "auto",
+          position: "relative",
         }}
       >
+        {/* Hidden probe — measures the title width during phase 1 so the
+            live slot can expand in one smooth width transition. */}
+        {itemViewActive && publicationsItemView && !backButtonMounted && (
+          <button
+            ref={backButtonMeasureRef}
+            type="button"
+            aria-hidden
+            tabIndex={-1}
+            style={{
+              ...boxStyle({
+                background: BOX_HOVER_BG,
+                color: NAV_ITEM_FG,
+                paddingLeft: 16,
+                paddingRight: 16 + ITEM_GAP_PX,
+              }),
+              position: "absolute",
+              left: -10000,
+              top: 0,
+              visibility: "hidden",
+              pointerEvents: "none",
+            }}
+          >
+            {publicationsItemView.itemTitle || "back to overview"}
+          </button>
+        )}
         {/* Logo */}
         <a
           href="#home"
@@ -318,11 +557,11 @@ export default function BlobNav({ onNavigate, activeSection, isScrolling }: Prop
             background: logoHighlighted ? BOX_HOVER_BG : BOX_BG,
             lineHeight: 0,
             cursor: "pointer",
-            transition: "background 0.2s ease",
+            transition: "background 0.2s ease, color 0.2s ease",
           }}
         >
           <Image
-            src={logoHighlighted ? "/logo-yellow.svg" : "/logo-white.svg"}
+            src={navLogoSrc(activeSection, logoHighlighted)}
             alt="Comte"
             width={LOGO_WIDTH}
             height={BOX_HEIGHT}
@@ -340,9 +579,15 @@ export default function BlobNav({ onNavigate, activeSection, isScrolling }: Prop
           aria-expanded={open}
           aria-controls="comte-nav-items"
           style={{
-            ...boxStyle({ width: BOX_HEIGHT, padding: 0 }),
+            ...boxStyle({ width: BOX_HEIGHT, padding: 0, ...navItemColors(false) }),
             position: "relative",
             zIndex: 30,
+          }}
+          onMouseEnter={(e) => {
+            applyNavHoverColors(e.currentTarget);
+          }}
+          onMouseLeave={(e) => {
+            applyNavItemColors(e.currentTarget, false);
           }}
         >
           <HamburgerIcon open={open} />
@@ -355,95 +600,155 @@ export default function BlobNav({ onNavigate, activeSection, isScrolling }: Prop
           id="comte-nav-items"
           style={{
             overflow: "hidden",
-            maxWidth: open ? Math.max(naturalWidth, 1) : 0,
-            transition: rowMaxWidthTransition,
+            maxWidth: open ? Math.max(effectiveNaturalWidth, 1) : 0,
+            transition: itemsMaxWidthTransition,
           }}
         >
           <div style={{ display: "flex", position: "relative" }}>
             {NAV_ITEMS.map((item, i) => {
               const reverseI = NAV_ITEMS.length - 1 - i;
               const isLastItem = i === NAV_ITEMS.length - 1;
-              // Closing: rightmost item moves first (it falls under its left
-              // neighbour, which then moves with it under the next, etc.).
-              // Opening: leftmost first (the deck fans out).
               const delay = open ? i * STAGGER_MS : reverseI * STAGGER_MS;
               const isActive = isNavItemActive(item.sectionId, activeSection);
               const closedTranslate = -(offsetLefts[i] ?? 0);
+              const isPublications = item.sectionId === "publications";
+              const outlined = isPublications && itemViewActive;
+              const colorScheme = outlined
+                ? {
+                    background: "transparent",
+                    color: BOX_HOVER_BG,
+                    outline: `1px solid ${BOX_HOVER_BG}`,
+                    outlineOffset: "-1px",
+                  }
+                : navItemColors(isActive);
+              // Publications keeps the same right clip-path as every other
+              // nav item for the entire item-view sequence. The title
+              // button overlaps that clipped zone via a negative margin
+              // instead of removing the clip (which would snap ventures).
+              const showRightClip = !isLastItem;
               return (
-                <button
-                  key={item.sectionId}
-                  ref={(el) => {
-                    itemRefs.current[i] = el;
-                  }}
-                  type="button"
-                  data-nav-item={item.sectionId}
-                  onClick={() => navigate(item.sectionId)}
-                  tabIndex={open ? 0 : -1}
-                  aria-current={isActive ? "page" : undefined}
-                  style={{
-                    ...boxStyle({
-                      background: navItemBackground(isActive),
-                      // clip-path eats the rightmost ITEM_GAP_PX including
-                      // the right padding. Pad the right by the same amount
-                      // so the visible inner padding stays symmetrical with
-                      // the left (matches boxStyle's 16px). The last item
-                      // skips the clip — no gap follows it — so it keeps
-                      // normal right padding like the Contact button.
-                      paddingLeft: 16,
-                      paddingRight: isLastItem ? 16 : 16 + ITEM_GAP_PX,
-                    }),
-                    position: "relative",
-                    flexShrink: 0,
-                    // clip-path knocks the right ITEM_GAP_PX of each item to
-                    // transparency (alpha 0). In the open state this is the
-                    // visible gap between items. While they overlap during
-                    // the collapse, every layer keeps its own transparent
-                    // slit, so the deck stays readable without a colored
-                    // stroke and whatever sits behind the nav (section bg,
-                    // future video) shows through every gap.
-                    ...(isLastItem ? {} : { clipPath: `inset(0 ${ITEM_GAP_PX}px 0 0)` }),
-                    transform: open
-                      ? "translateX(0)"
-                      : `translateX(${closedTranslate}px)`,
-                    transition: `transform ${ITEM_ANIM_MS}ms cubic-bezier(0.25, 1, 0.5, 1) ${delay}ms, background 0.2s ease`,
-                    // Earlier items render on top → later items slide under
-                    // them, deck-style, as they translate leftward.
-                    zIndex: NAV_ITEMS.length - i,
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.background = BOX_HOVER_BG;
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.background = navItemBackground(isActive);
-                  }}
-                >
-                  {item.label}
-                </button>
+                <Fragment key={item.sectionId}>
+                  <div
+                    ref={(el) => {
+                      itemRefs.current[i] = el;
+                    }}
+                    style={{
+                      position: "relative",
+                      flexShrink: 0,
+                      transform: open
+                        ? "translateX(0)"
+                        : `translateX(${closedTranslate}px)`,
+                      transition: `transform ${ITEM_ANIM_MS}ms cubic-bezier(0.25, 1, 0.5, 1) ${delay}ms`,
+                      zIndex: NAV_ITEMS.length - i,
+                    }}
+                  >
+                    <button
+                      type="button"
+                      data-nav-item={item.sectionId}
+                      onClick={() => {
+                        if (outlined && publicationsItemView) {
+                          // While in item view, clicking the publications
+                          // button itself returns to the overview rather
+                          // than horizontally re-snapping to the section
+                          // we're already on.
+                          publicationsItemView.onClick();
+                          return;
+                        }
+                        navigate(item.sectionId);
+                      }}
+                      tabIndex={open ? 0 : -1}
+                      aria-current={isActive ? "page" : undefined}
+                      style={{
+                        ...boxStyle({
+                          ...colorScheme,
+                          paddingLeft: 16,
+                          paddingRight: showRightClip ? 16 + ITEM_GAP_PX : 16,
+                        }),
+                        position: "relative",
+                        ...(showRightClip ? { clipPath: `inset(0 ${ITEM_GAP_PX}px 0 0)` } : {}),
+                        transition:
+                          "background 0.2s ease, color 0.2s ease, outline-color 0.2s ease",
+                      }}
+                      onMouseEnter={(e) => {
+                        applyNavHoverColors(e.currentTarget);
+                      }}
+                      onMouseLeave={(e) => {
+                        if (outlined) {
+                          // Restore outlined look: transparent fill, pink
+                          // text + pink outline (set via inline style on
+                          // the next render anyway, but reset imperatively
+                          // here so the leave is instant).
+                          e.currentTarget.style.background = "transparent";
+                          e.currentTarget.style.color = BOX_HOVER_BG;
+                          return;
+                        }
+                        applyNavItemColors(e.currentTarget, isActive);
+                      }}
+                    >
+                      {item.label}
+                    </button>
+                  </div>
+
+                  {/* Pink-filled item-title button inserted directly after
+                      the publications nav item — flush, no gap.
+                      Two animations run in parallel:
+                       - The wrapper's `width` animates from 0 to the
+                         inner button's natural content width. That's
+                         the flex track Ventures/Contact occupy, so
+                         they slide along with the button on its way
+                         in and out, and the wrapper smoothly resizes
+                         when the title changes mid-item-view.
+                       - The inner button's `translateX` slides from
+                         -100% to 0 (and back), so visually it looks
+                         like the button is emerging from under the
+                         publications item rather than just being
+                         revealed by a width wipe. */}
+                  {isPublications && persistedBackButton && (
+                    <div
+                      style={{
+                        position: "relative",
+                        flexShrink: 0,
+                        width: backButtonWrapperWidth,
+                        overflow: "hidden",
+                        marginLeft: backButtonSlotMarginLeft,
+                        zIndex: NAV_ITEMS.length - i - 0.5,
+                        transition: backButtonSlotTransition,
+                      }}
+                    >
+                      <button
+                        ref={backButtonInnerRef}
+                        type="button"
+                        onClick={persistedBackButton.onClick}
+                        onMouseEnter={() => setBackHovered(true)}
+                        onMouseLeave={() => setBackHovered(false)}
+                        aria-label={
+                          persistedBackButton.itemTitle
+                            ? `Back to publications overview (currently viewing ${persistedBackButton.itemTitle})`
+                            : "Back to publications overview"
+                        }
+                        style={{
+                          ...boxStyle({
+                            background: backHovered ? "#FF7B7B" : BOX_HOVER_BG,
+                            color: NAV_ITEM_FG,
+                            paddingLeft: 16,
+                            paddingRight: 16 + ITEM_GAP_PX,
+                          }),
+                          position: "relative",
+                          clipPath: `inset(0 ${ITEM_GAP_PX}px 0 0)`,
+                          whiteSpace: "nowrap",
+                          transition: "background 0.2s ease, color 0.2s ease",
+                        }}
+                      >
+                        {persistedBackButton.itemTitle || "back to overview"}
+                      </button>
+                    </div>
+                  )}
+                </Fragment>
               );
             })}
           </div>
         </div>
       </div>
-
-      {/* Right side: persistent Contact button (scrolls to Team section) */}
-      <button
-        type="button"
-        onClick={() => navigate("contact")}
-        aria-label="Contact – go to Contact section"
-        aria-current={contactActive ? "page" : undefined}
-        style={{
-          ...boxStyle({ background: navItemBackground(contactActive) }),
-          pointerEvents: "auto",
-        }}
-        onMouseEnter={(e) => {
-          e.currentTarget.style.background = BOX_HOVER_BG;
-        }}
-        onMouseLeave={(e) => {
-          e.currentTarget.style.background = navItemBackground(contactActive);
-        }}
-      >
-        Contact
-      </button>
     </div>
   );
 }

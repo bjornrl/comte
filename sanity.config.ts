@@ -8,7 +8,6 @@ const SINGLETON_TYPES = new Set([
   "homeSection",
   "mottoSection",
   "aboutIntro",
-  "aboutOffice",
   "whatWeDo",
   "projectsSection",
   "teamSection",

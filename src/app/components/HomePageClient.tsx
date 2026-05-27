@@ -1,21 +1,21 @@
 "use client";
 
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import HorizontalScroll, { type HorizontalScrollNavApi } from "./HorizontalScroll";
 import BlobNav from "./BlobNav";
 import LandingStage from "./LandingStage";
 import LandingSpacer from "./LandingSpacer";
 import SectionAboutIntro from "./sections/SectionAboutIntro";
-import SectionAboutOffice, { type OfficeLocation } from "./sections/SectionAboutOffice";
 import SectionWhatWeDo from "./sections/SectionWhatWeDo";
 import SectionProjects from "./sections/SectionProjects";
 import SectionTeam, { getTeamSectionWidth } from "./sections/SectionTeam";
-import SectionCardGrid, { type CardItem } from "./sections/SectionCardGrid";
+import SectionVentures from "./sections/SectionVentures";
+import SectionPublications from "./sections/SectionPublications";
 import SectionContact from "./sections/SectionContact";
+import { type CardItem } from "./sections/SectionCardGrid";
 import Interstitial, { type InterstitialData } from "./sections/Interstitial";
 import { type Project, type Connection, setProjectData } from "./projectNetworkData";
-import { HOME_PANEL_VW, MOTTO_DEFAULT_BG, MOTTO_PANEL_VW } from "./homeLayout";
-import { comteColors } from "@/lib/comte-colors";
+import { HOME_PANEL_VW, LANDING_HOME_BG, MOTTO_DEFAULT_BG, MOTTO_PANEL_VW } from "./homeLayout";
 
 type WithInterstitial = { interstitial?: InterstitialData };
 
@@ -36,12 +36,6 @@ export type HomeData = {
     whoAreWeTitle?: string;
     whoAreWe?: string;
   };
-  aboutOffice: WithInterstitial & {
-    locations: OfficeLocation[];
-    mediaImageUrl?: string;
-    mediaImageAlt?: string;
-    mediaVideoUrl?: string;
-  };
   whatWeDo: WithInterstitial & {
     textbox?: string;
     datapoint1?: { value?: string; label?: string };
@@ -50,8 +44,14 @@ export type HomeData = {
   };
   projects: WithInterstitial & { backgroundColor?: string; heading?: string };
   team: WithInterstitial & { heading?: string; members: any[] };
-  publications: WithInterstitial & { heading?: string; items: CardItem[] };
-  ventures: WithInterstitial & { heading?: string; items: CardItem[] };
+  publications: WithInterstitial & { heading?: string; body?: string; items: CardItem[] };
+  ventures: WithInterstitial & {
+    heading?: string;
+    body?: string;
+    featuredVideoUrl?: string;
+    featuredImage?: any;
+    items: CardItem[];
+  };
   contact: WithInterstitial & {
     block1Title?: string;
     block1Body?: string;
@@ -81,6 +81,25 @@ export default function HomePageClient({ data, projects, connections }: Props) {
     setLandingEpoch((n) => n + 1);
   }, []);
 
+  // Track whether the publications section is currently in item-view mode
+  // and (if so) the currently viewed item's title. BlobNav uses these to
+  // render a pink-filled nav-row button beside the publications item.
+  const [pubItemTitle, setPubItemTitle] = useState<string | null>(null);
+  const pubBackHandlerRef = useRef<(() => void) | null>(null);
+  const registerPubBackHandler = useCallback((fn: (() => void) | null) => {
+    pubBackHandlerRef.current = fn;
+  }, []);
+  const publicationsItemView = useMemo(
+    () =>
+      pubItemTitle !== null
+        ? {
+            itemTitle: pubItemTitle,
+            onClick: () => pubBackHandlerRef.current?.(),
+          }
+        : null,
+    [pubItemTitle],
+  );
+
   const initialized = useRef(false);
   if (!initialized.current) {
     setProjectData(projects, connections);
@@ -90,7 +109,7 @@ export default function HomePageClient({ data, projects, connections }: Props) {
   const sections = [
     {
       id: "home",
-      content: <LandingSpacer bgColor={comteColors.darkGreen} />,
+      content: <LandingSpacer bgColor={LANDING_HOME_BG} />,
       interstitial: maybeInterstitial(data.home.interstitial),
       // Wider home pushes the motto / lights panel toward the right edge at
       // the landing snap (~32vw of motto visible).
@@ -108,24 +127,6 @@ export default function HomePageClient({ data, projects, connections }: Props) {
       id: "about-intro",
       content: <SectionAboutIntro {...data.aboutIntro} />,
       interstitial: maybeInterstitial(data.aboutIntro.interstitial),
-    },
-    {
-      id: "about-office",
-      content: (
-        <SectionAboutOffice
-          locations={data.aboutOffice.locations}
-          mediaImageUrl={data.aboutOffice.mediaImageUrl}
-          mediaImageAlt={data.aboutOffice.mediaImageAlt}
-          mediaVideoUrl={data.aboutOffice.mediaVideoUrl}
-        />
-      ),
-      interstitial: maybeInterstitial(data.aboutOffice.interstitial),
-      // Office panel is slightly narrower than the viewport so its right
-      // edge (where what-we-do begins, and where the tilted heading is
-      // anchored) lands close to the viewport's right edge at snap. With
-      // the parallax slide, the heading's line-break visually rests at the
-      // viewport edge: "What do" is in view, "we do" is just off-screen.
-      width: "82vw",
     },
     {
       id: "what-we-do",
@@ -154,12 +155,14 @@ export default function HomePageClient({ data, projects, connections }: Props) {
     {
       id: "publications",
       content: (
-        <SectionCardGrid
-          id="publications"
+        <SectionPublications
           backgroundColor="#FFD2D2"
           foregroundColor="#1F3A32"
           heading={data.publications.heading}
+          body={data.publications.body}
           items={data.publications.items}
+          onItemViewChange={setPubItemTitle}
+          registerBackHandler={registerPubBackHandler}
         />
       ),
       interstitial: maybeInterstitial(data.publications.interstitial),
@@ -167,11 +170,13 @@ export default function HomePageClient({ data, projects, connections }: Props) {
     {
       id: "ventures",
       content: (
-        <SectionCardGrid
-          id="ventures"
+        <SectionVentures
           backgroundColor="#1F3A32"
           foregroundColor="#FFD2D2"
           heading={data.ventures.heading}
+          body={data.ventures.body}
+          featuredVideoUrl={data.ventures.featuredVideoUrl}
+          featuredImage={data.ventures.featuredImage}
           items={data.ventures.items}
         />
       ),
@@ -201,6 +206,7 @@ export default function HomePageClient({ data, projects, connections }: Props) {
         onNavigate={(id) => scrollNavRef.current?.scrollToSection(id)}
         activeSection={activeSection}
         isScrolling={isScrolling}
+        publicationsItemView={publicationsItemView}
       />
       <HorizontalScroll
         sections={sections}

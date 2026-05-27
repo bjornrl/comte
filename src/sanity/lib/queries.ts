@@ -95,20 +95,6 @@ export const ABOUT_INTRO_QUERY = groq`
   }
 `;
 
-export const ABOUT_OFFICE_QUERY = groq`
-  *[_type == "aboutOffice"][0] {
-    locations[] {
-      title,
-      description,
-      address,
-      zoom
-    },
-    mediaImage,
-    "mediaVideoUrl": mediaVideo.asset->url,
-    ${INTERSTITIAL_FIELDS}
-  }
-`;
-
 export const WHAT_WE_DO_QUERY = groq`
   *[_type == "whatWeDo"][0] {
     textbox,
@@ -137,6 +123,7 @@ export const TEAM_SECTION_QUERY = groq`
 export const PUBLICATIONS_SECTION_QUERY = groq`
   *[_type == "publicationsSection"][0] {
     heading,
+    body,
     ${INTERSTITIAL_FIELDS}
   }
 `;
@@ -144,6 +131,14 @@ export const PUBLICATIONS_SECTION_QUERY = groq`
 export const VENTURES_SECTION_QUERY = groq`
   *[_type == "venturesSection"][0] {
     heading,
+    body,
+    "featuredVideoUrl": featuredVideo.asset->url,
+    featuredImage {
+      asset-> { _id, url },
+      alt,
+      hotspot,
+      crop
+    },
     ${INTERSTITIAL_FIELDS}
   }
 `;
@@ -170,7 +165,8 @@ export const TEAM_QUERY = groq`
       hotspot,
       crop
     },
-    email
+    email,
+    phone
   }
 `;
 

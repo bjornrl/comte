@@ -10,10 +10,8 @@
  *       SANITY_PROJECT_ID  =  <your sanity project id, e.g. "ab12cd34">
  *       SANITY_DATASET     =  production
  *       SANITY_TOKEN       =  <an Editor-or-Write API token from manage.sanity.io>
- *       PHOTOS_FOLDER_ID   =  <Drive folder ID containing the project photos>
- *
- *    To get the PHOTOS_FOLDER_ID: open the folder in Google Drive — the URL
- *    is `https://drive.google.com/drive/folders/<FOLDER_ID>`. Copy that ID.
+ *       PHOTOS_FOLDER_ID   =  <Drive folder ID only, e.g. 1TxB…>
+ *                             A full Drive URL also works — the script extracts the ID.
  *    Drop your project photos into this folder and reference them from the
  *    sheet by exact filename in the `photoFilename` column.
  * 3. Reload the sheet. A "Comte Sync" menu appears (`onOpen` fires).
@@ -23,9 +21,12 @@
  *       interval: every 5 minutes
  *    This keeps the sheet in sync with edits made in Sanity Studio.
  *
- * HEADER ROW CONTRACT (row 1, exact names — column order doesn't matter)
- *     ID | Title | Year | Description | Customer | Contact | Mail | Phone |
- *     Main Category | All Categories | Scale | Method | photoFilename
+ * HEADER ROW CONTRACT (row 1 — column order doesn't matter)
+ *     Title | Year | photoFilename | Description | Customer | Contact |
+ *     Mail | phone | Main Category | All Categories | Scale | Method
+ *
+ * Optional: add an ID column if you want the script to write Sanity _ids
+ * back after the first push (helps with updates). Not required for new imports.
  *
  * CELL FORMATS
  *   - Customer / All Categories / Method: multiple values joined by " / ".
@@ -52,25 +53,31 @@
 // The tab name inside the spreadsheet (NOT the spreadsheet's title). The
 // spreadsheet itself is auto-detected via `SpreadsheetApp.getActive()`, so
 // its name (e.g. "Nettsideprosjekter") doesn't matter — only this tab name.
-var SHEET_NAME = "production";
+var SHEET_NAME = "Projects_english";
+var HEADER_ROW = 1;  // row containing ID | Title | Year | …
 var MULTI_SEP = " / ";
 var API_VERSION = "v2024-01-01";
 
-// Sheet header → internal field key
-var HEADER_TO_FIELD = {
+// Internal field keys that must be present in row HEADER_ROW.
+var REQUIRED_FIELDS = ["title"];
+
+// Sheet column label → internal field key (must match row 1 labels exactly).
+var HEADER_ALIASES = {
   "ID": "id",
   "Title": "title",
   "Year": "year",
+  "photoFilename": "photoFilename",
   "Description": "description",
   "Customer": "customers",
   "Contact": "contact",
   "Mail": "mail",
   "Phone": "phone",
+  "phone": "phone",
   "Main Category": "mainCategory",
   "All Categories": "allCategories",
   "Scale": "scale",
+  "Scale (not used)": "scale",
   "Method": "methods",
-  "photoFilename": "photoFilename",
 };
 
 // Friendly category label (what users pick in the dropdown) → schema value
@@ -108,6 +115,8 @@ var METHOD_LABELS = invert_(METHOD_VALUES);
 function onOpen() {
   SpreadsheetApp.getUi()
     .createMenu("Comte Sync")
+    .addItem("Diagnose sheet + Sanity",     "menuDiagnose")
+    .addSeparator()
     .addItem("Push current row to Sanity", "menuPushCurrentRow")
     .addItem("Push all rows to Sanity",     "menuPushAll")
     .addSeparator()
@@ -121,48 +130,128 @@ function onEdit(e) {
     var sheet = e.range.getSheet();
     if (sheet.getName() !== SHEET_NAME) return;
     var row = e.range.getRow();
-    if (row < 2) return;  // ignore header edits
+    if (row <= HEADER_ROW) return;  // ignore header edits
 
     var headers = getHeaderMap_(sheet);
+    validateHeaders_(headers);
     var editedField = fieldForColumn_(headers, e.range.getColumn());
     // Mail and Phone are read-only mirrors.
     if (editedField === "mail" || editedField === "phone") return;
 
-    pushRow_(sheet, row, headers);
+    var result = pushRow_(sheet, row, headers);
+    if (result.status === "pushed") {
+      toast_("Row " + row + " pushed to Sanity.");
+    }
   } catch (err) {
     Logger.log("onEdit error: " + err);
+    toast_("Push failed: " + err);
   }
+}
+
+function menuDiagnose() {
+  var sheet = SpreadsheetApp.getActive().getSheetByName(SHEET_NAME);
+  if (!sheet) {
+    SpreadsheetApp.getUi().alert(
+      "Sheet tab not found: \"" + SHEET_NAME + "\"\n\n" +
+      "Rename your tab to match SHEET_NAME in the script, or update SHEET_NAME."
+    );
+    return;
+  }
+
+  var headers = getHeaderMap_(sheet);
+  var missing = missingHeaders_(headers);
+  var rawHeaders = getRawHeaders_(sheet);
+  var unrecognized = getUnrecognizedHeaders_(sheet);
+  var mappedFields = Object.keys(headers).join(", ") || "(none)";
+  var lines = [
+    "Tab: " + sheet.getName(),
+    "Header row: " + HEADER_ROW,
+    "Row labels: " + (rawHeaders.join(", ") || "(none)"),
+    "Mapped fields: " + mappedFields,
+  ];
+
+  if (unrecognized.length) {
+    lines.push("Unrecognized columns (ignored): " + unrecognized.join(", "));
+  }
+
+  if (missing.length) {
+    lines.push("");
+    lines.push("MISSING required field: " + missing.join(", ") + " (needs a Title column)");
+  } else {
+    lines.push("");
+    lines.push("Headers: OK");
+  }
+
+  try {
+    var count = sanityQuery_('count(*[_type == "project"])', {}).result;
+    lines.push("Sanity connection: OK");
+    lines.push("Project count in Sanity: " + count);
+    lines.push("Project: " + getProp_("SANITY_PROJECT_ID") + " / " + getProp_("SANITY_DATASET"));
+  } catch (err) {
+    lines.push("");
+    lines.push("Sanity connection FAILED:");
+    lines.push(String(err));
+  }
+
+  SpreadsheetApp.getUi().alert(lines.join("\n"));
 }
 
 function menuPushCurrentRow() {
   var sheet = SpreadsheetApp.getActive().getSheetByName(SHEET_NAME);
   if (!sheet) throw new Error("Sheet not found: " + SHEET_NAME);
   var row = SpreadsheetApp.getActiveRange().getRow();
-  if (row < 2) {
-    SpreadsheetApp.getUi().alert("Select a data row first (row ≥ 2).");
+  if (row <= HEADER_ROW) {
+    SpreadsheetApp.getUi().alert("Select a data row first (row > " + HEADER_ROW + ").");
     return;
   }
-  pushRow_(sheet, row, getHeaderMap_(sheet));
-  toast_("Row " + row + " pushed.");
+  var headers = getHeaderMap_(sheet);
+  validateHeaders_(headers);
+  var result = pushRow_(sheet, row, headers);
+  if (result.status === "pushed") {
+    toast_("Row " + row + " pushed. Sanity ID: " + result.id);
+  } else if (result.status === "empty") {
+    SpreadsheetApp.getUi().alert("Row " + row + " has no Title — nothing to push.");
+  } else {
+    SpreadsheetApp.getUi().alert("Row " + row + " was skipped: " + result.reason);
+  }
 }
 
 function menuPushAll() {
   var sheet = SpreadsheetApp.getActive().getSheetByName(SHEET_NAME);
   if (!sheet) throw new Error("Sheet not found: " + SHEET_NAME);
   var headers = getHeaderMap_(sheet);
+  validateHeaders_(headers);
   var lastRow = sheet.getLastRow();
-  var ok = 0;
+  var pushed = 0;
+  var skipped = 0;
+  var empty = 0;
   var fail = 0;
-  for (var r = 2; r <= lastRow; r++) {
+  var firstError = "";
+  for (var r = HEADER_ROW + 1; r <= lastRow; r++) {
     try {
-      pushRow_(sheet, r, headers);
-      ok++;
+      var result = pushRow_(sheet, r, headers);
+      if (result.status === "pushed") pushed++;
+      else if (result.status === "empty") empty++;
+      else skipped++;
     } catch (err) {
-      Logger.log("Row " + r + " failed: " + err);
+      var errMsg = "Row " + r + ": " + err;
+      Logger.log(errMsg);
+      if (!firstError) firstError = String(err);
       fail++;
     }
   }
-  toast_("Pushed " + ok + " rows" + (fail ? ", " + fail + " failed (see logs)" : "") + ".");
+  var msg = "Pushed " + pushed + " to Sanity";
+  if (empty) msg += ", " + empty + " empty (no Title)";
+  if (skipped) msg += ", " + skipped + " skipped";
+  if (fail) msg += ", " + fail + " failed (see Executions log)";
+  toast_(msg + ".");
+  if (pushed === 0) {
+    var detail = firstError
+      ? "\n\nFirst error:\n" + firstError
+      : "\n\nIf pushed = 0, check that row " + HEADER_ROW +
+        " has a column named exactly \"Title\" and data rows have titles filled in.";
+    SpreadsheetApp.getUi().alert(msg + "." + detail);
+  }
 }
 
 function menuPullAll() {
@@ -186,19 +275,19 @@ function pullAll_() {
   var projects = (result && result.result) || [];
 
   // Build a row index by existing _id
-  var idCol = headers["ID"];
+  var idCol = headers["id"];
   var lastRow = sheet.getLastRow();
   var existing = {};
-  if (idCol && lastRow >= 2) {
-    var ids = sheet.getRange(2, idCol, lastRow - 1, 1).getValues();
+  if (idCol && lastRow > HEADER_ROW) {
+    var ids = sheet.getRange(HEADER_ROW + 1, idCol, lastRow - HEADER_ROW, 1).getValues();
     for (var i = 0; i < ids.length; i++) {
       var v = String(ids[i][0] || "").trim();
-      if (v) existing[v] = i + 2;
+      if (v) existing[v] = i + HEADER_ROW + 1;
     }
   }
 
   // Append cursor for projects without an existing row.
-  var appendRow = Math.max(lastRow + 1, 2);
+  var appendRow = Math.max(lastRow + 1, HEADER_ROW + 1);
   for (var p = 0; p < projects.length; p++) {
     var proj = projects[p];
     var targetRow;
@@ -216,14 +305,20 @@ function pullAll_() {
 
 function pushRow_(sheet, row, headers) {
   var data = readRow_(sheet, row, headers);
-  if (!data.title || !String(data.title).trim()) return;  // skip empty rows
+  if (!data.title || !String(data.title).trim()) {
+    return { status: "empty" };
+  }
 
   // Resolve responsible (full name) → teamMember._id
   var responsibleId = null;
   if (data.contact && String(data.contact).trim()) {
-    responsibleId = resolveTeamMember_(String(data.contact).trim());
-    if (!responsibleId) {
-      Logger.log("Row " + row + ": no teamMember matches '" + data.contact + "'");
+    try {
+      responsibleId = resolveTeamMember_(String(data.contact).trim());
+      if (!responsibleId) {
+        Logger.log("Row " + row + ": no teamMember matches '" + data.contact + "'");
+      }
+    } catch (err) {
+      Logger.log("Row " + row + ": teamMember lookup failed — pushing without responsible. " + err);
     }
   }
 
@@ -264,12 +359,14 @@ function pushRow_(sheet, row, headers) {
   if (existingId) {
     doc._id = existingId;
     sanityMutate_([{ createOrReplace: doc }]);
+    return { status: "pushed", id: existingId, mode: "update" };
   } else {
     var resp = sanityMutate_([{ create: doc }]);
     var newId = resp && resp.results && resp.results[0] && resp.results[0].id;
-    if (newId && headers["ID"]) {
-      sheet.getRange(row, headers["ID"]).setValue(newId);
+    if (newId && headers["id"]) {
+      sheet.getRange(row, headers["id"]).setValue(newId);
     }
+    return { status: "pushed", id: newId, mode: "create" };
   }
 }
 
@@ -283,23 +380,23 @@ function writeProjectRow_(sheet, row, headers, p) {
   var responsible = p.responsible || {};
 
   var writes = {
-    "ID":              p._id || "",
-    "Title":           p.title || "",
-    "Year":            p.year || "",
-    "Description":     p.summary || "",
-    "Customer":        customers.join(MULTI_SEP),
-    "Contact":         responsible.name || "",
-    "Mail":            responsible.email || "",
-    "Phone":           responsible.phone || "",
-    "Main Category":   CATEGORY_LABELS[p.mainCategory] || "",
-    "All Categories":  allCats.map(function (v) { return CATEGORY_LABELS[v]; }).filter(Boolean).join(MULTI_SEP),
-    "Scale":           SCALE_LABELS[p.scale] || "",
-    "Method":          (p.methods || []).map(function (v) { return METHOD_LABELS[v]; }).filter(Boolean).join(MULTI_SEP),
-    "photoFilename":   p.photoFilename || "",
+    id:              p._id || "",
+    title:           p.title || "",
+    year:            p.year || "",
+    description:     p.summary || "",
+    customers:       customers.join(MULTI_SEP),
+    contact:         responsible.name || "",
+    mail:            responsible.email || "",
+    phone:           responsible.phone || "",
+    mainCategory:    CATEGORY_LABELS[p.mainCategory] || "",
+    allCategories:   allCats.map(function (v) { return CATEGORY_LABELS[v]; }).filter(Boolean).join(MULTI_SEP),
+    scale:           SCALE_LABELS[p.scale] || "",
+    methods:         (p.methods || []).map(function (v) { return METHOD_LABELS[v]; }).filter(Boolean).join(MULTI_SEP),
+    photoFilename:   p.photoFilename || "",
   };
-  Object.keys(writes).forEach(function (header) {
-    var col = headers[header];
-    if (col) sheet.getRange(row, col).setValue(writes[header]);
+  Object.keys(writes).forEach(function (field) {
+    var col = headers[field];
+    if (col) sheet.getRange(row, col).setValue(writes[field]);
   });
 }
 
@@ -335,29 +432,48 @@ function buildGallery_(filename, existingProjectId, altText) {
   }
 
   // (3) Upload a new asset.
-  var blob = findDriveFile_(filename);
-  if (!blob) {
-    Logger.log("Photo not found in Drive folder: " + filename);
-    return existingProjectId ? undefined : []; // leave gallery untouched on update, empty on create
-  }
-  var assetId = uploadImageToSanity_(blob, filename);
-  if (!assetId) return [];
+  try {
+    var blob = findDriveFile_(filename);
+    if (!blob) {
+      Logger.log("Photo not found in Drive folder: " + filename);
+      return existingProjectId ? undefined : [];
+    }
+    var assetId = uploadImageToSanity_(blob, filename);
+    if (!assetId) return existingProjectId ? undefined : [];
 
-  return [{
-    _key: shortKey_(),
-    _type: "image",
-    alt: altText || "",
-    asset: { _type: "reference", _ref: assetId },
-  }];
+    return [{
+      _key: shortKey_(),
+      _type: "image",
+      alt: altText || "",
+      asset: { _type: "reference", _ref: assetId },
+    }];
+  } catch (err) {
+    Logger.log("Photo upload skipped for " + filename + ": " + err);
+    return existingProjectId ? undefined : [];
+  }
+}
+
+function normalizeDriveFolderId_(raw) {
+  var value = String(raw || "").trim();
+  if (!value) return value;
+  // Accept pasted Drive URLs — extract the folder ID segment.
+  var match = value.match(/\/folders\/([a-zA-Z0-9_-]+)/);
+  if (match) return match[1];
+  return value;
 }
 
 function findDriveFile_(filename) {
-  var folderId = getProp_("PHOTOS_FOLDER_ID");
+  var folderId = normalizeDriveFolderId_(getProp_("PHOTOS_FOLDER_ID"));
+  if (!folderId) {
+    Logger.log("PHOTOS_FOLDER_ID is empty — skipping photo lookup");
+    return null;
+  }
   var folder;
   try {
     folder = DriveApp.getFolderById(folderId);
   } catch (err) {
-    throw new Error("PHOTOS_FOLDER_ID points to a folder this script can't open: " + err);
+    Logger.log("PHOTOS_FOLDER_ID invalid or inaccessible (" + folderId + "): " + err);
+    return null;
   }
   var files = folder.getFilesByName(filename);
   if (!files.hasNext()) return null;
@@ -439,19 +555,60 @@ function getProp_(key) {
 
 function getHeaderMap_(sheet) {
   var lastCol = sheet.getLastColumn();
-  var values = sheet.getRange(1, 1, 1, lastCol).getValues()[0];
+  var values = sheet.getRange(HEADER_ROW, 1, 1, lastCol).getValues()[0];
   var map = {};
   for (var i = 0; i < values.length; i++) {
     var name = String(values[i] || "").trim();
-    if (name) map[name] = i + 1;
+    if (!name) continue;
+    var field = HEADER_ALIASES[name];
+    if (field) map[field] = i + 1;
   }
   return map;
 }
 
+function getRawHeaders_(sheet) {
+  var lastCol = sheet.getLastColumn();
+  var values = sheet.getRange(HEADER_ROW, 1, 1, lastCol).getValues()[0];
+  var list = [];
+  for (var i = 0; i < values.length; i++) {
+    var name = String(values[i] || "").trim();
+    if (name) list.push(name);
+  }
+  return list;
+}
+
+function getUnrecognizedHeaders_(sheet) {
+  var lastCol = sheet.getLastColumn();
+  var values = sheet.getRange(HEADER_ROW, 1, 1, lastCol).getValues()[0];
+  var unknown = [];
+  for (var i = 0; i < values.length; i++) {
+    var name = String(values[i] || "").trim();
+    if (name && !HEADER_ALIASES[name]) unknown.push(name);
+  }
+  return unknown;
+}
+
+function missingHeaders_(headers) {
+  var missing = [];
+  for (var i = 0; i < REQUIRED_FIELDS.length; i++) {
+    if (!headers[REQUIRED_FIELDS[i]]) missing.push(REQUIRED_FIELDS[i]);
+  }
+  return missing;
+}
+
+function validateHeaders_(headers) {
+  var missing = missingHeaders_(headers);
+  if (!missing.length) return;
+  throw new Error(
+    "Missing header row columns: " + missing.join(", ") +
+    ". Found: " + Object.keys(headers).join(", ")
+  );
+}
+
 function fieldForColumn_(headers, col) {
-  var keys = Object.keys(headers);
-  for (var i = 0; i < keys.length; i++) {
-    if (headers[keys[i]] === col) return HEADER_TO_FIELD[keys[i]] || null;
+  var fields = Object.keys(headers);
+  for (var i = 0; i < fields.length; i++) {
+    if (headers[fields[i]] === col) return fields[i];
   }
   return null;
 }
@@ -460,10 +617,8 @@ function readRow_(sheet, row, headers) {
   var lastCol = sheet.getLastColumn();
   var values = sheet.getRange(row, 1, 1, lastCol).getValues()[0];
   var obj = {};
-  Object.keys(headers).forEach(function (header) {
-    var field = HEADER_TO_FIELD[header];
-    if (!field) return;
-    obj[field] = values[headers[header] - 1];
+  Object.keys(headers).forEach(function (field) {
+    obj[field] = values[headers[field] - 1];
   });
   return obj;
 }

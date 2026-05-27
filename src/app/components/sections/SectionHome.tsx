@@ -3,7 +3,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import SectionShell, { PANEL_PADDING } from "./SectionShell";
 import HomeBackgroundNetwork from "../HomeBackgroundNetwork";
-import { comteColors } from "@/lib/comte-colors";
+import { LANDING_HOME_BG, LANDING_HERO_ACCENT, LANDING_HERO_TEXT } from "../homeLayout";
 import {
   HERO_FADE_DURATION_MS,
   HERO_LINE_BASE_DELAY_MS,
@@ -12,9 +12,9 @@ import {
   heroFadeEasing,
 } from "../heroIntroTiming";
 
-const BG = comteColors.darkGreen;
-const HERO_ACCENT = "#FBFF00";
-const HERO_TEXT = "#FFFFFF";
+const BG = LANDING_HOME_BG;
+const HERO_ACCENT = LANDING_HERO_ACCENT;
+const HERO_TEXT = LANDING_HERO_TEXT;
 
 type Props = {
   /** When false, pause the canvas loop to save CPU while off-screen. */
@@ -51,10 +51,12 @@ export default function SectionHome({
       const ventures = document.querySelector<HTMLElement>('[data-nav-item="ventures"]');
       if (!dot || !heading || !ventures) return;
 
-      const venturesRight = ventures.getBoundingClientRect().right;
+      const venturesRect = ventures.getBoundingClientRect();
+      const paddingRight = parseFloat(getComputedStyle(ventures).paddingRight) || 0;
+      const venturesInnerRight = venturesRect.right - paddingRight;
       const headingLeft = heading.getBoundingClientRect().left;
       const dotWidth = dot.getBoundingClientRect().width;
-      setDotLeftPx(venturesRight - headingLeft - dotWidth);
+      setDotLeftPx(venturesInnerRight - headingLeft - dotWidth);
     };
 
     measureInitialDotLeft();
@@ -95,7 +97,7 @@ export default function SectionHome({
           ref={headingRef}
           className="relative font-[family-name:var(--font-manrope)] font-medium"
           style={{
-            fontSize: "clamp(2.4rem, 7.5vw, 6.25rem)",
+            fontSize: "clamp(2.85rem, 8.75vw, 7.25rem)",
             lineHeight: 0.92,
             letterSpacing: "-0.02em",
             color: HERO_TEXT,

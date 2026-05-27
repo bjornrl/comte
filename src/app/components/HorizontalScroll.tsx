@@ -2,8 +2,7 @@
 
 import { Fragment, useRef, useEffect, useLayoutEffect, useCallback, useState, type ReactNode } from "react";
 import { dispatchSectionPrime } from "@/app/hooks/useSectionPrime";
-import { MOTTO_DEFAULT_BG } from "./homeLayout";
-import { comteColors } from "@/lib/comte-colors";
+import { LANDING_HOME_BG, MOTTO_DEFAULT_BG } from "./homeLayout";
 
 export type HorizontalScrollNavApi = {
   goNext: () => void;
@@ -478,32 +477,31 @@ export default function HorizontalScroll({
       if (section) onActiveSectionChange?.(section.id);
     };
 
-    /** Instant jump at clone seams — avoids stopping mid-panel when the
-     *  scroll range can't reach a clone's snap target (e.g. 68vw home). */
+    /** Instant jump at clone seams once the clone panel is actually aligned
+     *  (not merely at maxScroll, which can overshoot and clip clone-first). */
     const maybeTeleportLoopSeam = (): boolean => {
       if (!loopSeamsEnabledRef.current) return false;
       const panels = getSnapPanels();
       const n = numReal();
       if (panels.length < n + 2) return false;
 
-      const scrollLeft = el.scrollLeft;
-      const maxScroll = Math.max(0, el.scrollWidth - el.clientWidth);
+      const panelWidth = el.clientWidth;
+      const threshold = panelWidth * SNAP_THRESHOLD;
+      const { index: nearestIdx, distance: nearestDist } = findNearestSnapIndex();
       const cloneFirst = panels[n + 1];
       const cloneLast = panels[0];
       const firstReal = panels[1];
       const lastReal = panels[n];
       if (!cloneFirst || !cloneLast || !firstReal || !lastReal) return false;
 
-      const { index: nearestIdx } = findNearestSnapIndex();
-      const cloneFirstTarget = getSnapTarget(cloneFirst);
+      // Forward wrap: clone-first is dominant AND aligned with its snap target.
+      if (nearestIdx === n + 1) {
+        const cloneFirstTarget = getSnapTarget(cloneFirst);
+        const aligned =
+          nearestDist <= threshold ||
+          Math.abs(el.scrollLeft - cloneFirstTarget) <= threshold;
+        if (!aligned) return false;
 
-      // Forward wrap: clone-first is dominant, loop end reached, or the
-      // full-width home preload panel has aligned (100vw = home + motto peek).
-      if (
-        nearestIdx === n + 1 ||
-        scrollLeft >= maxScroll - 2 ||
-        scrollLeft >= cloneFirstTarget - 2
-      ) {
         jumpToScrollLeft(getSnapTarget(firstReal));
         lastSnappedIndexRef.current = 1;
         isSnappedRef.current = true;
@@ -511,8 +509,14 @@ export default function HorizontalScroll({
         return true;
       }
 
-      // Backward wrap: clone-last is dominant.
+      // Backward wrap: clone-last is dominant AND aligned.
       if (nearestIdx === 0) {
+        const cloneLastTarget = getSnapTarget(cloneLast);
+        const aligned =
+          nearestDist <= threshold ||
+          Math.abs(el.scrollLeft - cloneLastTarget) <= threshold;
+        if (!aligned) return false;
+
         jumpToScrollLeft(getSnapTarget(lastReal));
         lastSnappedIndexRef.current = n;
         isSnappedRef.current = true;
@@ -546,9 +550,18 @@ export default function HorizontalScroll({
         return;
       }
 
-      // Loop seam: animate to clone then teleport (fallback if instant seam missed).
+      // Loop seam: glide to the clone panel, then teleport once aligned.
       if (isCloneIndex(nearestIdx)) {
-        maybeTeleportLoopSeam();
+        if (maybeTeleportLoopSeam()) {
+          scrolling = false;
+          onScrollingChange?.(false);
+          return;
+        }
+        smoothScrollTo(getSnapTarget(nearest), SNAP_DURATION_MS, () => {
+          maybeTeleportLoopSeam();
+          scrolling = false;
+          onScrollingChange?.(false);
+        });
         return;
       }
 
@@ -663,14 +676,24 @@ export default function HorizontalScroll({
       if (Math.abs(e.deltaX) > Math.abs(e.deltaY)) return;
       if (e.deltaY === 0) return;
 
-      // If the event originated inside an inner horizontal scroller (e.g. the
-      // team-card row), let that handle the wheel.
+      // If the event originated inside a modal dialog or vertical scroller,
+      // let that handle the wheel (project detail card parallax scroll, etc.).
       let node: Element | null = e.target as Element;
       while (node && node !== el) {
         if (node instanceof HTMLElement) {
-          const overflowX = getComputedStyle(node).overflowX;
+          if (node.getAttribute("role") === "dialog") return;
+          if (node.dataset.comteModalScroll === "true") return;
+
+          const style = getComputedStyle(node);
+          const overflowX = style.overflowX;
           if (overflowX === "auto" || overflowX === "scroll") {
             const hasOverflow = node.scrollWidth > node.clientWidth + 1;
+            if (hasOverflow) return;
+          }
+
+          const overflowY = style.overflowY;
+          if (overflowY === "auto" || overflowY === "scroll" || overflowY === "overlay") {
+            const hasOverflow = node.scrollHeight > node.clientHeight + 1;
             if (hasOverflow) return;
           }
         }
@@ -771,7 +794,7 @@ export default function HorizontalScroll({
               className="h-full flex-shrink-0"
               style={{
                 width: cloneFirst.width,
-                backgroundColor: comteColors.darkGreen,
+                backgroundColor: LANDING_HOME_BG,
               }}
             />
             <div

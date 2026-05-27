@@ -1,8 +1,9 @@
 "use client";
 
-import { useRef, useEffect, useState, useCallback, useMemo } from "react";
+import { useRef, useEffect, useState, useCallback, useMemo, useLayoutEffect, type CSSProperties } from "react";
 import Image from "next/image";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight, ArrowLeft, ArrowRight } from "lucide-react";
+import { AnimatePresence, motion } from "framer-motion";
 import type {
   Project as NetProject,
   Domain,
@@ -10,6 +11,7 @@ import type {
   Scale,
 } from "./projectNetworkData";
 import { METHOD_LABELS, SCALE_LABELS } from "./projectNetworkData";
+import { CONTENT_TOP, NAV_HEIGHT_TOTAL, PANEL_PADDING } from "./sections/SectionShell";
 
 // Domains rendered in the cluster view. The palette is tuned for the beige
 // (#F5F5E9) panel background — each colour clears WCAG AA 4.5:1 on beige so
@@ -48,10 +50,643 @@ const VISIBLE_DOMAINS: Domain[] = [
   "policy",
 ];
 
-// Brand colours used by the cluster chrome on the beige background.
+function domainTagBackground(domain: Domain, opacity: number): string {
+  return `color-mix(in srgb, ${DOMAIN_COLORS[domain]} ${opacity * 100}%, transparent)`;
+}
+
+type ViewMode = "node" | "tile";
+
+const BOTTOM_TAG_ROW_GAP = 4;
+const BOTTOM_OFFSET = "clamp(16px, 3vh, 32px)";
+/** Vertical gap below nav (and above tag bar) — matches tile-area top inset. */
+const TILE_VERTICAL_MARGIN = "clamp(1rem, 2vw, 1.5rem)";
+
+// Tile view — uniform padding; row height fits 5 title lines at TILE_FONT_SIZE.
+const TILE_PAD = 12;
+const TILE_FONT_SIZE = "0.875rem";
+const TILE_LINE_HEIGHT = 1.25;
+const TILE_LINE_COUNT = 5;
+const TILE_TITLE_BLOCK = `calc(${TILE_LINE_COUNT} * ${TILE_FONT_SIZE} * ${TILE_LINE_HEIGHT})`;
+const TILE_HEIGHT = `calc(${TILE_TITLE_BLOCK} + ${TILE_PAD * 2}px)`;
+// Reclaim section panel padding; top inset matches TILE_VERTICAL_MARGIN below the nav.
+const TILE_SECTION_TOP = `calc(${CONTENT_TOP} - ${PANEL_PADDING} + ${TILE_VERTICAL_MARGIN})`;
+const TILE_HEADING_BLOCK = "clamp(1.65rem, 3.3vw, 2.75rem)";
+const TILE_GRID_GAP_BELOW_HEADING = "8px";
+const TILE_GRID_TOP = TILE_SECTION_TOP;
+const TILE_GRID_TOP_WITH_HEADING = `calc(${TILE_SECTION_TOP} + ${TILE_HEADING_BLOCK} + ${TILE_GRID_GAP_BELOW_HEADING})`;
+const TILE_FILTER_TRANSITION_S = 0.38;
+const TILE_FILTER_EASE = [0.25, 1, 0.5, 1] as const;
+/** Visible tile rows on page 1 — row 4 reserves its right two columns for pagination. */
+const TILE_VISIBLE_ROWS = 4;
+/** Horizontal inset for tile/node stage — matches nav and section content margins. */
+const CLUSTER_STAGE_INSET = PANEL_PADDING;
+const CLUSTER_PAD_X = 8;
+const CLUSTER_PAD_Y = 8;
+
 const FG_DARK = "#1F3A32";
 const BG_CREAM = "#F5F5E9";
+const TILE_GRID_GAP = 4;
+const TILE_MIN_COL_WIDTH = 148;
+const TILE_PAGINATION_COLOR = "#242423";
+/** Fixed tile grid width — was ~9 cols at desktop; now 8 with hybrid page-1 layout. */
+const TILE_GRID_COLUMNS = 8;
+/** Modal slots on page 1 — each spans 2 cols × 4 rows (8 tiles). */
+const TILE_MODAL_SLOT_COUNT = 3;
+const TILE_MODAL_COL_SPAN = 2;
+/** Side tiles on page 1 — cols 7–8, rows 1–3. */
+const TILE_PAGE1_SIDE_TILE_COUNT = 6;
+const TILE_PAGE1_CAPACITY = TILE_MODAL_SLOT_COUNT + TILE_PAGE1_SIDE_TILE_COUNT;
+/** Full-grid pages (page 2+): 8×4 minus pagination cell (2 cols on last row). */
+const TILE_FULL_PAGE_CAPACITY =
+  TILE_GRID_COLUMNS * TILE_VISIBLE_ROWS - TILE_MODAL_COL_SPAN;
 
+/** Same domain order as the bottom tag menu (left → right), then title A–Z. */
+function sortProjectsForTileGrid(projects: NetProject[]): NetProject[] {
+  return [...projects].sort((a, b) => {
+    const ai = VISIBLE_DOMAINS.indexOf(a.domain);
+    const bi = VISIBLE_DOMAINS.indexOf(b.domain);
+    if (ai !== bi) return ai - bi;
+    return a.name.localeCompare(b.name);
+  });
+}
+
+function tileProjectListsEqual(a: NetProject[], b: NetProject[]): boolean {
+  return a.length === b.length && a.every((p, i) => p.id === b[i].id);
+}
+
+type TileGridLayout = {
+  columns: number;
+  rows: number;
+  page1Capacity: number;
+  fullPageCapacity: number;
+  tileHeightPx: number;
+  paginationWidth: number;
+  colWidth: number;
+};
+
+/** Match TILE_HEIGHT CSS at default 16px root — keep in sync with TILE_* constants. */
+function getTileHeightPx(rootFontSize = 16): number {
+  const fontSize = rootFontSize * 0.875;
+  return TILE_PAD * 2 + TILE_LINE_COUNT * fontSize * TILE_LINE_HEIGHT;
+}
+
+function getTileGridBlockHeight(): string {
+  return `calc(${TILE_VISIBLE_ROWS} * (${TILE_HEIGHT}) + ${(TILE_VISIBLE_ROWS - 1) * TILE_GRID_GAP}px)`;
+}
+
+function computeTileGridLayout(width: number, _height?: number): TileGridLayout {
+  const gap = TILE_GRID_GAP;
+  const columns = TILE_GRID_COLUMNS;
+  const tileHeightPx = getTileHeightPx();
+  const rows = TILE_VISIBLE_ROWS;
+  const colWidth = (width - (columns - 1) * gap) / columns;
+  const paginationWidth = colWidth * TILE_MODAL_COL_SPAN + gap;
+  return {
+    columns,
+    rows,
+    page1Capacity: TILE_PAGE1_CAPACITY,
+    fullPageCapacity: TILE_FULL_PAGE_CAPACITY,
+    tileHeightPx,
+    paginationWidth,
+    colWidth,
+  };
+}
+
+function getSideTileGridPosition(index: number): { col: number; row: number } {
+  const row = Math.floor(index / 2) + 1;
+  const col = index % 2 === 0 ? TILE_GRID_COLUMNS - 1 : TILE_GRID_COLUMNS;
+  return { col, row };
+}
+
+function getFullGridTilePosition(
+  index: number,
+  columns: number = TILE_GRID_COLUMNS,
+): { col: number; row: number } {
+  let n = 0;
+  for (let row = 1; row <= TILE_VISIBLE_ROWS; row++) {
+    for (let col = 1; col <= columns; col++) {
+      if (row === TILE_VISIBLE_ROWS && col >= columns - 1) continue;
+      if (n === index) return { col, row };
+      n++;
+    }
+  }
+  return { col: 1, row: 1 };
+}
+
+function getModalSlotColumnStart(slotIndex: number): number {
+  return 1 + slotIndex * TILE_MODAL_COL_SPAN;
+}
+
+function getProjectGalleryUrls(project: NetProject): string[] {
+  const g = project.galleryUrls?.filter(Boolean);
+  if (g && g.length > 0) return g;
+  if (project.heroImageUrl) return [project.heroImageUrl];
+  return [];
+}
+
+type TilePaginationMode = "next" | "previous";
+
+function TilePaginationButton({
+  mode,
+  width,
+  height,
+  onClick,
+  inline = false,
+}: {
+  mode: TilePaginationMode;
+  width: number | string;
+  height: number | string;
+  onClick: () => void;
+  /** When true, fills a grid cell on page 1 instead of overlaying the stage. */
+  inline?: boolean;
+}) {
+  const [hovered, setHovered] = useState(false);
+  const label = mode === "next" ? "Next page" : "Previous page";
+  const Icon = mode === "next" ? ArrowRight : ArrowLeft;
+  const foreground = hovered ? BG_CREAM : TILE_PAGINATION_COLOR;
+
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      aria-label={label}
+      style={{
+        position: inline ? "relative" : "absolute",
+        ...(inline ? {} : { bottom: 0, right: 0 }),
+        width,
+        height,
+        boxSizing: "border-box",
+        border: `1px solid ${TILE_PAGINATION_COLOR}`,
+        borderRadius: 0,
+        background: hovered ? TILE_PAGINATION_COLOR : "transparent",
+        color: foreground,
+        cursor: "pointer",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        gap: 8,
+        padding: "0 12px",
+        fontFamily: "var(--font-work-sans), system-ui, sans-serif",
+        fontSize: "1rem",
+        fontWeight: 400,
+        letterSpacing: "0.01em",
+        lineHeight: 1,
+        whiteSpace: "nowrap",
+        zIndex: 6,
+        transition: "background 0.2s ease-out, color 0.2s ease-out",
+      }}
+    >
+      <span>{label}</span>
+      <Icon size={18} strokeWidth={2} aria-hidden />
+    </button>
+  );
+}
+
+type TileFilterTransition = { prev: NetProject[]; next: NetProject[] };
+
+type TileProjectGridProps = {
+  tileProjects: NetProject[];
+  stageWidth: number;
+  stageHeight: number;
+  activeProject: string | null;
+  hoveredProject: string | null;
+  onProjectClick: (id: string) => void;
+  onTileHover: (id: string) => void;
+  onGridLeave: () => void;
+  onTilePageChange?: (page: number) => void;
+  isMobile: boolean;
+};
+
+type ProjectTileButtonProps = {
+  project: NetProject;
+  activeProject: string | null;
+  hoveredProject: string | null;
+  isLeaving: boolean;
+  isEntering: boolean;
+  inTransition: boolean;
+  onProjectClick: (id: string) => void;
+  tall?: boolean;
+  style?: CSSProperties;
+};
+
+function ProjectTileButton({
+  project,
+  activeProject,
+  hoveredProject,
+  isLeaving,
+  isEntering,
+  inTransition,
+  onProjectClick,
+  tall = false,
+  style,
+}: ProjectTileButtonProps) {
+  const highlightId = activeProject ?? hoveredProject;
+  const dimmed = highlightId !== null && highlightId !== project.id;
+  const targetOpacity = isLeaving ? 0 : dimmed ? 0.45 : 1;
+
+  return (
+    <motion.button
+      type="button"
+      data-project-tile
+      data-project-id={project.id}
+      layout={false}
+      onClick={() => onProjectClick(project.id)}
+      aria-label={project.name}
+      initial={
+        isEntering ? { opacity: 0, backgroundColor: DOMAIN_COLORS[project.domain] } : false
+      }
+      animate={{
+        backgroundColor: DOMAIN_COLORS[project.domain],
+        opacity: targetOpacity,
+      }}
+      transition={{
+        backgroundColor: { duration: TILE_FILTER_TRANSITION_S, ease: TILE_FILTER_EASE },
+        opacity: {
+          duration: inTransition ? TILE_FILTER_TRANSITION_S : 0.12,
+          ease: TILE_FILTER_EASE,
+        },
+      }}
+      style={{
+        boxSizing: "border-box",
+        position: "relative",
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "flex-start",
+        justifyContent: "flex-end",
+        textAlign: "left",
+        color: BG_CREAM,
+        border: "none",
+        padding: TILE_PAD,
+        height: tall ? "100%" : "100%",
+        minHeight: tall ? undefined : TILE_HEIGHT,
+        maxHeight: tall ? undefined : TILE_HEIGHT,
+        cursor: isLeaving ? "default" : "pointer",
+        overflow: "hidden",
+        pointerEvents: isLeaving ? "none" : "auto",
+        ...style,
+      }}
+    >
+      <AnimatePresence mode="popLayout" initial={false}>
+        <motion.span
+          key={project.id}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: TILE_FILTER_TRANSITION_S * 0.72, ease: TILE_FILTER_EASE }}
+          style={{
+            margin: 0,
+            width: "100%",
+            display: "-webkit-box",
+            WebkitLineClamp: tall ? TILE_LINE_COUNT * 2 : TILE_LINE_COUNT,
+            WebkitBoxOrient: "vertical",
+            overflow: "hidden",
+            maxHeight: tall ? undefined : TILE_TITLE_BLOCK,
+            fontFamily: "var(--font-manrope), system-ui, sans-serif",
+            fontSize: TILE_FONT_SIZE,
+            fontWeight: 600,
+            lineHeight: TILE_LINE_HEIGHT,
+            textAlign: "left",
+          }}
+        >
+          {project.name}
+        </motion.span>
+      </AnimatePresence>
+    </motion.button>
+  );
+}
+
+function TileProjectGrid({
+  tileProjects,
+  stageWidth,
+  stageHeight,
+  activeProject,
+  hoveredProject,
+  onProjectClick,
+  onTileHover,
+  onGridLeave,
+  onTilePageChange,
+  isMobile,
+}: TileProjectGridProps) {
+  const [tilePage, setTilePage] = useState(0);
+  const [transition, setTransition] = useState<TileFilterTransition | null>(null);
+  const committedRef = useRef<NetProject[]>(tileProjects);
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const gridRef = useRef<HTMLDivElement>(null);
+  const onTileHoverRef = useRef(onTileHover);
+  const onGridLeaveRef = useRef(onGridLeave);
+  useEffect(() => {
+    onTileHoverRef.current = onTileHover;
+  }, [onTileHover]);
+  useEffect(() => {
+    onGridLeaveRef.current = onGridLeave;
+  }, [onGridLeave]);
+
+  useEffect(() => {
+    const el = gridRef.current;
+    if (!el) return;
+    const onMove = (e: PointerEvent) => {
+      const target = e.target as HTMLElement | null;
+      const tile = target?.closest("[data-project-tile]");
+      if (tile instanceof HTMLElement && tile.dataset.projectId) {
+        onTileHoverRef.current(tile.dataset.projectId);
+      }
+    };
+    const onLeave = () => onGridLeaveRef.current();
+    el.addEventListener("pointermove", onMove, { passive: true });
+    el.addEventListener("pointerleave", onLeave);
+    el.addEventListener("pointercancel", onLeave);
+    return () => {
+      el.removeEventListener("pointermove", onMove);
+      el.removeEventListener("pointerleave", onLeave);
+      el.removeEventListener("pointercancel", onLeave);
+    };
+  }, []);
+
+  const layout = useMemo(
+    () => computeTileGridLayout(stageWidth, stageHeight),
+    [stageWidth, stageHeight],
+  );
+
+  const showPagination = tileProjects.length > layout.page1Capacity;
+
+  const displayProjects = useMemo(() => {
+    if (!showPagination) return tileProjects;
+    if (tilePage === 0) return tileProjects.slice(0, layout.page1Capacity);
+    return tileProjects.slice(layout.page1Capacity);
+  }, [tileProjects, tilePage, showPagination, layout.page1Capacity]);
+
+  useEffect(() => {
+    setTilePage(0);
+  }, [tileProjects]);
+
+  useEffect(() => {
+    onTilePageChange?.(tilePage);
+  }, [tilePage, onTilePageChange]);
+
+  useEffect(() => {
+    scrollRef.current?.scrollTo({ top: 0 });
+    onGridLeaveRef.current();
+  }, [tilePage]);
+
+  useEffect(() => {
+    const prev = committedRef.current;
+    if (tileProjectListsEqual(prev, displayProjects)) return;
+
+    if (
+      typeof window !== "undefined" &&
+      window.matchMedia("(prefers-reduced-motion: reduce)").matches
+    ) {
+      committedRef.current = displayProjects;
+      return;
+    }
+
+    setTransition({ prev, next: displayProjects });
+    const timer = window.setTimeout(() => {
+      setTransition(null);
+      committedRef.current = displayProjects;
+    }, TILE_FILTER_TRANSITION_S * 1000);
+
+    return () => window.clearTimeout(timer);
+  }, [displayProjects]);
+
+  const prev = transition?.prev ?? displayProjects;
+  const next = transition?.next ?? displayProjects;
+  const inTransition = transition !== null;
+
+  const paginationMode: TilePaginationMode = tilePage === 0 ? "next" : "previous";
+  const gridBlockHeight = getTileGridBlockHeight();
+  const isPage1Layout = tilePage === 0;
+
+  const getProjectAt = (list: NetProject[], index: number) => list[index] ?? null;
+  const slotState = (index: number) => {
+    const isLeaving = inTransition && index >= next.length;
+    const isEntering = inTransition && index >= prev.length && index < next.length;
+    const project = isLeaving ? getProjectAt(prev, index) : getProjectAt(next, index);
+    return { isLeaving, isEntering, project };
+  };
+
+  const paginationCell = showPagination ? (
+    <div
+      style={{
+        gridColumn: `${layout.columns - 1} / span ${TILE_MODAL_COL_SPAN}`,
+        gridRow: TILE_VISIBLE_ROWS,
+        height: TILE_HEIGHT,
+        minHeight: TILE_HEIGHT,
+        maxHeight: TILE_HEIGHT,
+      }}
+    >
+      <TilePaginationButton
+        inline
+        mode={paginationMode}
+        width="100%"
+        height="100%"
+        onClick={() => setTilePage(tilePage === 0 ? 1 : 0)}
+      />
+    </div>
+  ) : null;
+
+  const renderModalSlot = (slotIndex: number) => {
+    const index = slotIndex;
+    const { isLeaving, isEntering, project } = slotState(index);
+    if (!project) return null;
+
+    const colStart = getModalSlotColumnStart(slotIndex);
+
+    return (
+      <motion.div
+        key={`modal-slot-${slotIndex}-${project.id}`}
+        initial={isEntering ? { opacity: 0 } : false}
+        animate={{ opacity: isLeaving ? 0 : 1 }}
+        transition={{ duration: TILE_FILTER_TRANSITION_S, ease: TILE_FILTER_EASE }}
+        style={{
+          gridColumn: `${colStart} / span ${TILE_MODAL_COL_SPAN}`,
+          gridRow: `1 / span ${TILE_VISIBLE_ROWS}`,
+          minHeight: 0,
+          height: "100%",
+          overflow: "hidden",
+        }}
+      >
+        <ExpandedProjectCard
+          embedded
+          project={project}
+          onClose={() => {}}
+          isMobile={isMobile}
+          showClose={false}
+        />
+      </motion.div>
+    );
+  };
+
+  const renderSideTile = (sideIndex: number) => {
+    const index = TILE_MODAL_SLOT_COUNT + sideIndex;
+    const { isLeaving, isEntering, project } = slotState(index);
+    if (!project) return null;
+
+    const { col, row } = getSideTileGridPosition(sideIndex);
+
+    return (
+      <ProjectTileButton
+        key={`side-tile-${sideIndex}`}
+        project={project}
+        activeProject={activeProject}
+        hoveredProject={hoveredProject}
+        isLeaving={isLeaving}
+        isEntering={isEntering}
+        inTransition={inTransition}
+        onProjectClick={onProjectClick}
+        style={{ gridColumn: col, gridRow: row }}
+      />
+    );
+  };
+
+  const renderFullGridTile = (index: number) => {
+    const { isLeaving, isEntering, project } = slotState(index);
+    if (!project) return null;
+
+    const { col, row } = getFullGridTilePosition(index, layout.columns);
+
+    return (
+      <ProjectTileButton
+        key={`full-tile-${index}`}
+        project={project}
+        activeProject={activeProject}
+        hoveredProject={hoveredProject}
+        isLeaving={isLeaving}
+        isEntering={isEntering}
+        inTransition={inTransition}
+        onProjectClick={onProjectClick}
+        style={{ gridColumn: col, gridRow: row }}
+      />
+    );
+  };
+
+  return (
+    <div style={{ position: "absolute", inset: 0, zIndex: 5 }}>
+      <div
+        style={{
+          position: "relative",
+          height: gridBlockHeight,
+          maxHeight: gridBlockHeight,
+        }}
+      >
+        <div
+          ref={scrollRef}
+          style={{
+            height: "100%",
+            overflow: "hidden",
+            boxSizing: "border-box",
+          }}
+        >
+          <div
+            ref={gridRef}
+            style={{
+              display: "grid",
+              gridTemplateColumns: `repeat(${layout.columns}, minmax(0, 1fr))`,
+              gridTemplateRows: `repeat(${TILE_VISIBLE_ROWS}, ${TILE_HEIGHT})`,
+              gap: TILE_GRID_GAP,
+              alignContent: "start",
+              height: "100%",
+            }}
+          >
+            {isPage1Layout ? (
+              <>
+                {Array.from({ length: TILE_MODAL_SLOT_COUNT }, (_, i) => renderModalSlot(i))}
+                {Array.from({ length: TILE_PAGE1_SIDE_TILE_COUNT }, (_, i) => renderSideTile(i))}
+                {paginationCell}
+              </>
+            ) : (
+              <>
+                {Array.from({ length: displayProjects.length }, (_, i) => renderFullGridTile(i))}
+                {paginationCell}
+              </>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ViewModeToggle({
+  viewMode,
+  onChange,
+  width,
+}: {
+  viewMode: ViewMode;
+  onChange: (mode: ViewMode) => void;
+  width: number;
+}) {
+  const [hoveredId, setHoveredId] = useState<ViewMode | null>(null);
+  const segments: Array<{ id: ViewMode; label: string }> = [
+    { id: "tile", label: "Tile" },
+    { id: "node", label: "Node" },
+  ];
+
+  return (
+    <div
+      role="group"
+      aria-label="Project view mode"
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        width,
+        minWidth: width,
+        maxWidth: width,
+        height: "100%",
+        border: `1px solid ${TILE_PAGINATION_COLOR}`,
+        padding: 4,
+        gap: TILE_GRID_GAP,
+        flexShrink: 0,
+        boxSizing: "border-box",
+      }}
+    >
+      {segments.map(({ id, label }) => {
+        const selected = viewMode === id;
+        const hovered = hoveredId === id;
+        const outlined = selected || hovered;
+        return (
+          <button
+            key={id}
+            type="button"
+            onClick={() => onChange(id)}
+            onMouseEnter={() => setHoveredId(id)}
+            onMouseLeave={() => setHoveredId(null)}
+            aria-pressed={selected}
+            style={{
+              flex: 1,
+              width: "100%",
+              minHeight: 0,
+              padding: "0 4px",
+              boxSizing: "border-box",
+              border: outlined
+                ? `1px solid ${TILE_PAGINATION_COLOR}`
+                : "1px solid transparent",
+              background: "transparent",
+              color: TILE_PAGINATION_COLOR,
+              fontFamily: "var(--font-work-sans), system-ui, sans-serif",
+              fontSize: "1rem",
+              fontWeight: 400,
+              letterSpacing: "0.01em",
+              cursor: "pointer",
+              lineHeight: 1,
+              whiteSpace: "nowrap",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              transition: "border-color 0.2s ease-out, color 0.2s ease-out",
+            }}
+          >
+            {label}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+// Brand colours used by the cluster chrome on the beige background.
 // Stable seed for the random scatter so the dot layout doesn't reshuffle on
 // every render (which would jitter the constellation as projects load in).
 const SCATTER_SEED = "comte-projects-scatter";
@@ -136,12 +771,22 @@ export default function ProjectCluster({ projects, backgroundColor, heading }: P
   );
 
   const containerRef = useRef<HTMLDivElement>(null);
-  const [containerSize, setContainerSize] = useState({ w: 0, h: 0 });
+  const clusterStageRef = useRef<HTMLDivElement>(null);
+  const [stageSize, setStageSize] = useState({ w: 0, h: 0 });
   const [activeProject, setActiveProject] = useState<string | null>(null);
   const [hoveredProject, setHoveredProject] = useState<string | null>(null);
   const [activeFilter, setActiveFilter] = useState<Domain | null>(null);
+  const [hoveredFilter, setHoveredFilter] = useState<Domain | null>(null);
+  const [viewMode, setViewMode] = useState<ViewMode>("tile");
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
   const [photoIdx, setPhotoIdx] = useState(0);
+
+  const tileProjects = useMemo(() => {
+    const pool = activeFilter
+      ? activeProjects.filter((p) => p.domain === activeFilter)
+      : activeProjects;
+    return sortProjectsForTileGrid(pool);
+  }, [activeProjects, activeFilter]);
 
   // Refs used by the rAF loop that drives the per-dot drift and cursor-snap
   // motion. Keeping these out of React state means the animation never
@@ -159,11 +804,18 @@ export default function ProjectCluster({ projects, backgroundColor, heading }: P
   // avoid calling setHoveredProject every frame, only on actual transitions.
   const lastHoverIdRef = useRef<string | null>(null);
 
-  // Measure container
   useEffect(() => {
-    const el = containerRef.current;
+    if (viewMode === "node") {
+      lastHoverIdRef.current = null;
+      setHoveredProject(null);
+    }
+  }, [viewMode]);
+
+  // Measure the inset tile/node stage (page margins on left and right).
+  useEffect(() => {
+    const el = clusterStageRef.current;
     if (!el) return;
-    const measure = () => setContainerSize({ w: el.clientWidth, h: el.clientHeight });
+    const measure = () => setStageSize({ w: el.clientWidth, h: el.clientHeight });
     measure();
     const ro = new ResizeObserver(measure);
     ro.observe(el);
@@ -177,18 +829,12 @@ export default function ProjectCluster({ projects, backgroundColor, heading }: P
   // clears the bar within the budget, the dot is placed at the last
   // candidate (so we never infinite-loop on dense layouts).
   const dotPositions = useMemo(() => {
-    if (containerSize.w === 0) return new Map<string, { x: number; y: number }>();
-    const isMobile = containerSize.w < 768;
-    // Reserve generous top room for the section heading and bottom room for
-    // the (navbar-sized) filter bar. The bottom budget covers the filter
-    // pills (48 px tall) + their bottom offset (clamp 16–32 px) + a
-    // breathing gap, doubled-up so wrapped pill rows on narrower viewports
-    // still don't touch any dots.
-    const padX = isMobile ? 24 : 80;
-    const padTop = isMobile ? 140 : 180;
-    const padBottom = isMobile ? 200 : 200;
-    const usableW = Math.max(0, containerSize.w - padX * 2);
-    const usableH = Math.max(0, containerSize.h - padTop - padBottom);
+    if (stageSize.w === 0) return new Map<string, { x: number; y: number }>();
+    const padX = CLUSTER_PAD_X;
+    const padTop = CLUSTER_PAD_Y;
+    const padBottom = CLUSTER_PAD_Y;
+    const usableW = Math.max(0, stageSize.w - padX * 2);
+    const usableH = Math.max(0, stageSize.h - padTop - padBottom);
     if (usableW === 0 || usableH === 0)
       return new Map<string, { x: number; y: number }>();
 
@@ -230,7 +876,7 @@ export default function ProjectCluster({ projects, backgroundColor, heading }: P
       }
     }
     return positions;
-  }, [containerSize, activeProjects]);
+  }, [stageSize, activeProjects]);
 
   // Constellation lines — every node ends up with at most MAX_DEGREE edges.
   // For each project we shuffle its NEAREST_POOL closest neighbours and walk
@@ -333,8 +979,9 @@ export default function ProjectCluster({ projects, backgroundColor, heading }: P
   // the web breathes with the dots. All updates go straight to the DOM —
   // no setState, no re-renders.
   useEffect(() => {
-    const section = containerRef.current;
-    if (!section || dotPositions.size === 0) return;
+    if (viewMode !== "node") return;
+    const stage = clusterStageRef.current;
+    if (!stage || dotPositions.size === 0) return;
 
     // Per-project drift phases/frequencies, seeded from the project ID so
     // the assignments are stable across mounts and every dot wobbles on
@@ -373,18 +1020,15 @@ export default function ProjectCluster({ projects, backgroundColor, heading }: P
 
     const tick = (now: number) => {
       const t = (now - t0) / 1000;
-      const rect = section.getBoundingClientRect();
+      const rect = stage.getBoundingClientRect();
       const W = rect.width;
       const H = rect.height;
       const mx = mousePosRef.current.x - rect.left;
       const my = mousePosRef.current.y - rect.top;
 
-      // Keep translated dot hit-boxes inside the same padded “field” used for
-      // scatter placement (must stay in sync with dotPositions memo).
-      const mobile = W < 768;
-      const padX = mobile ? 24 : 80;
-      const padTop = mobile ? 140 : 180;
-      const padBottom = mobile ? 200 : 200;
+      const padX = CLUSTER_PAD_X;
+      const padTop = CLUSTER_PAD_Y;
+      const padBottom = CLUSTER_PAD_Y;
       const HIT = 44; // px — must match dot button wrapper
 
       // Single pass: nearest anchor to cursor wins snap/hover for that frame.
@@ -490,13 +1134,18 @@ export default function ProjectCluster({ projects, backgroundColor, heading }: P
     return () => {
       if (rafId !== null) cancelAnimationFrame(rafId);
     };
-  }, [dotPositions, activeProjects, lines, activeFilter]);
+  }, [dotPositions, activeProjects, lines, activeFilter, viewMode]);
 
   const handleDotClick = useCallback((projectId: string) => {
     setActiveProject((prev) => (prev === projectId ? null : projectId));
   }, []);
   const handleFilterClick = useCallback((domain: Domain) => {
+    setHoveredProject(null);
     setActiveFilter((prev) => (prev === domain ? null : domain));
+  }, []);
+
+  const handleTileHover = useCallback((projectId: string) => {
+    setHoveredProject(projectId);
   }, []);
 
   // Native pointer-event listener for the cursor. React's synthetic
@@ -511,7 +1160,8 @@ export default function ProjectCluster({ projects, backgroundColor, heading }: P
   // to jitter instead of smoothly converging on the cursor. State is only
   // needed for the tooltip's position, so this throttle is invisible.
   useEffect(() => {
-    const el = containerRef.current;
+    if (viewMode !== "node") return;
+    const el = clusterStageRef.current;
     if (!el) return;
     let rafPending = false;
     const flushState = () => {
@@ -541,7 +1191,7 @@ export default function ProjectCluster({ projects, backgroundColor, heading }: P
       el.removeEventListener("pointerleave", onLeave);
       el.removeEventListener("pointercancel", onLeave);
     };
-  }, []);
+  }, [viewMode]);
 
   const hoveredData = hoveredProject ? activeProjects.find((p) => p.id === hoveredProject) : null;
   const activeData = activeProject ? activeProjects.find((p) => p.id === activeProject) : null;
@@ -552,13 +1202,25 @@ export default function ProjectCluster({ projects, backgroundColor, heading }: P
 
   const galleryUrls = useMemo(() => {
     if (!activeData) return [];
-    const g = activeData.galleryUrls?.filter(Boolean);
-    if (g && g.length > 0) return g;
-    if (activeData.heroImageUrl) return [activeData.heroImageUrl];
-    return [];
+    return getProjectGalleryUrls(activeData);
   }, [activeData]);
 
-  const isMobile = containerSize.w < 768;
+  const showOverlayCard = Boolean(activeData);
+
+  const isMobile = stageSize.w > 0 && stageSize.w < 768;
+  const clusterStageTop = heading ? TILE_GRID_TOP_WITH_HEADING : TILE_GRID_TOP;
+  const navToTileAreaGap = heading
+    ? `calc(${TILE_VERTICAL_MARGIN} + ${TILE_HEADING_BLOCK} + ${TILE_GRID_GAP_BELOW_HEADING})`
+    : TILE_VERTICAL_MARGIN;
+  const tileGridBlockHeight = getTileGridBlockHeight();
+  /** Top edge of the filter bar — gap below the tile grid matches nav-to-tile inset. */
+  const tagBarTop = `calc(${clusterStageTop} + ${tileGridBlockHeight} + ${navToTileAreaGap})`;
+  /** Half the space between the tile grid and the section bottom margin. */
+  const filterBarHeight = `calc((100% - ${tagBarTop} - ${BOTTOM_OFFSET}) / 2)`;
+  const tileColWidth = useMemo(() => {
+    if (stageSize.w <= 0) return TILE_MIN_COL_WIDTH;
+    return computeTileGridLayout(stageSize.w, stageSize.h).colWidth;
+  }, [stageSize.w, stageSize.h]);
 
   return (
     <section
@@ -574,9 +1236,8 @@ export default function ProjectCluster({ projects, backgroundColor, heading }: P
         <div
           style={{
             position: "absolute",
-            // Sits one PANEL_PADDING below the nav (same as other sections).
-            top: "calc(clamp(1rem, 2.5vw, 2.5rem) + 48px + clamp(2rem, 5vw, 5rem))",
-            left: "clamp(2rem, 5vw, 5rem)",
+            top: TILE_SECTION_TOP,
+            left: CLUSTER_STAGE_INSET,
             zIndex: 10,
             maxWidth: "20ch",
           }}
@@ -596,68 +1257,112 @@ export default function ProjectCluster({ projects, backgroundColor, heading }: P
         </div>
       )}
 
-      {/* Tag filter pills. Size + typography match BlobNav (48 px tall,
-          Work Sans 0.95 rem, 4 px gap) so the bottom bar reads as the
-          horizontal counterpart to the top nav. Per-domain colour is kept
-          as the visual cue: outlined-in-domain-colour when idle, filled
-          when active. */}
+      {/* Bottom bar: view-mode toggle + domain tag filters, left-aligned to page margin. */}
       <div
         style={{
           position: "absolute",
-          bottom: "clamp(16px, 3vh, 32px)",
-          left: "50%",
-          transform: "translateX(-50%)",
+          top: tagBarTop,
+          left: CLUSTER_STAGE_INSET,
+          right: CLUSTER_STAGE_INSET,
+          height: filterBarHeight,
           display: "flex",
-          gap: 4,
-          flexWrap: "wrap",
-          justifyContent: "center",
+          alignItems: "flex-start",
+          gap: TILE_GRID_GAP,
           zIndex: 10,
-          padding: "0 16px",
-          maxWidth: "calc(100vw - 32px)",
         }}
       >
-        {VISIBLE_DOMAINS.map((domain) => {
-          const isActive = activeFilter === domain;
-          return (
-            <button
-              key={domain}
-              onClick={() => handleFilterClick(domain)}
-              aria-label={`Filter by ${DOMAIN_LABELS[domain]}`}
-              aria-pressed={isActive}
-              style={{
-                // 48 px tall to mirror BlobNav's BOX_HEIGHT. Padding is
-                // also asymmetric (top 4, bottom 0) so the lowercase text
-                // sits slightly below visual centre — the same trick the
-                // nav uses to centre Work Sans's x-height optically.
-                height: 48,
-                padding: "4px 14px 0 14px",
-                border: `1px solid ${DOMAIN_COLORS[domain]}`,
-                borderRadius: 0,
-                fontFamily: "var(--font-work-sans), system-ui, sans-serif",
-                fontSize: "0.95rem",
-                fontWeight: 400,
-                letterSpacing: "0.01em",
-                textTransform: "lowercase",
-                color: isActive ? BG_CREAM : DOMAIN_COLORS[domain],
-                background: isActive ? DOMAIN_COLORS[domain] : "transparent",
-                cursor: "pointer",
-                transition: "background 0.2s ease-out, color 0.2s ease-out",
-                whiteSpace: "nowrap",
-                lineHeight: 1,
-              }}
-            >
-              {DOMAIN_LABELS[domain]}
-            </button>
-          );
-        })}
+        <ViewModeToggle viewMode={viewMode} onChange={setViewMode} width={tileColWidth} />
+        <div
+          style={{
+            flex: 1,
+            minWidth: 0,
+            height: "100%",
+            display: "grid",
+            gridTemplateColumns: "repeat(4, minmax(0, 1fr))",
+            gridTemplateRows: "1fr 1fr",
+            gap: TILE_GRID_GAP,
+          }}
+        >
+          {VISIBLE_DOMAINS.map((domain) => {
+            const isActive = activeFilter === domain;
+            const isHovered = hoveredFilter === domain;
+            const tagBackground = isActive
+              ? DOMAIN_COLORS[domain]
+              : isHovered
+                ? domainTagBackground(domain, 0.5)
+                : "transparent";
+            const tagColor = isActive || isHovered ? BG_CREAM : DOMAIN_COLORS[domain];
+            return (
+              <button
+                key={domain}
+                onClick={() => handleFilterClick(domain)}
+                onMouseEnter={() => setHoveredFilter(domain)}
+                onMouseLeave={() => setHoveredFilter(null)}
+                aria-label={`Filter by ${DOMAIN_LABELS[domain]}`}
+                aria-pressed={isActive}
+                style={{
+                  width: "100%",
+                  boxSizing: "border-box",
+                  height: "100%",
+                  minHeight: 0,
+                  padding: "4px 8px 0 8px",
+                  border: `1px solid ${DOMAIN_COLORS[domain]}`,
+                  borderRadius: 0,
+                  fontFamily: "var(--font-work-sans), system-ui, sans-serif",
+                  fontSize: "1rem",
+                  fontWeight: 400,
+                  letterSpacing: "0.01em",
+                  textTransform: "lowercase",
+                  color: tagColor,
+                  background: tagBackground,
+                  cursor: "pointer",
+                  transition: "background 0.2s ease-out, color 0.2s ease-out",
+                  whiteSpace: "nowrap",
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                  lineHeight: 1,
+                }}
+              >
+                {DOMAIN_LABELS[domain]}
+              </button>
+            );
+          })}
+        </div>
       </div>
+
+      {/* Tile + node field — inset to page margins. */}
+      <div
+        ref={clusterStageRef}
+        style={{
+          position: "absolute",
+          top: clusterStageTop,
+          left: CLUSTER_STAGE_INSET,
+          right: CLUSTER_STAGE_INSET,
+          height: tileGridBlockHeight,
+          overflow: "hidden",
+        }}
+      >
+      {/* Tile grid — domain-coloured cards in tag-menu order (LTR, matches bottom bar). */}
+      {viewMode === "tile" && (
+        <TileProjectGrid
+          tileProjects={tileProjects}
+          stageWidth={stageSize.w}
+          stageHeight={stageSize.h}
+          activeProject={activeProject}
+          hoveredProject={hoveredProject}
+          onProjectClick={handleDotClick}
+          onGridLeave={() => setHoveredProject(null)}
+          onTileHover={handleTileHover}
+          isMobile={isMobile}
+        />
+      )}
 
       {/* Constellation lines. Dark-green hairlines on beige; the per-line
           opacity reacts to hover / open card / active filter so the web
           recedes when something else demands attention. With endpoints'
           IDs stored, the filter logic dims lines whose endpoints don't
           touch the active filter. */}
-      {containerSize.w > 0 && (
+      {viewMode === "node" && stageSize.w > 0 && (
         <svg
           style={{ position: "absolute", inset: 0, width: "100%", height: "100%", pointerEvents: "none" }}
           aria-hidden="true"
@@ -707,7 +1412,7 @@ export default function ProjectCluster({ projects, backgroundColor, heading }: P
           none` so it never competes with the wrapper for events. This
           collapses the old two-button structure (visible + invisible-on-
           top) that was creating hit-test ambiguity. */}
-      {containerSize.w > 0 &&
+      {viewMode === "node" && stageSize.w > 0 &&
         activeProjects.map((project) => {
           const pos = dotPositions.get(project.id);
           if (!pos) return null;
@@ -801,9 +1506,10 @@ export default function ProjectCluster({ projects, backgroundColor, heading }: P
             </button>
           );
         })}
+      </div>
 
       {/* Hover tooltip */}
-      {hoveredData && !activeProject && !isMobile && (
+      {viewMode === "node" && hoveredData && !activeProject && !isMobile && (
         <div
           style={{
             position: "fixed",
@@ -828,7 +1534,7 @@ export default function ProjectCluster({ projects, backgroundColor, heading }: P
       )}
 
       {/* Expanded detail card */}
-      {activeData && (
+      {showOverlayCard && activeData && (
         <ExpandedProjectCard
           project={activeData}
           galleryUrls={galleryUrls}
@@ -875,39 +1581,122 @@ export default function ProjectCluster({ projects, backgroundColor, heading }: P
 
 type ExpandedProjectCardProps = {
   project: NetProject;
-  galleryUrls: string[];
-  photoIdx: number;
-  setPhotoIdx: (updater: (i: number) => number) => void;
+  galleryUrls?: string[];
+  photoIdx?: number;
+  setPhotoIdx?: (updater: (i: number) => number) => void;
   onClose: () => void;
   isMobile: boolean;
+  /** Fills a tile-grid cell (2×4) instead of a centered overlay. */
+  embedded?: boolean;
+  showClose?: boolean;
 };
 
-// Parallax factor: how slowly the carousel image moves relative to the
-// card's scroll. 0 = stick to text (no parallax), 1 = scroll at same speed
-// (also no parallax). 0.5 = image moves at half speed, so it lags the text.
+// Parallax factor: scrolled text moves at this fraction of scroll speed (lags the scroll).
 const CARD_PARALLAX_FACTOR = 0.5;
+/** Extra image height inside the clip so parallax has room to travel (overlay mode). */
+const CARD_IMAGE_PARALLAX_HEADROOM = 1.25;
+/** Matches BlobNav OUTER_GAP / ITEM_GAP_PX between navbar elements. */
+const CARD_MODAL_NAV_GAP = "4px";
+/** Centered modal top clears nav bottom by CARD_MODAL_NAV_GAP at max height. */
+const CARD_MAX_HEIGHT = `calc(100vh - 2 * (${NAV_HEIGHT_TOTAL}) - 2 * ${CARD_MODAL_NAV_GAP})`;
 
 function ExpandedProjectCard({
   project,
-  galleryUrls,
-  photoIdx,
-  setPhotoIdx,
+  galleryUrls: galleryUrlsProp,
+  photoIdx: photoIdxProp = 0,
+  setPhotoIdx: setPhotoIdxProp,
   onClose,
   isMobile,
+  embedded = false,
+  showClose = true,
 }: ExpandedProjectCardProps) {
   const scrollerRef = useRef<HTMLDivElement>(null);
   const parallaxRef = useRef<HTMLDivElement>(null);
+  const contentRef = useRef<HTMLDivElement>(null);
+  const shellRef = useRef<HTMLDivElement>(null);
   const rafIdRef = useRef<number | null>(null);
+  const [scrollEnabled, setScrollEnabled] = useState(false);
+  const [localPhotoIdx, setLocalPhotoIdx] = useState(0);
 
-  // Drive the image parallax off the card's own scrollTop. Uses requestAnimationFrame
-  // to coalesce scroll bursts into one DOM write per frame.
+  const resolvedGallery =
+    galleryUrlsProp && galleryUrlsProp.length > 0
+      ? galleryUrlsProp
+      : getProjectGalleryUrls(project);
+  const photoIdx = embedded ? localPhotoIdx : photoIdxProp;
+  const setPhotoIdx = embedded ? setLocalPhotoIdx : (setPhotoIdxProp ?? setLocalPhotoIdx);
+
+  useEffect(() => {
+    setLocalPhotoIdx(0);
+  }, [project.id]);
+
+  const accent = DOMAIN_COLORS[project.domain];
+  const customers =
+    project.customers && project.customers.length > 0
+      ? project.customers
+      : project.client
+        ? [project.client]
+        : [];
+  const subCategories = project.subCategories ?? project.displayTags ?? [];
+  const responsible = project.responsible;
+  const scaleLabel =
+    project.scale && project.scale in SCALE_LABELS
+      ? SCALE_LABELS[project.scale as Scale]
+      : null;
+  const methodLabels = (project.methods ?? [])
+    .filter((m): m is Method => m in METHOD_LABELS)
+    .map((m) => METHOD_LABELS[m]);
+
+  useLayoutEffect(() => {
+    const scroller = scrollerRef.current;
+    const content = contentRef.current;
+    if (!scroller || !content) return;
+
+    const measureMaxHeightPx = () => {
+      if (embedded) return scroller.clientHeight;
+      const probe = document.createElement("div");
+      probe.style.position = "absolute";
+      probe.style.visibility = "hidden";
+      probe.style.pointerEvents = "none";
+      probe.style.height = CARD_MAX_HEIGHT;
+      probe.style.maxHeight = CARD_MAX_HEIGHT;
+      probe.style.width = "0";
+      document.body.appendChild(probe);
+      const maxPx = probe.offsetHeight;
+      probe.remove();
+      return maxPx;
+    };
+
+    const measure = () => {
+      const maxPx = measureMaxHeightPx();
+      setScrollEnabled(content.scrollHeight > maxPx + 1);
+    };
+
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(content);
+    ro.observe(scroller);
+    if (embedded && shellRef.current) ro.observe(shellRef.current);
+    window.addEventListener("resize", measure);
+    return () => {
+      ro.disconnect();
+      window.removeEventListener("resize", measure);
+    };
+  }, [project.id, resolvedGallery.length, photoIdx, embedded]);
+
   useEffect(() => {
     const scroller = scrollerRef.current;
     const parallax = parallaxRef.current;
-    if (!scroller || !parallax) return;
+    if (!scroller || !parallax || !scrollEnabled) {
+      if (parallax) parallax.style.transform = "translate3d(0, 0, 0)";
+      return;
+    }
 
     const apply = () => {
-      parallax.style.transform = `translate3d(0, ${scroller.scrollTop * CARD_PARALLAX_FACTOR}px, 0)`;
+      const reduceMotion =
+        typeof window !== "undefined" &&
+        window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      const y = reduceMotion ? 0 : scroller.scrollTop * CARD_PARALLAX_FACTOR;
+      parallax.style.transform = `translate3d(0, ${y}px, 0)`;
       rafIdRef.current = null;
     };
     const onScroll = () => {
@@ -915,411 +1704,600 @@ function ExpandedProjectCard({
       rafIdRef.current = requestAnimationFrame(apply);
     };
 
-    // Initial application in case the card opens with scrollTop > 0.
+    scroller.scrollTop = 0;
     apply();
     scroller.addEventListener("scroll", onScroll, { passive: true });
     return () => {
       scroller.removeEventListener("scroll", onScroll);
       if (rafIdRef.current != null) cancelAnimationFrame(rafIdRef.current);
     };
-  }, [project.id]);
+  }, [project.id, resolvedGallery.length, scrollEnabled, embedded]);
 
-  const accent = DOMAIN_COLORS[project.domain];
-  const customers = project.customers && project.customers.length > 0
-    ? project.customers
-    : project.client
-      ? [project.client]
-      : [];
-  const subCategories = project.subCategories ?? project.displayTags ?? [];
-  const responsible = project.responsible;
-  const scaleLabel = project.scale && project.scale in SCALE_LABELS
-    ? SCALE_LABELS[project.scale as Scale]
-    : null;
-  const methodLabels = (project.methods ?? [])
-    .filter((m): m is Method => m in METHOD_LABELS)
-    .map((m) => METHOD_LABELS[m]);
-
-  return (
-    <>
-      {/* Click-outside-to-close backdrop */}
+  const renderGallery = (staticImage: boolean) => {
+    if (resolvedGallery.length === 0) return null;
+    return (
       <div
-        onClick={onClose}
-        style={{ position: "absolute", inset: 0, zIndex: 25 }}
-        aria-hidden="true"
-      />
-      {/* Card */}
-      <div
-        role="dialog"
-        aria-label={project.name}
-        onClick={(e) => e.stopPropagation()}
         style={{
-          position: "absolute",
-          top: "50%",
-          left: "50%",
-          transform: "translate(-50%, -50%)",
-          width: isMobile ? "calc(100% - 48px)" : 440,
-          maxWidth: 480,
-          maxHeight: "86vh",
-          background: "#2a2a2a",
-          border: "1px solid rgba(255,255,255,0.1)",
-          padding: 0,
-          overflow: "hidden", // outer keeps the close button stable; inner scrolls
-          zIndex: 30,
-          animation: "clusterCardIn 0.3s ease-out",
-          display: "flex",
-          flexDirection: "column",
+          position: "relative",
+          width: "100%",
+          aspectRatio: embedded ? "4/3" : "16/10",
+          overflow: "hidden",
+          flexShrink: 0,
         }}
       >
-        {/* Close — stays fixed in the card's upper-right, outside the scroller */}
-        <button
-          onClick={onClose}
-          aria-label="Close project details"
-          style={{
-            position: "absolute",
-            top: 12,
-            right: 12,
-            width: 32,
-            height: 32,
-            border: "1px solid rgba(255,255,255,0.15)",
-            background: "rgba(0,0,0,0.55)",
-            color: "rgba(255,255,255,0.9)",
-            fontSize: "1rem",
-            cursor: "pointer",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            lineHeight: 1,
-            zIndex: 40,
-          }}
-        >
-          ✕
-        </button>
-
-        {/* Scroll viewport */}
-        <div
-          ref={scrollerRef}
-          style={{ flex: 1, minHeight: 0, overflowY: "auto", overflowX: "hidden" }}
-        >
-          {/* Parallax image at top of scroll content */}
+        {staticImage ? (
+          <div className="relative h-full w-full">
+            <Image
+              key={resolvedGallery[photoIdx]}
+              src={resolvedGallery[photoIdx]}
+              alt=""
+              fill
+              className="object-cover"
+              sizes={embedded ? "320px" : "480px"}
+            />
+          </div>
+        ) : (
           <div
             ref={parallaxRef}
             style={{
+              position: "absolute",
+              left: 0,
+              right: 0,
+              top: 0,
+              height: `${CARD_IMAGE_PARALLAX_HEADROOM * 100}%`,
               willChange: "transform",
-              // Below sits the text; the image carousel itself has aspect 16/10.
             }}
           >
-            {galleryUrls.length > 0 ? (
-              <div className="relative w-full" style={{ aspectRatio: "16/10" }}>
-                <Image
-                  key={galleryUrls[photoIdx]}
-                  src={galleryUrls[photoIdx]}
-                  alt=""
-                  fill
-                  className="object-cover"
-                  sizes="480px"
-                />
-                {galleryUrls.length > 1 ? (
-                  <>
-                    <button
-                      type="button"
-                      aria-label="Previous image"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setPhotoIdx((i) => (i - 1 + galleryUrls.length) % galleryUrls.length);
-                      }}
-                      style={{
-                        position: "absolute",
-                        left: 8,
-                        top: "50%",
-                        transform: "translateY(-50%)",
-                        width: 36,
-                        height: 36,
-                        border: "1px solid rgba(255,255,255,0.2)",
-                        background: "rgba(0,0,0,0.45)",
-                        color: "#fff",
-                        cursor: "pointer",
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        zIndex: 2,
-                      }}
-                    >
-                      <ChevronLeft size={22} />
-                    </button>
-                    <button
-                      type="button"
-                      aria-label="Next image"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setPhotoIdx((i) => (i + 1) % galleryUrls.length);
-                      }}
-                      style={{
-                        position: "absolute",
-                        right: 8,
-                        top: "50%",
-                        transform: "translateY(-50%)",
-                        width: 36,
-                        height: 36,
-                        border: "1px solid rgba(255,255,255,0.2)",
-                        background: "rgba(0,0,0,0.45)",
-                        color: "#fff",
-                        cursor: "pointer",
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        zIndex: 2,
-                      }}
-                    >
-                      <ChevronRight size={22} />
-                    </button>
-                  </>
-                ) : null}
-              </div>
+            <div className="relative h-full w-full">
+              <Image
+                key={resolvedGallery[photoIdx]}
+                src={resolvedGallery[photoIdx]}
+                alt=""
+                fill
+                className="object-cover"
+                sizes="480px"
+              />
+            </div>
+          </div>
+        )}
+        {resolvedGallery.length > 1 ? (
+          <>
+            <button
+              type="button"
+              aria-label="Previous image"
+              onClick={(e) => {
+                e.stopPropagation();
+                setPhotoIdx((i) => (i - 1 + resolvedGallery.length) % resolvedGallery.length);
+              }}
+              style={{
+                position: "absolute",
+                left: 8,
+                top: "50%",
+                transform: "translateY(-50%)",
+                width: 36,
+                height: 36,
+                border: "1px solid rgba(255,255,255,0.2)",
+                background: "rgba(0,0,0,0.45)",
+                color: "#fff",
+                cursor: "pointer",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                zIndex: 2,
+              }}
+            >
+              <ChevronLeft size={22} />
+            </button>
+            <button
+              type="button"
+              aria-label="Next image"
+              onClick={(e) => {
+                e.stopPropagation();
+                setPhotoIdx((i) => (i + 1) % resolvedGallery.length);
+              }}
+              style={{
+                position: "absolute",
+                right: 8,
+                top: "50%",
+                transform: "translateY(-50%)",
+                width: 36,
+                height: 36,
+                border: "1px solid rgba(255,255,255,0.2)",
+                background: "rgba(0,0,0,0.45)",
+                color: "#fff",
+                cursor: "pointer",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                zIndex: 2,
+              }}
+            >
+              <ChevronRight size={22} />
+            </button>
+          </>
+        ) : null}
+      </div>
+    );
+  };
+
+  const textPadding = embedded ? "12px" : "clamp(16px, 3vw, 24px)";
+
+  const renderScrollableText = () => (
+    <>
+      <h3
+        style={{
+          margin: "0 0 6px 0",
+          fontSize: embedded ? "0.95rem" : "clamp(1.1rem, 2vw, 1.3rem)",
+          fontWeight: 500,
+          color: "#fff",
+          fontFamily: "var(--font-manrope), system-ui, sans-serif",
+          lineHeight: 1.3,
+          paddingRight: showClose ? 24 : 0,
+        }}
+      >
+        {project.name}
+      </h3>
+      {customers.length > 0 ? (
+        <p
+          style={{
+            margin: "0 0 2px 0",
+            fontSize: embedded ? "0.75rem" : "0.85rem",
+            color: "rgba(255,255,255,0.75)",
+            fontFamily: "var(--font-manrope), system-ui, sans-serif",
+          }}
+        >
+          {customers.join(" · ")}
+        </p>
+      ) : null}
+      <p
+        style={{
+          margin: "0 0 14px 0",
+          fontSize: embedded ? "0.7rem" : "0.8rem",
+          color: "rgba(255,255,255,0.55)",
+          fontFamily: "var(--font-manrope), system-ui, sans-serif",
+        }}
+      >
+        {project.year}
+      </p>
+      <p
+        style={{
+          margin: "0 0 14px 0",
+          fontSize: embedded ? "0.8rem" : "0.9rem",
+          color: "rgba(255,255,255,0.78)",
+          fontFamily: "var(--font-manrope), system-ui, sans-serif",
+          lineHeight: 1.55,
+        }}
+      >
+        {project.summary}
+      </p>
+      {scaleLabel || methodLabels.length > 0 ? (
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: embedded ? 8 : 16 }}>
+          {scaleLabel ? (
+            <span
+              style={{
+                display: "inline-block",
+                padding: "3px 10px",
+                fontSize: "0.65rem",
+                fontFamily: "var(--font-manrope), system-ui, sans-serif",
+                letterSpacing: "0.05em",
+                color: "rgba(255,255,255,0.85)",
+                border: "1px solid rgba(255,255,255,0.35)",
+              }}
+            >
+              {scaleLabel}
+            </span>
+          ) : null}
+          {methodLabels.map((label) => (
+            <span
+              key={label}
+              style={{
+                display: "inline-block",
+                padding: "3px 10px",
+                fontSize: "0.65rem",
+                fontFamily: "var(--font-manrope), system-ui, sans-serif",
+                letterSpacing: "0.05em",
+                color: "rgba(255,255,255,0.85)",
+                border: "1px solid rgba(255,255,255,0.35)",
+              }}
+            >
+              {label}
+            </span>
+          ))}
+        </div>
+      ) : null}
+    </>
+  );
+
+  const renderStaticFooter = () => (
+    <div style={{ padding: textPadding, paddingTop: embedded ? 8 : 0, flexShrink: 0 }}>
+      <div
+        style={{
+          display: "flex",
+          flexWrap: "wrap",
+          gap: 6,
+          marginBottom: responsible || (project.cardLinks ?? []).some((l) => l.url) ? 12 : 0,
+          alignItems: "center",
+        }}
+      >
+        <span
+          style={{
+            display: "inline-block",
+            padding: "3px 10px",
+            fontSize: "0.65rem",
+            fontFamily: "var(--font-manrope), system-ui, sans-serif",
+            letterSpacing: "0.05em",
+            color: "#fff",
+            background: accent,
+          }}
+        >
+          {DOMAIN_LABELS[project.domain]}
+        </span>
+        {subCategories.map((cat) => (
+          <span
+            key={cat.id}
+            style={{
+              display: "inline-block",
+              padding: "3px 10px",
+              fontSize: "0.65rem",
+              fontFamily: "var(--font-manrope), system-ui, sans-serif",
+              letterSpacing: "0.05em",
+              color: cat.color ?? "rgba(255,255,255,0.85)",
+              background: "transparent",
+              border: `1px solid ${cat.color ?? "rgba(255,255,255,0.4)"}`,
+            }}
+          >
+            {cat.label}
+          </span>
+        ))}
+      </div>
+      {responsible ? (
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 12,
+            paddingTop: 10,
+            borderTop: "1px solid rgba(255,255,255,0.08)",
+          }}
+        >
+          <div
+            style={{
+              position: "relative",
+              width: 40,
+              height: 40,
+              flexShrink: 0,
+              overflow: "hidden",
+              background: "rgba(255,255,255,0.06)",
+            }}
+          >
+            {responsible.photoUrl ? (
+              <Image
+                src={responsible.photoUrl}
+                alt={responsible.name}
+                fill
+                sizes="40px"
+                className="object-cover"
+              />
             ) : null}
           </div>
-
-          {/* Text content — flows normally underneath the parallax image */}
-          <div style={{ padding: "clamp(16px, 3vw, 24px)" }}>
-            {/* Category row: filled main + outlined subs */}
-            <div
-              style={{
-                display: "flex",
-                flexWrap: "wrap",
-                gap: 6,
-                marginBottom: 14,
-                alignItems: "center",
-              }}
-            >
-              <span
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              fontFamily: "var(--font-manrope), system-ui, sans-serif",
+              fontSize: "0.78rem",
+              lineHeight: 1.3,
+              minWidth: 0,
+            }}
+          >
+            {responsible.phone ? (
+              <a
+                href={`tel:${responsible.phone.replace(/\s+/g, "")}`}
+                style={{ color: "rgba(255,255,255,0.85)", textDecoration: "none" }}
+              >
+                {responsible.phone}
+              </a>
+            ) : (
+              <span style={{ color: "rgba(255,255,255,0.55)" }}>{responsible.name}</span>
+            )}
+            {responsible.email ? (
+              <a
+                href={`mailto:${responsible.email}`}
                 style={{
-                  display: "inline-block",
-                  padding: "3px 10px",
-                  fontSize: "0.65rem",
-                  fontFamily: "var(--font-manrope), system-ui, sans-serif",
-                  letterSpacing: "0.05em",
-                  color: "#fff",
-                  background: accent,
+                  color: "rgba(255,255,255,0.7)",
+                  textDecoration: "none",
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                  whiteSpace: "nowrap",
                 }}
               >
-                {DOMAIN_LABELS[project.domain]}
-              </span>
-              {subCategories.map((cat) => (
-                <span
-                  key={cat.id}
-                  style={{
-                    display: "inline-block",
-                    padding: "3px 10px",
-                    fontSize: "0.65rem",
-                    fontFamily: "var(--font-manrope), system-ui, sans-serif",
-                    letterSpacing: "0.05em",
-                    color: cat.color ?? "rgba(255,255,255,0.85)",
-                    background: "transparent",
-                    border: `1px solid ${cat.color ?? "rgba(255,255,255,0.4)"}`,
-                  }}
-                >
-                  {cat.label}
-                </span>
-              ))}
-            </div>
-
-            {/* Title */}
-            <h3
-              style={{
-                margin: "0 0 6px 0",
-                fontSize: "clamp(1.1rem, 2vw, 1.3rem)",
-                fontWeight: 500,
-                color: "#fff",
-                fontFamily: "var(--font-manrope), system-ui, sans-serif",
-                lineHeight: 1.3,
-                paddingRight: 24,
-              }}
-            >
-              {project.name}
-            </h3>
-
-            {/* Customers (dot-separated when >1) */}
-            {customers.length > 0 ? (
-              <p
-                style={{
-                  margin: "0 0 2px 0",
-                  fontSize: "0.85rem",
-                  color: "rgba(255,255,255,0.75)",
-                  fontFamily: "var(--font-manrope), system-ui, sans-serif",
-                }}
-              >
-                {customers.join(" · ")}
-              </p>
-            ) : null}
-
-            {/* Year, on its own line under customers */}
-            <p
-              style={{
-                margin: "0 0 14px 0",
-                fontSize: "0.8rem",
-                color: "rgba(255,255,255,0.55)",
-                fontFamily: "var(--font-manrope), system-ui, sans-serif",
-              }}
-            >
-              {project.year}
-            </p>
-
-            {/* Description */}
-            <p
-              style={{
-                margin: "0 0 14px 0",
-                fontSize: "0.9rem",
-                color: "rgba(255,255,255,0.78)",
-                fontFamily: "var(--font-manrope), system-ui, sans-serif",
-                lineHeight: 1.55,
-              }}
-            >
-              {project.summary}
-            </p>
-
-            {/* Scale + Method chips on one row */}
-            {(scaleLabel || methodLabels.length > 0) ? (
-              <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 16 }}>
-                {scaleLabel ? (
-                  <span
-                    style={{
-                      display: "inline-block",
-                      padding: "3px 10px",
-                      fontSize: "0.65rem",
-                      fontFamily: "var(--font-manrope), system-ui, sans-serif",
-                      letterSpacing: "0.05em",
-                      color: "rgba(255,255,255,0.85)",
-                      border: "1px solid rgba(255,255,255,0.35)",
-                    }}
-                  >
-                    {scaleLabel}
-                  </span>
-                ) : null}
-                {methodLabels.map((label) => (
-                  <span
-                    key={label}
-                    style={{
-                      display: "inline-block",
-                      padding: "3px 10px",
-                      fontSize: "0.65rem",
-                      fontFamily: "var(--font-manrope), system-ui, sans-serif",
-                      letterSpacing: "0.05em",
-                      color: "rgba(255,255,255,0.85)",
-                      border: "1px solid rgba(255,255,255,0.35)",
-                    }}
-                  >
-                    {label}
-                  </span>
-                ))}
-              </div>
-            ) : null}
-
-            {/* Responsible block: headshot left, phone + email right */}
-            {responsible ? (
-              <div
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 12,
-                  marginTop: 8,
-                  paddingTop: 14,
-                  borderTop: "1px solid rgba(255,255,255,0.08)",
-                }}
-              >
-                <div
-                  style={{
-                    position: "relative",
-                    width: 40,
-                    height: 40,
-                    flexShrink: 0,
-                    overflow: "hidden",
-                    background: "rgba(255,255,255,0.06)",
-                  }}
-                >
-                  {responsible.photoUrl ? (
-                    <Image
-                      src={responsible.photoUrl}
-                      alt={responsible.name}
-                      fill
-                      sizes="40px"
-                      className="object-cover"
-                    />
-                  ) : null}
-                </div>
-                <div
-                  style={{
-                    display: "flex",
-                    flexDirection: "column",
-                    fontFamily: "var(--font-manrope), system-ui, sans-serif",
-                    fontSize: "0.78rem",
-                    lineHeight: 1.3,
-                    minWidth: 0,
-                  }}
-                >
-                  {responsible.phone ? (
-                    <a
-                      href={`tel:${responsible.phone.replace(/\s+/g, "")}`}
-                      style={{
-                        color: "rgba(255,255,255,0.85)",
-                        textDecoration: "none",
-                      }}
-                    >
-                      {responsible.phone}
-                    </a>
-                  ) : (
-                    <span style={{ color: "rgba(255,255,255,0.55)" }}>{responsible.name}</span>
-                  )}
-                  {responsible.email ? (
-                    <a
-                      href={`mailto:${responsible.email}`}
-                      style={{
-                        color: "rgba(255,255,255,0.7)",
-                        textDecoration: "none",
-                        overflow: "hidden",
-                        textOverflow: "ellipsis",
-                        whiteSpace: "nowrap",
-                      }}
-                    >
-                      {responsible.email}
-                    </a>
-                  ) : null}
-                </div>
-              </div>
-            ) : null}
-
-            {/* Auxiliary links (external project pages etc.) */}
-            {(project.cardLinks ?? []).filter((l) => l.url).length > 0 ? (
-              <div
-                style={{
-                  display: "flex",
-                  flexDirection: "column",
-                  alignItems: "flex-start",
-                  gap: 6,
-                  marginTop: 14,
-                }}
-              >
-                {(project.cardLinks ?? []).map((link) =>
-                  link.url ? (
-                    <a
-                      key={link.url}
-                      href={link.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      style={{
-                        fontSize: "0.82rem",
-                        fontWeight: 500,
-                        color: accent,
-                        fontFamily: "var(--font-manrope), system-ui, sans-serif",
-                        textDecoration: "none",
-                      }}
-                    >
-                      {link.label || link.url}
-                    </a>
-                  ) : null,
-                )}
-              </div>
+                {responsible.email}
+              </a>
             ) : null}
           </div>
         </div>
+      ) : null}
+      {(project.cardLinks ?? []).filter((l) => l.url).length > 0 ? (
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "flex-start",
+            gap: 6,
+            marginTop: 10,
+          }}
+        >
+          {(project.cardLinks ?? []).map((link) =>
+            link.url ? (
+              <a
+                key={link.url}
+                href={link.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{
+                  fontSize: "0.82rem",
+                  fontWeight: 500,
+                  color: accent,
+                  fontFamily: "var(--font-manrope), system-ui, sans-serif",
+                  textDecoration: "none",
+                }}
+              >
+                {link.label || link.url}
+              </a>
+            ) : null,
+          )}
+        </div>
+      ) : null}
+    </div>
+  );
+
+  const renderOverlayCategoryRow = () => (
+    <div
+      style={{
+        display: "flex",
+        flexWrap: "wrap",
+        gap: 6,
+        marginBottom: 14,
+        alignItems: "center",
+      }}
+    >
+      <span
+        style={{
+          display: "inline-block",
+          padding: "3px 10px",
+          fontSize: "0.65rem",
+          fontFamily: "var(--font-manrope), system-ui, sans-serif",
+          letterSpacing: "0.05em",
+          color: "#fff",
+          background: accent,
+        }}
+      >
+        {DOMAIN_LABELS[project.domain]}
+      </span>
+      {subCategories.map((cat) => (
+        <span
+          key={cat.id}
+          style={{
+            display: "inline-block",
+            padding: "3px 10px",
+            fontSize: "0.65rem",
+            fontFamily: "var(--font-manrope), system-ui, sans-serif",
+            letterSpacing: "0.05em",
+            color: cat.color ?? "rgba(255,255,255,0.85)",
+            background: "transparent",
+            border: `1px solid ${cat.color ?? "rgba(255,255,255,0.4)"}`,
+          }}
+        >
+          {cat.label}
+        </span>
+      ))}
+    </div>
+  );
+
+  const renderOverlayResponsible = () =>
+    responsible ? (
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 12,
+          marginTop: 8,
+          paddingTop: 14,
+          borderTop: "1px solid rgba(255,255,255,0.08)",
+        }}
+      >
+        <div
+          style={{
+            position: "relative",
+            width: 40,
+            height: 40,
+            flexShrink: 0,
+            overflow: "hidden",
+            background: "rgba(255,255,255,0.06)",
+          }}
+        >
+          {responsible.photoUrl ? (
+            <Image
+              src={responsible.photoUrl}
+              alt={responsible.name}
+              fill
+              sizes="40px"
+              className="object-cover"
+            />
+          ) : null}
+        </div>
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            fontFamily: "var(--font-manrope), system-ui, sans-serif",
+            fontSize: "0.78rem",
+            lineHeight: 1.3,
+            minWidth: 0,
+          }}
+        >
+          {responsible.phone ? (
+            <a
+              href={`tel:${responsible.phone.replace(/\s+/g, "")}`}
+              style={{ color: "rgba(255,255,255,0.85)", textDecoration: "none" }}
+            >
+              {responsible.phone}
+            </a>
+          ) : (
+            <span style={{ color: "rgba(255,255,255,0.55)" }}>{responsible.name}</span>
+          )}
+          {responsible.email ? (
+            <a
+              href={`mailto:${responsible.email}`}
+              style={{
+                color: "rgba(255,255,255,0.7)",
+                textDecoration: "none",
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+                whiteSpace: "nowrap",
+              }}
+            >
+              {responsible.email}
+            </a>
+          ) : null}
+        </div>
+      </div>
+    ) : null;
+
+  return (
+    <>
+      {!embedded ? (
+        <div
+          onClick={onClose}
+          style={{ position: "absolute", inset: 0, zIndex: 25 }}
+          aria-hidden="true"
+        />
+      ) : null}
+      <div
+        ref={shellRef}
+        role={embedded ? "article" : "dialog"}
+        aria-label={project.name}
+        onClick={(e) => e.stopPropagation()}
+        style={{
+          position: embedded ? "relative" : "absolute",
+          top: embedded ? undefined : "50%",
+          left: embedded ? undefined : "50%",
+          transform: embedded ? undefined : "translate(-50%, -50%)",
+          width: embedded ? "100%" : isMobile ? "calc(100% - 48px)" : 440,
+          height: embedded ? "100%" : undefined,
+          maxWidth: embedded ? "none" : 480,
+          maxHeight: embedded ? "100%" : CARD_MAX_HEIGHT,
+          background: "#2a2a2a",
+          border: embedded ? "none" : "1px solid rgba(255,255,255,0.1)",
+          padding: 0,
+          overflow: "hidden",
+          zIndex: embedded ? 1 : 30,
+          animation: embedded ? undefined : "clusterCardIn 0.3s ease-out",
+          boxSizing: "border-box",
+          display: embedded ? "flex" : undefined,
+          flexDirection: embedded ? "column" : undefined,
+        }}
+      >
+        {showClose ? (
+          <button
+            onClick={onClose}
+            aria-label="Close project details"
+            style={{
+              position: "absolute",
+              top: 12,
+              right: 12,
+              width: 32,
+              height: 32,
+              border: "1px solid rgba(255,255,255,0.15)",
+              background: "rgba(0,0,0,0.55)",
+              color: "rgba(255,255,255,0.9)",
+              fontSize: "1rem",
+              cursor: "pointer",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              lineHeight: 1,
+              zIndex: 40,
+            }}
+          >
+            ✕
+          </button>
+        ) : null}
+
+        {embedded ? (
+          <>
+            {renderGallery(true)}
+            <div
+              ref={scrollerRef}
+              data-comte-modal-scroll="true"
+              style={{
+                flex: 1,
+                minHeight: 0,
+                overflowY: scrollEnabled ? "auto" : "hidden",
+                overflowX: "hidden",
+                WebkitOverflowScrolling: "touch",
+              }}
+            >
+              <div ref={parallaxRef} style={{ willChange: scrollEnabled ? "transform" : undefined }}>
+                <div ref={contentRef} style={{ padding: textPadding, paddingBottom: 8 }}>
+                  {renderScrollableText()}
+                </div>
+              </div>
+            </div>
+            {renderStaticFooter()}
+          </>
+        ) : (
+          <div
+            ref={scrollerRef}
+            data-comte-modal-scroll="true"
+            style={{
+              maxHeight: CARD_MAX_HEIGHT,
+              overflowY: scrollEnabled ? "auto" : "visible",
+              overflowX: "hidden",
+              WebkitOverflowScrolling: "touch",
+            }}
+          >
+            <div ref={contentRef}>
+              {renderGallery(false)}
+              <div style={{ padding: textPadding }}>
+                {renderOverlayCategoryRow()}
+                {renderScrollableText()}
+                {renderOverlayResponsible()}
+                {(project.cardLinks ?? []).filter((l) => l.url).length > 0 ? (
+                  <div
+                    style={{
+                      display: "flex",
+                      flexDirection: "column",
+                      alignItems: "flex-start",
+                      gap: 6,
+                      marginTop: 14,
+                    }}
+                  >
+                    {(project.cardLinks ?? []).map((link) =>
+                      link.url ? (
+                        <a
+                          key={link.url}
+                          href={link.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          style={{
+                            fontSize: "0.82rem",
+                            fontWeight: 500,
+                            color: accent,
+                            fontFamily: "var(--font-manrope), system-ui, sans-serif",
+                            textDecoration: "none",
+                          }}
+                        >
+                          {link.label || link.url}
+                        </a>
+                      ) : null,
+                    )}
+                  </div>
+                ) : null}
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </>
   );

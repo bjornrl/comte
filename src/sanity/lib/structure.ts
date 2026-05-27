@@ -32,7 +32,6 @@ export const structure = (S: StructureBuilder) =>
             .title("About")
             .items([
               singleton(S, "aboutIntro", "Intro"),
-              singleton(S, "aboutOffice", "Office"),
             ]),
         ),
       singleton(S, "whatWeDo", "What do we do?"),

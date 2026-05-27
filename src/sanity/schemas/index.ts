@@ -3,7 +3,6 @@ import { teamMember } from "./teamMember";
 import { homeSection } from "./homeSection";
 import { mottoSection } from "./mottoSection";
 import { aboutIntro } from "./aboutIntro";
-import { aboutOffice } from "./aboutOffice";
 import { whatWeDo } from "./whatWeDo";
 import { projectsSection } from "./projectsSection";
 import { teamSection } from "./teamSection";
@@ -21,7 +20,6 @@ export const schemaTypes = [
   homeSection,
   mottoSection,
   aboutIntro,
-  aboutOffice,
   whatWeDo,
   projectsSection,
   teamSection,

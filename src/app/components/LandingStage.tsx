@@ -39,16 +39,29 @@ function isLandingInView(scroller: HTMLElement): boolean {
 
 /** Horizontal position (viewport px) for the fixed landing layer. */
 function getLandingTranslateX(scroller: HTMLElement): number {
-  const cloneFirst = scroller.querySelector<HTMLElement>('[data-snap-id="clone-first"]');
-  if (cloneFirst) {
-    const cr = cloneFirst.getBoundingClientRect();
-    const sr = scroller.getBoundingClientRect();
-    if (cr.right > sr.left + 1 && cr.left < sr.right - 1) {
-      return cr.left;
+  const sr = scroller.getBoundingClientRect();
+  const home = scroller.querySelector<HTMLElement>('[data-snap-id="home"]');
+  const cloneFirst = scroller.querySelector<HTMLElement>(
+    '[data-snap-id="clone-first"]',
+  );
+
+  if (home) {
+    const hr = home.getBoundingClientRect();
+    if (hr.right > sr.left + 1 && hr.left < sr.right - 1) {
+      return hr.left;
     }
   }
 
-  const home = scroller.querySelector<HTMLElement>('[data-snap-id="home"]');
+  if (cloneFirst) {
+    const cr = cloneFirst.getBoundingClientRect();
+    if (cr.right > sr.left + 1 && cr.left < sr.right - 1) {
+      // Overshooting clone-first (maxScroll past its snap target) yields
+      // negative left values — tracking them makes the landing layer jump
+      // right when the loop seam teleports back to real home.
+      return Math.max(0, cr.left);
+    }
+  }
+
   if (home) return home.getBoundingClientRect().left;
 
   return -99999;

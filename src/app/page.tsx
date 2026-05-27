@@ -3,7 +3,6 @@ import {
   HOME_SECTION_QUERY,
   MOTTO_SECTION_QUERY,
   ABOUT_INTRO_QUERY,
-  ABOUT_OFFICE_QUERY,
   WHAT_WE_DO_QUERY,
   PROJECTS_SECTION_QUERY,
   TEAM_SECTION_QUERY,
@@ -32,71 +31,6 @@ export const revalidate = 60;
 function sanityImageUrl(imageField: any, width = 1600): string | undefined {
   if (!imageField?.asset) return undefined;
   return urlFor(imageField).width(width).auto("format").quality(80).url();
-}
-
-/**
- * Resolve an address string to { lng, lat } via OpenStreetMap's free
- * Nominatim service. Server-side only; cached for one day by Next.js so
- * we don't hit Nominatim more than once per address per day.
- */
-async function geocodeAddress(address: string): Promise<{ lng: number; lat: number } | null> {
-  const q = address.trim();
-  if (!q) return null;
-  try {
-    const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(q)}&format=json&limit=1`;
-    const res = await fetch(url, {
-      headers: {
-        // Nominatim's usage policy asks for an identifying User-Agent.
-        "User-Agent": "Comte Bureau (https://comtebureau.com)",
-        Accept: "application/json",
-      },
-      next: { revalidate: 60 * 60 * 24 },
-    });
-    if (!res.ok) return null;
-    const data = (await res.json()) as Array<{ lat?: string; lon?: string }>;
-    const hit = data?.[0];
-    if (!hit?.lat || !hit?.lon) return null;
-    const lat = parseFloat(hit.lat);
-    const lng = parseFloat(hit.lon);
-    if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
-    return { lng, lat };
-  } catch {
-    return null;
-  }
-}
-
-// Last-resort default centre used when an office address can't be resolved.
-const FALLBACK_OFFICE_COORDS = { lng: 10.736, lat: 59.9202 };
-
-async function resolveOfficeLocations(rawLocations: any[]): Promise<
-  Array<{
-    title?: string;
-    description?: string;
-    longitude: number;
-    latitude: number;
-    zoom?: number;
-  }>
-> {
-  const items = Array.isArray(rawLocations) ? rawLocations : [];
-  // Sequential geocoding keeps us under Nominatim's 1 req/sec policy.
-  const out: Array<{
-    title?: string;
-    description?: string;
-    longitude: number;
-    latitude: number;
-    zoom?: number;
-  }> = [];
-  for (const loc of items) {
-    const geo = (loc?.address && (await geocodeAddress(loc.address))) || FALLBACK_OFFICE_COORDS;
-    out.push({
-      title: loc?.title,
-      description: loc?.description,
-      longitude: geo.lng,
-      latitude: geo.lat,
-      zoom: loc?.zoom,
-    });
-  }
-  return out;
 }
 
 function mapInterstitial(raw: any) {
@@ -180,7 +114,6 @@ export default async function Home() {
   let home: any = null;
   let motto: any = null;
   let aboutIntro: any = null;
-  let aboutOffice: any = null;
   let whatWeDo: any = null;
   let projectsSection: any = null;
   let teamSection: any = null;
@@ -197,7 +130,6 @@ export default async function Home() {
       home,
       motto,
       aboutIntro,
-      aboutOffice,
       whatWeDo,
       projectsSection,
       teamSection,
@@ -212,7 +144,6 @@ export default async function Home() {
       client.fetch(HOME_SECTION_QUERY),
       client.fetch(MOTTO_SECTION_QUERY),
       client.fetch(ABOUT_INTRO_QUERY),
-      client.fetch(ABOUT_OFFICE_QUERY),
       client.fetch(WHAT_WE_DO_QUERY),
       client.fetch(PROJECTS_SECTION_QUERY),
       client.fetch(TEAM_SECTION_QUERY),
@@ -230,9 +161,6 @@ export default async function Home() {
     ? sanityProjects.map(mapSanityProject)
     : FALLBACK_PROJECTS;
   const connections = generateConnections(projects);
-
-  // Resolve each office's address → { longitude, latitude } before render.
-  const aboutOfficeLocations = await resolveOfficeLocations(aboutOffice?.locations ?? []);
 
   const data: HomeData = {
     home: {
@@ -254,13 +182,6 @@ export default async function Home() {
       whoAreWe: aboutIntro?.whoAreWe,
       interstitial: mapInterstitial(aboutIntro?.interstitial),
     },
-    aboutOffice: {
-      locations: aboutOfficeLocations,
-      mediaImageUrl: sanityImageUrl(aboutOffice?.mediaImage),
-      mediaImageAlt: aboutOffice?.mediaImage?.alt,
-      mediaVideoUrl: aboutOffice?.mediaVideoUrl,
-      interstitial: mapInterstitial(aboutOffice?.interstitial),
-    },
     whatWeDo: {
       textbox: whatWeDo?.textbox,
       datapoint1: whatWeDo?.datapoint1,
@@ -280,11 +201,15 @@ export default async function Home() {
     },
     publications: {
       heading: publicationsSection?.heading,
+      body: publicationsSection?.body,
       items: publications ?? [],
       interstitial: mapInterstitial(publicationsSection?.interstitial),
     },
     ventures: {
       heading: venturesSection?.heading,
+      body: venturesSection?.body,
+      featuredVideoUrl: venturesSection?.featuredVideoUrl,
+      featuredImage: venturesSection?.featuredImage,
       items: ventures ?? [],
       interstitial: mapInterstitial(venturesSection?.interstitial),
     },
