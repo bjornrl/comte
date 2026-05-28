@@ -24,7 +24,7 @@ export const mottoSection = defineType({
     defineField({
       name: "heroText",
       title: "Hero Text",
-      type: "string",
+      type: "localeString",
     }),
     defineField({
       name: "interstitial",

@@ -6,11 +6,11 @@ const datapoint = (name: string, title: string) =>
     title,
     type: "object",
     fields: [
-      defineField({ name: "value", title: "Value", type: "string", description: 'e.g. "250+"' }),
+      defineField({ name: "value", title: "Value", type: "localeString", description: 'e.g. "250+"' }),
       defineField({
         name: "label",
         title: "Label",
-        type: "string",
+        type: "localeString",
         description: 'e.g. "Projects completed"',
       }),
     ],
@@ -24,8 +24,7 @@ export const whatWeDo = defineType({
     defineField({
       name: "textbox",
       title: "Textbox",
-      type: "text",
-      rows: 6,
+      type: "localeText",
     }),
     datapoint("datapoint1", "Datapoint 1"),
     datapoint("datapoint2", "Datapoint 2"),

@@ -14,8 +14,15 @@ import { venture } from "./venture";
 import { siteSettings } from "./siteSettings";
 import { serviceCategory } from "./serviceCategory";
 import { interstitial } from "./interstitial";
+import { aboutOffice } from "./aboutOffice";
+import { localeString, localeText, localeBlockContent } from "./locale";
 
 export const schemaTypes = [
+  // Localization helpers (used by string/text/portable-text fields).
+  localeString,
+  localeText,
+  localeBlockContent,
+
   // Page-section singletons
   homeSection,
   mottoSection,
@@ -27,6 +34,8 @@ export const schemaTypes = [
   venturesSection,
   contactSection,
   siteSettings,
+
+  aboutOffice,
 
   // Document lists
   project,

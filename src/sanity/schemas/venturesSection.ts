@@ -8,13 +8,12 @@ export const venturesSection = defineType({
     defineField({
       name: "heading",
       title: "Section Heading",
-      type: "string",
+      type: "localeString",
     }),
     defineField({
       name: "body",
       title: "Body Text",
-      type: "text",
-      rows: 6,
+      type: "localeText",
       description: "Intro paragraph rendered beside the featured media frame.",
     }),
     defineField({
@@ -30,7 +29,7 @@ export const venturesSection = defineType({
       title: "Featured Image",
       type: "image",
       options: { hotspot: true },
-      fields: [defineField({ name: "alt", title: "Alt Text", type: "string" })],
+      fields: [defineField({ name: "alt", title: "Alt Text", type: "localeString" })],
       description: "Shown in the left media frame when no featured video is set.",
     }),
     defineField({

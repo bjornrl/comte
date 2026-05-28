@@ -9,6 +9,7 @@ import {
   PUBLICATIONS_SECTION_QUERY,
   VENTURES_SECTION_QUERY,
   CONTACT_SECTION_QUERY,
+  ABOUT_OFFICE_QUERY,
   PROJECTS_QUERY,
   TEAM_QUERY,
   PUBLICATIONS_QUERY,
@@ -22,7 +23,8 @@ import {
   type Domain,
 } from "@/app/components/projectNetworkData";
 import type { Project } from "@/app/components/projectNetworkData";
-import HomePageClient, { type HomeData } from "@/app/components/HomePageClient";
+import { type HomeData } from "@/app/components/HomePageClient";
+import ResponsiveHome from "@/app/components/ResponsiveHome";
 import { urlFor } from "@/sanity/lib/image";
 import {
   resolveDatapoint,
@@ -30,6 +32,7 @@ import {
   resolveLocaleText,
 } from "@/sanity/lib/locale";
 import { FALLBACK_PROJECTS } from "@/lib/fallbacks";
+import { getServerLocale } from "@/lib/locale-server";
 import type { CardItem } from "@/app/components/sections/SectionCardGrid";
 
 export const revalidate = 60;
@@ -136,10 +139,14 @@ export default async function Home() {
   let publicationsSection: any = null;
   let venturesSection: any = null;
   let contactSection: any = null;
+  let aboutOffice: any = null;
   let sanityProjects: any[] | null = null;
   let team: any[] | null = null;
   let publications: any[] | null = null;
   let ventures: any[] | null = null;
+
+  const locale = await getServerLocale();
+  const params = { locale };
 
   try {
     [
@@ -152,24 +159,26 @@ export default async function Home() {
       publicationsSection,
       venturesSection,
       contactSection,
+      aboutOffice,
       sanityProjects,
       team,
       publications,
       ventures,
     ] = await Promise.all([
-      client.fetch(HOME_SECTION_QUERY),
-      client.fetch(MOTTO_SECTION_QUERY),
-      client.fetch(ABOUT_INTRO_QUERY),
-      client.fetch(WHAT_WE_DO_QUERY),
-      client.fetch(PROJECTS_SECTION_QUERY),
-      client.fetch(TEAM_SECTION_QUERY),
-      client.fetch(PUBLICATIONS_SECTION_QUERY),
-      client.fetch(VENTURES_SECTION_QUERY),
-      client.fetch(CONTACT_SECTION_QUERY),
-      client.fetch(PROJECTS_QUERY),
-      client.fetch(TEAM_QUERY),
-      client.fetch(PUBLICATIONS_QUERY),
-      client.fetch(VENTURES_QUERY),
+      client.fetch(HOME_SECTION_QUERY, params),
+      client.fetch(MOTTO_SECTION_QUERY, params),
+      client.fetch(ABOUT_INTRO_QUERY, params),
+      client.fetch(WHAT_WE_DO_QUERY, params),
+      client.fetch(PROJECTS_SECTION_QUERY, params),
+      client.fetch(TEAM_SECTION_QUERY, params),
+      client.fetch(PUBLICATIONS_SECTION_QUERY, params),
+      client.fetch(VENTURES_SECTION_QUERY, params),
+      client.fetch(CONTACT_SECTION_QUERY, params),
+      client.fetch(ABOUT_OFFICE_QUERY, params),
+      client.fetch(PROJECTS_QUERY, params),
+      client.fetch(TEAM_QUERY, params),
+      client.fetch(PUBLICATIONS_QUERY, params),
+      client.fetch(VENTURES_QUERY, params),
     ]);
   } catch (error) {
     console.error("[Home] Sanity fetch failed:", error);
@@ -259,5 +268,34 @@ export default async function Home() {
     },
   };
 
-  return <HomePageClient data={data} projects={projects} connections={connections} />;
+  // Mobile-only contact locations come from the aboutOffice singleton.
+  // The desktop ResponsiveHome branch ignores this prop.
+  const mobileContactLocations: MobileContactLocation[] = Array.isArray(
+    aboutOffice?.locations,
+  )
+    ? aboutOffice.locations
+        .map((loc: any) => ({
+          title: loc?.title ?? "",
+          address: loc?.address ?? "",
+          description: loc?.description ?? "",
+          zoom: typeof loc?.zoom === "number" ? loc.zoom : undefined,
+        }))
+        .filter((loc: MobileContactLocation) => !!loc.title)
+    : [];
+
+  return (
+    <ResponsiveHome
+      data={data}
+      projects={projects}
+      connections={connections}
+      mobileContactLocations={mobileContactLocations}
+    />
+  );
 }
+
+export type MobileContactLocation = {
+  title: string;
+  address: string;
+  description: string;
+  zoom?: number;
+};

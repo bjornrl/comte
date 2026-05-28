@@ -14,14 +14,13 @@ export const teamMember = defineType({
     defineField({
       name: "role",
       title: "Role",
-      type: "string",
+      type: "localeString",
       validation: (Rule) => Rule.required(),
     }),
     defineField({
       name: "bio",
       title: "Bio",
-      type: "array",
-      of: [{ type: "block" }],
+      type: "localeBlockContent",
     }),
     defineField({
       name: "photo",

@@ -8,7 +8,7 @@ export const venture = defineType({
     defineField({
       name: "title",
       title: "Title",
-      type: "string",
+      type: "localeString",
       validation: (Rule) => Rule.required(),
     }),
     defineField({
@@ -16,13 +16,12 @@ export const venture = defineType({
       title: "Image",
       type: "image",
       options: { hotspot: true },
-      fields: [defineField({ name: "alt", title: "Alt Text", type: "string" })],
+      fields: [defineField({ name: "alt", title: "Alt Text", type: "localeString" })],
     }),
     defineField({
       name: "description",
       title: "Description",
-      type: "text",
-      rows: 4,
+      type: "localeText",
     }),
     defineField({
       name: "order",
@@ -34,6 +33,7 @@ export const venture = defineType({
     { title: "Manual Order", name: "order", by: [{ field: "order", direction: "asc" }] },
   ],
   preview: {
-    select: { title: "title", media: "image" },
+    select: { en: "title.en", no: "title.no", media: "image" },
+    prepare: ({ en, no, media }) => ({ title: en || no || "Untitled", media }),
   },
 });
