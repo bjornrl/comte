@@ -10,7 +10,7 @@
     padding: 0;
     width: 100%;
     height: 100%;
-    background: #1F3A32;
+    background: #5A7482;
     overflow: hidden;
   }
   canvas {
@@ -24,9 +24,9 @@
 <canvas id="c"></canvas>
 <script>
 (() => {
-  const BG = '#1F3A32';
-  const BG_RGB = { r: 31, g: 58, b: 50 };
-  /** Per-frame overlay that pulls streak trails back to brand green (not black). */
+  const BG = '#5A7482';
+  const BG_RGB = { r: 90, g: 116, b: 130 };
+  /** Per-frame overlay that pulls streak trails back to brand slate (not black). */
   const TRAIL_ALPHA = 0.48;
 
   const canvas = document.getElementById('c');
@@ -540,8 +540,8 @@
     const dt = Math.min(dtMs, 50) / 1000;
     t += dt;
 
-    // Trail fade — solid brand green at partial opacity so the field stays
-    // #1F3A32 instead of drifting toward black between frames.
+    // Trail fade — solid brand slate at partial opacity so the field stays
+    // #5A7482 instead of drifting toward black between frames.
     ctx.globalCompositeOperation = 'source-over';
     ctx.globalAlpha = 1;
     ctx.fillStyle = `rgba(${BG_RGB.r}, ${BG_RGB.g}, ${BG_RGB.b}, ${TRAIL_ALPHA})`;

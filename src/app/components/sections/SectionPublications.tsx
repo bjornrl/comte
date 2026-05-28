@@ -4,11 +4,16 @@ import Image from "next/image";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ChevronUp, ChevronDown } from "lucide-react";
 import SectionShell from "./SectionShell";
+import TiltedHeading from "../TiltedHeading";
 import { urlFor } from "@/sanity/lib/image";
 import type { CardItem } from "./SectionCardGrid";
 
 const PLACEHOLDER_IMAGE =
   "https://images.unsplash.com/photo-1773558058134-9ff1a3212ef0?q=80&w=1572&auto=format&fit=crop";
+
+/** Bisects the team / publications boundary — same pattern as motto + what-we-do. */
+const SECTION_BORDER_LINES = ["Publication", "Publicati/ons"];
+const SECTION_BORDER_TEXT = "#FFD2D2";
 
 function sanityImageUrl(imageField: any, width = 800): string | null {
   if (!imageField?.asset) return null;
@@ -30,6 +35,9 @@ type Props = {
 
 const TILE_GAP_PX = 4;
 const MARQUEE_TILE_HEIGHT = "40vh";
+const MARQUEE_ROTATED_TEXT_MAX = MARQUEE_TILE_HEIGHT;
+const MARQUEE_TITLE_SIZE = "clamp(1.5rem, 3.5vw, 2.75rem)";
+const MARQUEE_BODY_SIZE = "clamp(1.125rem, 2.5vw, 2rem)";
 const MARQUEE_DURATION_S = 80;
 const RIGHT_COL_WIDTH = "36%";
 const RIGHT_COL_GRID_COLS = 2;
@@ -93,34 +101,56 @@ function MarqueeTile({
       />
 
       <div
-        aria-hidden
-        className="pointer-events-none absolute inset-x-0 bottom-0 h-1/2 transition-opacity duration-300 ease-out"
+        className="pointer-events-none absolute bottom-0 left-0 z-10 overflow-hidden transition-opacity duration-300 ease-out"
         style={{
-          backgroundImage:
-            "linear-gradient(to top, rgba(0,0,0,0.65), rgba(0,0,0,0))",
           opacity: hovered ? 0 : 1,
+          width: "100%",
+          height: "100%",
         }}
-      />
-      <div
-        className="pointer-events-none absolute inset-x-0 bottom-0 z-10 flex flex-col gap-1 p-4 transition-opacity duration-300 ease-out"
-        style={{ opacity: hovered ? 0 : 1 }}
       >
-        {item.title && (
-          <h3
-            className="font-[family-name:var(--font-manrope)] text-base font-bold leading-tight"
-            style={{ color: "rgba(255,255,255,0.98)" }}
-          >
-            {item.title}
-          </h3>
-        )}
-        {item.description && (
-          <p
-            className="font-[family-name:var(--font-manrope)] text-xs font-light leading-snug whitespace-pre-line"
-            style={{ color: "rgba(255,255,255,0.86)" }}
-          >
-            {item.description}
-          </p>
-        )}
+        <div
+          style={{
+            position: "absolute",
+            bottom: 0,
+            left: 0,
+            transform: "rotate(-90deg)",
+            transformOrigin: "left bottom",
+            maxWidth: MARQUEE_ROTATED_TEXT_MAX,
+            padding: "16px",
+            display: "flex",
+            flexDirection: "column",
+            gap: "8px",
+            hyphens: "none",
+            WebkitHyphens: "none",
+            wordBreak: "normal",
+            overflowWrap: "normal",
+          }}
+        >
+          {item.title && (
+            <h3
+              className="font-[family-name:var(--font-manrope)] font-bold leading-tight"
+              style={{
+                margin: 0,
+                fontSize: MARQUEE_TITLE_SIZE,
+                color: "rgba(255,255,255,0.98)",
+              }}
+            >
+              {item.title}
+            </h3>
+          )}
+          {item.description && (
+            <p
+              className="font-[family-name:var(--font-manrope)] font-light leading-snug whitespace-pre-line"
+              style={{
+                margin: 0,
+                fontSize: MARQUEE_BODY_SIZE,
+                color: "rgba(255,255,255,0.9)",
+              }}
+            >
+              {item.description}
+            </p>
+          )}
+        </div>
       </div>
 
       <div
@@ -656,8 +686,14 @@ export default function SectionPublications({
     <SectionShell
       id="publications"
       bgColor={backgroundColor}
-      style={{ color: foregroundColor, padding: 0 }}
+      style={{ color: foregroundColor, padding: 0, overflow: "visible" }}
     >
+      <TiltedHeading
+        lines={SECTION_BORDER_LINES}
+        color={SECTION_BORDER_TEXT}
+        parallaxFactor={0.18}
+      />
+
       <style>{`
         @keyframes pubMarqueeUp {
           from { transform: translateY(0%); }

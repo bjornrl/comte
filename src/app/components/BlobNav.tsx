@@ -36,6 +36,8 @@ const ITEM_GAP_PX = 4;
 const SIDE_MARGIN = "clamp(2rem, 5vw, 5rem)";
 // Half of SIDE_MARGIN at every viewport width.
 const TOP_MARGIN = "clamp(1rem, 2.5vw, 2.5rem)";
+/** Gap between projects prev/next controls and where the nav hover band ends. */
+const PROJECTS_PAGINATION_HOVER_MARGIN = 16;
 
 // Logo SVG viewBox is 247×71, so width follows height by this ratio.
 const LOGO_ASPECT = 247 / 71;
@@ -198,7 +200,7 @@ const boxStyle = (extra?: React.CSSProperties): React.CSSProperties => ({
 export default function BlobNav({
   onNavigate,
   activeSection,
-  isScrolling,
+  isScrolling: _isScrolling,
   publicationsItemView,
 }: Props) {
   const [open, setOpen] = useState(false);
@@ -360,6 +362,8 @@ export default function BlobNav({
 
   // Track whether the pointer sits inside the nav row. Gaps between logo,
   // hamburger, items, and the space to Contact are all inside the row rect.
+  // On the projects panel, the right edge stops before the tile nav column
+  // (dots + prev/next — see `[data-tile-pagination]` in ProjectCluster).
   // Only clear when the pointer exits downward — not when crossing internal
   // gaps or leaving sideways above the row.
   useEffect(() => {
@@ -367,11 +371,31 @@ export default function BlobNav({
       const row = navRowRef.current;
       if (!row) return;
       const rect = row.getBoundingClientRect();
+
+      let hoverRight = rect.right;
+      if (activeSection === "projects") {
+        const pagination = document.querySelector("[data-tile-pagination]");
+        if (pagination) {
+          const pagRect = pagination.getBoundingClientRect();
+          hoverRight = Math.min(hoverRight, pagRect.left - PROJECTS_PAGINATION_HOVER_MARGIN);
+        }
+      }
+
+      const inRowY = e.clientY >= rect.top && e.clientY <= rect.bottom;
+      const inExcludedProjectsPaginationZone =
+        activeSection === "projects" &&
+        inRowY &&
+        e.clientX > hoverRight;
+
+      if (inExcludedProjectsPaginationZone) {
+        setNavPointerInside(false);
+        return;
+      }
+
       const inRow =
         e.clientX >= rect.left &&
-        e.clientX <= rect.right &&
-        e.clientY >= rect.top &&
-        e.clientY <= rect.bottom;
+        e.clientX <= hoverRight &&
+        inRowY;
       if (inRow) {
         setNavPointerInside(true);
       } else if (e.clientY >= rect.bottom) {
@@ -381,28 +405,23 @@ export default function BlobNav({
 
     window.addEventListener("pointermove", updatePointerInside, { passive: true });
     return () => window.removeEventListener("pointermove", updatePointerInside);
-  }, []);
+  }, [activeSection]);
 
-  // Collapsed on entry; opens when the pointer enters the nav row. Stays
-  // closed while a section scroll is in flight (even in publications item
-  // view, so horizontal scrolling collapses the nav normally). When idle
-  // and in item view, the nav is forced open so the inserted item-title
-  // button is always reachable.
+  // Opens when the pointer enters the nav row; stays open while the pointer
+  // remains over the row — including during horizontal scroll (e.g. after
+  // clicking a nav item). Collapses only once the pointer has left the row
+  // and we're not in publications item view.
   useEffect(() => {
-    if (isScrolling) {
-      setOpen(false);
-      return;
-    }
     if (itemViewActive) {
       setOpen(true);
       return;
     }
     if (navPointerInside) {
       setOpen(true);
-    } else {
-      setOpen(false);
+      return;
     }
-  }, [isScrolling, navPointerInside, itemViewActive]);
+    setOpen(false);
+  }, [navPointerInside, itemViewActive]);
 
   const navigate = useCallback(
     (sectionId: string) => {

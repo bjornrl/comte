@@ -8,6 +8,7 @@ const FG = "#FF5252";
 const DARK_GREEN = "#1F3A32";
 // Off-white "beige" used for text on the filled red circle.
 const BEIGE = "#F5F5E9";
+const LARGE_DATAPOINT_FILL = "#FBFF00";
 
 // Two-line tilted heading at the section's left edge. First line gets
 // bisected by the office/what-we-do boundary, second line lives entirely on
@@ -33,8 +34,8 @@ function DatapointCircle({
   // Diameter scales with viewport but stays within the row band of the
   // section. Bigger circle is ~50% larger by diameter.
   const diameter = isSmall ? "clamp(9rem, 13vw, 13rem)" : "clamp(13rem, 19vw, 19rem)";
-  const fill = isSmall ? FG : "transparent";
-  const stroke = isSmall ? "transparent" : DARK_GREEN;
+  const fill = isSmall ? FG : LARGE_DATAPOINT_FILL;
+  const stroke = isSmall ? "transparent" : LARGE_DATAPOINT_FILL;
   const textColor = isSmall ? BEIGE : DARK_GREEN;
   return (
     <div
@@ -116,7 +117,7 @@ export default function SectionWhatWeDo({
       >
         {textbox && (
           <p
-            className="max-w-[28ch] font-[family-name:var(--font-manrope)] font-bold whitespace-pre-line"
+            className="max-w-[28ch] font-[family-name:var(--font-manrope)] font-normal whitespace-pre-line"
             style={{
               fontSize: "clamp(1.25rem, 1.8vw, 1.6rem)",
               lineHeight: 1.2,

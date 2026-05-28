@@ -1,43 +1,16 @@
 "use client";
 
-import { useRef, useEffect, useState, useCallback, useMemo, useLayoutEffect, type CSSProperties } from "react";
+import { useRef, useEffect, useState, useCallback, useMemo, useLayoutEffect, type CSSProperties, type RefObject } from "react";
 import Image from "next/image";
 import { ChevronLeft, ChevronRight, ArrowLeft, ArrowRight } from "lucide-react";
-import { AnimatePresence, motion } from "framer-motion";
+import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
+import { METHOD_LABELS, DOMAIN_COLORS, DOMAIN_LABELS } from "./projectNetworkData";
 import type {
   Project as NetProject,
   Domain,
   Method,
-  Scale,
 } from "./projectNetworkData";
-import { METHOD_LABELS, SCALE_LABELS } from "./projectNetworkData";
 import { CONTENT_TOP, NAV_HEIGHT_TOTAL, PANEL_PADDING } from "./sections/SectionShell";
-
-// Domains rendered in the cluster view. The palette is tuned for the beige
-// (#F5F5E9) panel background — each colour clears WCAG AA 4.5:1 on beige so
-// the filter pill labels and small node labels stay readable, and the hues
-// are spread far enough apart that all eight remain visually distinct.
-const DOMAIN_COLORS: Record<Domain, string> = {
-  health: "#2E7855",      // forest green
-  education: "#C73D74",   // magenta
-  integration: "#C04B1F", // burnt orange
-  urban: "#3D5C75",       // slate blue
-  climate: "#4F6F33",     // olive moss
-  digital: "#CC4444",     // deep red
-  culture: "#7A3D8A",     // deep purple
-  policy: "#555E70",      // gray-blue
-};
-
-const DOMAIN_LABELS: Record<Domain, string> = {
-  health: "Health & Care",
-  education: "Childhood & Education",
-  integration: "Inclusion & Participation",
-  urban: "Urban Development",
-  climate: "Climate & Sustainability",
-  digital: "Digital Transformation",
-  culture: "Culture",
-  policy: "Policy",
-};
 
 const VISIBLE_DOMAINS: Domain[] = [
   "education",
@@ -50,33 +23,35 @@ const VISIBLE_DOMAINS: Domain[] = [
   "policy",
 ];
 
-function domainTagBackground(domain: Domain, opacity: number): string {
-  return `color-mix(in srgb, ${DOMAIN_COLORS[domain]} ${opacity * 100}%, transparent)`;
-}
-
 type ViewMode = "node" | "tile";
+
+/** Node constellation view — disabled; tile view only. */
+const NODE_VIEW_ENABLED = false;
 
 const BOTTOM_TAG_ROW_GAP = 4;
 const BOTTOM_OFFSET = "clamp(16px, 3vh, 32px)";
 /** Vertical gap below nav (and above tag bar) — matches tile-area top inset. */
 const TILE_VERTICAL_MARGIN = "clamp(1rem, 2vw, 1.5rem)";
+/** Extra space below navbar before cards + category row (dots/pagination stay put). */
+const TILE_CARDS_TOP_EXTRA = "clamp(2rem, 5vh, 3.5rem)";
 
-// Tile view — uniform padding; row height fits 5 title lines at TILE_FONT_SIZE.
+// Tile view — row height sized for embedded detail cards (image + body text).
 const TILE_PAD = 12;
 const TILE_FONT_SIZE = "0.875rem";
 const TILE_LINE_HEIGHT = 1.25;
-const TILE_LINE_COUNT = 5;
-const TILE_TITLE_BLOCK = `calc(${TILE_LINE_COUNT} * ${TILE_FONT_SIZE} * ${TILE_LINE_HEIGHT})`;
+/** Line units per grid row — drives overall embedded card height. */
+const TILE_EMBEDDED_TEXT_LINES = 6;
+const TILE_TITLE_BLOCK = `calc(${TILE_EMBEDDED_TEXT_LINES} * ${TILE_FONT_SIZE} * ${TILE_LINE_HEIGHT})`;
 const TILE_HEIGHT = `calc(${TILE_TITLE_BLOCK} + ${TILE_PAD * 2}px)`;
 // Reclaim section panel padding; top inset matches TILE_VERTICAL_MARGIN below the nav.
 const TILE_SECTION_TOP = `calc(${CONTENT_TOP} - ${PANEL_PADDING} + ${TILE_VERTICAL_MARGIN})`;
 const TILE_HEADING_BLOCK = "clamp(1.65rem, 3.3vw, 2.75rem)";
 const TILE_GRID_GAP_BELOW_HEADING = "8px";
-const TILE_GRID_TOP = TILE_SECTION_TOP;
-const TILE_GRID_TOP_WITH_HEADING = `calc(${TILE_SECTION_TOP} + ${TILE_HEADING_BLOCK} + ${TILE_GRID_GAP_BELOW_HEADING})`;
+const TILE_GRID_TOP = `calc(${TILE_SECTION_TOP} + ${TILE_CARDS_TOP_EXTRA})`;
+const TILE_GRID_TOP_WITH_HEADING = `calc(${TILE_SECTION_TOP} + ${TILE_HEADING_BLOCK} + ${TILE_GRID_GAP_BELOW_HEADING} + ${TILE_CARDS_TOP_EXTRA})`;
 const TILE_FILTER_TRANSITION_S = 0.38;
 const TILE_FILTER_EASE = [0.25, 1, 0.5, 1] as const;
-/** Visible tile rows on page 1 — row 4 reserves its right two columns for pagination. */
+/** Tile grid row count — cards and nav column share full block height. */
 const TILE_VISIBLE_ROWS = 4;
 /** Horizontal inset for tile/node stage — matches nav and section content margins. */
 const CLUSTER_STAGE_INSET = PANEL_PADDING;
@@ -88,17 +63,28 @@ const BG_CREAM = "#F5F5E9";
 const TILE_GRID_GAP = 4;
 const TILE_MIN_COL_WIDTH = 148;
 const TILE_PAGINATION_COLOR = "#242423";
+/** Embedded tile card surface — prev/next buttons match this. */
+const TILE_CARD_BG = "#2a2a2a";
+const TILE_PAGINATION_HOVER_BG = "#5A7482";
 /** Fixed tile grid width — was ~9 cols at desktop; now 8 with hybrid page-1 layout. */
 const TILE_GRID_COLUMNS = 8;
-/** Modal slots on page 1 — each spans 2 cols × 4 rows (8 tiles). */
-const TILE_MODAL_SLOT_COUNT = 3;
-const TILE_MODAL_COL_SPAN = 2;
-/** Side tiles on page 1 — cols 7–8, rows 1–3. */
-const TILE_PAGE1_SIDE_TILE_COUNT = 6;
-const TILE_PAGE1_CAPACITY = TILE_MODAL_SLOT_COUNT + TILE_PAGE1_SIDE_TILE_COUNT;
-/** Full-grid pages (page 2+): 8×4 minus pagination cell (2 cols on last row). */
-const TILE_FULL_PAGE_CAPACITY =
-  TILE_GRID_COLUMNS * TILE_VISIBLE_ROWS - TILE_MODAL_COL_SPAN;
+/** Projects visible per page in tile view. */
+const TILE_GROUP_SIZE = 4;
+/** Card area spans cols 1–7; col 8 reserved for nav/dots. */
+const TILE_CARD_COL_START = 1;
+const TILE_CARD_COL_SPAN = 7;
+/** Match BlobNav BOX_HEIGHT — shared control height for category row. */
+const NAV_BOX_HEIGHT = 42;
+const TILE_CONTROL_FONT_SIZE = "1rem";
+const TILE_CATEGORY_FONT_SIZE = "clamp(0.5625rem, 0.65vw, 0.6875rem)";
+const TILE_PROGRESS_DOT_SIZE = 14;
+/** Dots per row in the progress grid (left → right, then next row down). */
+const TILE_PROGRESS_DOTS_PER_ROW = 4;
+/** Stagger + duration when the highlighted dot set changes (page turn). */
+const TILE_DOT_STAGGER_S = 0.14;
+const TILE_DOT_FADE_S = 0.32;
+const TILE_DOT_FADE_EASE_OUT: [number, number, number, number] = [0.55, 0, 1, 0.45];
+const TILE_DOT_FADE_EASE_IN: [number, number, number, number] = [0.25, 1, 0.5, 1];
 
 /** Same domain order as the bottom tag menu (left → right), then title A–Z. */
 function sortProjectsForTileGrid(projects: NetProject[]): NetProject[] {
@@ -110,15 +96,9 @@ function sortProjectsForTileGrid(projects: NetProject[]): NetProject[] {
   });
 }
 
-function tileProjectListsEqual(a: NetProject[], b: NetProject[]): boolean {
-  return a.length === b.length && a.every((p, i) => p.id === b[i].id);
-}
-
 type TileGridLayout = {
   columns: number;
   rows: number;
-  page1Capacity: number;
-  fullPageCapacity: number;
   tileHeightPx: number;
   paginationWidth: number;
   colWidth: number;
@@ -127,11 +107,35 @@ type TileGridLayout = {
 /** Match TILE_HEIGHT CSS at default 16px root — keep in sync with TILE_* constants. */
 function getTileHeightPx(rootFontSize = 16): number {
   const fontSize = rootFontSize * 0.875;
-  return TILE_PAD * 2 + TILE_LINE_COUNT * fontSize * TILE_LINE_HEIGHT;
+  return TILE_PAD * 2 + TILE_EMBEDDED_TEXT_LINES * fontSize * TILE_LINE_HEIGHT;
 }
 
 function getTileGridBlockHeight(): string {
   return `calc(${TILE_VISIBLE_ROWS} * (${TILE_HEIGHT}) + ${(TILE_VISIBLE_ROWS - 1) * TILE_GRID_GAP}px)`;
+}
+
+/** Inner width of the tile stage (between horizontal insets, minus column gaps). */
+function getTileStageWidthExpr(): string {
+  return `(100% - 2 * ${CLUSTER_STAGE_INSET} - ${(TILE_GRID_COLUMNS - 1) * TILE_GRID_GAP}px)`;
+}
+
+function getTileGridColumnWidthExpr(): string {
+  return `${getTileStageWidthExpr()} / ${TILE_GRID_COLUMNS}`;
+}
+
+/** Width of the four-card row (grid cols 1–7). */
+function getTileCardAreaWidth(): string {
+  return `calc(${getTileGridColumnWidthExpr()} * ${TILE_CARD_COL_SPAN} + ${(TILE_CARD_COL_SPAN - 1) * TILE_GRID_GAP}px)`;
+}
+
+/** Section-level `right` offset — start of grid col 8 (after the card row). */
+function getTileCardRowRightOffset(): string {
+  return `calc(${CLUSTER_STAGE_INSET} + (${getTileStageWidthExpr()} + ${TILE_GRID_GAP}px) / ${TILE_GRID_COLUMNS})`;
+}
+
+/** Width of grid column 8 — right-side nav/dots strip. */
+function getTileNavColumnWidth(): string {
+  return `calc(${getTileGridColumnWidthExpr()})`;
 }
 
 function computeTileGridLayout(width: number, _height?: number): TileGridLayout {
@@ -140,41 +144,45 @@ function computeTileGridLayout(width: number, _height?: number): TileGridLayout 
   const tileHeightPx = getTileHeightPx();
   const rows = TILE_VISIBLE_ROWS;
   const colWidth = (width - (columns - 1) * gap) / columns;
-  const paginationWidth = colWidth * TILE_MODAL_COL_SPAN + gap;
+  const paginationWidth = colWidth;
   return {
     columns,
     rows,
-    page1Capacity: TILE_PAGE1_CAPACITY,
-    fullPageCapacity: TILE_FULL_PAGE_CAPACITY,
     tileHeightPx,
     paginationWidth,
     colWidth,
   };
 }
 
-function getSideTileGridPosition(index: number): { col: number; row: number } {
-  const row = Math.floor(index / 2) + 1;
-  const col = index % 2 === 0 ? TILE_GRID_COLUMNS - 1 : TILE_GRID_COLUMNS;
-  return { col, row };
+function getFeaturedPageCount(projectCount: number): number {
+  return Math.max(1, Math.ceil(projectCount / TILE_GROUP_SIZE));
 }
 
-function getFullGridTilePosition(
-  index: number,
-  columns: number = TILE_GRID_COLUMNS,
-): { col: number; row: number } {
-  let n = 0;
-  for (let row = 1; row <= TILE_VISIBLE_ROWS; row++) {
-    for (let col = 1; col <= columns; col++) {
-      if (row === TILE_VISIBLE_ROWS && col >= columns - 1) continue;
-      if (n === index) return { col, row };
-      n++;
-    }
-  }
-  return { col: 1, row: 1 };
+function wrapPageIndex(index: number, pageCount: number): number {
+  if (pageCount <= 0) return 0;
+  return ((index % pageCount) + pageCount) % pageCount;
 }
 
-function getModalSlotColumnStart(slotIndex: number): number {
-  return 1 + slotIndex * TILE_MODAL_COL_SPAN;
+/** Shortest path on the wrapped page ring — used to stagger dots forward vs backward. */
+function getPageTransitionReversed(
+  fromPage: number,
+  toPage: number,
+  pageCount: number,
+): boolean {
+  if (pageCount <= 1 || fromPage === toPage) return false;
+  const forwardSteps = (toPage - fromPage + pageCount) % pageCount;
+  const backwardSteps = (fromPage - toPage + pageCount) % pageCount;
+  return backwardSteps < forwardSteps;
+}
+
+function getFeaturedPageIndices(pageIndex: number, projectCount: number): number[] {
+  if (projectCount === 0) return [];
+  const start = pageIndex * TILE_GROUP_SIZE;
+  return Array.from({ length: TILE_GROUP_SIZE }, (_, slot) => (start + slot) % projectCount);
+}
+
+function getFeaturedSlice(projects: NetProject[], pageIndex: number): NetProject[] {
+  return getFeaturedPageIndices(pageIndex, projects.length).map((index) => projects[index]);
 }
 
 function getProjectGalleryUrls(project: NetProject): string[] {
@@ -182,6 +190,458 @@ function getProjectGalleryUrls(project: NetProject): string[] {
   if (g && g.length > 0) return g;
   if (project.heroImageUrl) return [project.heroImageUrl];
   return [];
+}
+
+type DotGridCell = { project: NetProject; index: number };
+
+/** Lay out dots in rows of four, left → right then downward. Incomplete rows
+ *  are padded on the left so dots sit flush to the right edge. */
+function chunkDotsIntoRows(
+  projects: NetProject[],
+  dotsPerRow = TILE_PROGRESS_DOTS_PER_ROW,
+): Array<Array<DotGridCell | null>> {
+  if (projects.length === 0) return [];
+
+  const rows: Array<Array<DotGridCell | null>> = [];
+  for (let start = 0; start < projects.length; start += dotsPerRow) {
+    const slice = projects.slice(start, start + dotsPerRow).map((project, offset) => ({
+      project,
+      index: start + offset,
+    }));
+    const padCount = dotsPerRow - slice.length;
+    rows.push([...Array<null>(padCount).fill(null), ...slice]);
+  }
+  return rows;
+}
+
+function getDotGridRowCount(projectCount: number): number {
+  if (projectCount <= 0) return 0;
+  return Math.ceil(projectCount / TILE_PROGRESS_DOTS_PER_ROW);
+}
+
+function getDotGridHeightPx(rowCount: number): number {
+  if (rowCount <= 0) return 0;
+  return rowCount * TILE_PROGRESS_DOT_SIZE + (rowCount - 1) * TILE_GRID_GAP;
+}
+
+function getDotStaggerSlot(slot: number, reversed: boolean): number {
+  return reversed ? TILE_GROUP_SIZE - 1 - slot : slot;
+}
+
+function getDotTransitionDelay(
+  animateStagger: boolean,
+  prevSlot: number,
+  currSlot: number,
+  reversed: boolean,
+): number {
+  if (!animateStagger) return 0;
+  if (prevSlot >= 0) return getDotStaggerSlot(prevSlot, reversed) * TILE_DOT_STAGGER_S;
+  if (currSlot >= 0) return getDotStaggerSlot(currSlot, reversed) * TILE_DOT_STAGGER_S;
+  return 0;
+}
+
+function getDotTransitionDuration(): number {
+  return TILE_DOT_STAGGER_S * (TILE_GROUP_SIZE - 1) + TILE_DOT_FADE_S;
+}
+
+function TileProgressDots({
+  projects,
+  pageIndex,
+}: {
+  projects: NetProject[];
+  pageIndex: number;
+}) {
+  const [outgoingIndices, setOutgoingIndices] = useState<number[] | null>(null);
+  const [transitionReversed, setTransitionReversed] = useState(false);
+  const prevPageRef = useRef(pageIndex);
+  const clearTransitionRef = useRef<ReturnType<typeof setTimeout>>(undefined);
+  const reduceMotion = useReducedMotion();
+
+  const pageCount = getFeaturedPageCount(projects.length);
+  const pageJustChanged =
+    prevPageRef.current !== pageIndex && projects.length > 0;
+  const activeReversed =
+    pageJustChanged
+      ? getPageTransitionReversed(prevPageRef.current, pageIndex, pageCount)
+      : transitionReversed;
+  const activeOutgoingIndices =
+    outgoingIndices ??
+    (pageJustChanged
+      ? getFeaturedPageIndices(prevPageRef.current, projects.length)
+      : null);
+  const animateStagger = activeOutgoingIndices !== null;
+
+  useLayoutEffect(() => {
+    if (!pageJustChanged) return;
+
+    const prevIndices = getFeaturedPageIndices(prevPageRef.current, projects.length);
+    const reversed = getPageTransitionReversed(
+      prevPageRef.current,
+      pageIndex,
+      pageCount,
+    );
+    setOutgoingIndices(prevIndices);
+    setTransitionReversed(reversed);
+    if (clearTransitionRef.current) clearTimeout(clearTransitionRef.current);
+    const durationMs = reduceMotion ? 0 : getDotTransitionDuration() * 1000 + 50;
+    clearTransitionRef.current = setTimeout(() => {
+      setOutgoingIndices(null);
+      setTransitionReversed(false);
+    }, durationMs);
+    prevPageRef.current = pageIndex;
+  }, [pageIndex, projects.length, pageCount, pageJustChanged, reduceMotion]);
+
+  useEffect(() => {
+    setOutgoingIndices(null);
+    setTransitionReversed(false);
+    prevPageRef.current = pageIndex;
+    if (clearTransitionRef.current) clearTimeout(clearTransitionRef.current);
+  }, [projects]);
+
+  useEffect(
+    () => () => {
+      if (clearTransitionRef.current) clearTimeout(clearTransitionRef.current);
+    },
+    [],
+  );
+
+  const currVisibleIndices = useMemo(
+    () => getFeaturedPageIndices(pageIndex, projects.length),
+    [pageIndex, projects.length],
+  );
+
+  const visibleIndices = useMemo(
+    () => new Set(currVisibleIndices),
+    [currVisibleIndices],
+  );
+
+  const visibleLabels = useMemo(
+    () => currVisibleIndices.map((index) => index + 1),
+    [currVisibleIndices],
+  );
+
+  const dotRows = useMemo(() => chunkDotsIntoRows(projects), [projects]);
+
+  if (projects.length === 0) return null;
+
+  return (
+    <div
+      role="group"
+      aria-label={`Projects ${visibleLabels.join(", ")} of ${projects.length}`}
+      style={{
+        width: "100%",
+        minHeight: 0,
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "flex-end",
+        justifyContent: "flex-start",
+        gap: TILE_GRID_GAP,
+        overflow: "hidden",
+        boxSizing: "border-box",
+      }}
+    >
+      {dotRows.map((row, rowIndex) => (
+        <div
+          key={`dot-row-${rowIndex}`}
+          style={{
+            display: "flex",
+            flexDirection: "row",
+            justifyContent: "flex-end",
+            gap: TILE_GRID_GAP,
+          }}
+        >
+          {row.map((cell, cellIndex) => {
+            if (!cell) {
+              return (
+                <span
+                  key={`pad-${rowIndex}-${cellIndex}`}
+                  aria-hidden
+                  style={{
+                    width: TILE_PROGRESS_DOT_SIZE,
+                    height: TILE_PROGRESS_DOT_SIZE,
+                    flexShrink: 0,
+                  }}
+                />
+              );
+            }
+            const { project, index } = cell;
+            const isVisible = visibleIndices.has(index);
+            const prevSlot = activeOutgoingIndices?.indexOf(index) ?? -1;
+            const currSlot = currVisibleIndices.indexOf(index);
+            const delay = getDotTransitionDelay(
+              animateStagger,
+              prevSlot,
+              currSlot,
+              activeReversed,
+            );
+            const fadingOut = animateStagger && prevSlot >= 0 && currSlot < 0;
+            const accent = DOMAIN_COLORS[project.domain];
+            return (
+              <span
+                key={project.id}
+                title={project.name}
+                style={{
+                  position: "relative",
+                  width: TILE_PROGRESS_DOT_SIZE,
+                  height: TILE_PROGRESS_DOT_SIZE,
+                  flexShrink: 0,
+                  borderRadius: "50%",
+                  border: `1px solid ${accent}`,
+                  boxSizing: "border-box",
+                }}
+              >
+                <motion.span
+                  aria-hidden
+                  initial={false}
+                  animate={{ opacity: isVisible ? 1 : 0 }}
+                  transition={{
+                    duration: reduceMotion ? 0.01 : TILE_DOT_FADE_S,
+                    delay: reduceMotion ? 0 : delay,
+                    ease: fadingOut ? TILE_DOT_FADE_EASE_OUT : TILE_DOT_FADE_EASE_IN,
+                  }}
+                  style={{
+                    position: "absolute",
+                    inset: 0,
+                    borderRadius: "50%",
+                    backgroundColor: accent,
+                  }}
+                />
+              </span>
+            );
+          })}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function RotatedPaginationSlot({
+  slotHeightPx,
+  children,
+}: {
+  slotHeightPx: number;
+  children: React.ReactNode;
+}) {
+  const slotRef = useRef<HTMLDivElement>(null);
+  const [slotWidth, setSlotWidth] = useState(0);
+
+  useLayoutEffect(() => {
+    const el = slotRef.current;
+    if (!el) return;
+    const measure = () => setSlotWidth(el.clientWidth);
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+
+  if (slotHeightPx <= 0 || slotWidth <= 0) {
+    return (
+      <div
+        ref={slotRef}
+        style={{
+          width: "100%",
+          height: slotHeightPx > 0 ? slotHeightPx : undefined,
+          flexShrink: 0,
+        }}
+      />
+    );
+  }
+
+  return (
+    <div
+      ref={slotRef}
+      style={{
+        width: "100%",
+        height: slotHeightPx,
+        flexShrink: 0,
+        position: "relative",
+        overflow: "hidden",
+      }}
+    >
+      <div
+        style={{
+          position: "absolute",
+          left: "50%",
+          top: "50%",
+          width: slotHeightPx,
+          height: slotWidth,
+          transform: "translate(-50%, -50%) rotate(90deg)",
+        }}
+      >
+        <div style={{ width: "100%", height: "100%" }}>{children}</div>
+      </div>
+    </div>
+  );
+}
+
+function TileDotGridMeasure({
+  measureRef,
+}: {
+  measureRef: RefObject<HTMLDivElement | null>;
+}) {
+  return (
+    <div
+      ref={measureRef}
+      aria-hidden
+      data-tile-dot-grid-measure
+      style={{
+        position: "absolute",
+        top: 0,
+        right: 0,
+        display: "flex",
+        flexDirection: "row",
+        gap: TILE_GRID_GAP,
+        visibility: "hidden",
+        pointerEvents: "none",
+      }}
+    >
+      {Array.from({ length: TILE_PROGRESS_DOTS_PER_ROW }, (_, index) => (
+        <span
+          key={index}
+          style={{
+            width: TILE_PROGRESS_DOT_SIZE,
+            height: TILE_PROGRESS_DOT_SIZE,
+            flexShrink: 0,
+          }}
+        />
+      ))}
+    </div>
+  );
+}
+
+function TileProgressDotsColumn({
+  projects,
+  referenceProjectCount,
+  pageIndex,
+  height,
+  top,
+  showPagination,
+  onPrev,
+  onNext,
+}: {
+  projects: NetProject[];
+  /** Unfiltered project count — locks dot area + button height when filters shrink the grid. */
+  referenceProjectCount: number;
+  pageIndex: number;
+  height: string;
+  top: string;
+  showPagination: boolean;
+  onPrev: () => void;
+  onNext: () => void;
+}) {
+  const columnRef = useRef<HTMLDivElement>(null);
+  const gridMeasureRef = useRef<HTMLDivElement>(null);
+  const [dotGridWidth, setDotGridWidth] = useState(0);
+  const [buttonSlotHeightPx, setButtonSlotHeightPx] = useState(0);
+  const referenceDotsHeightPx = getDotGridHeightPx(
+    getDotGridRowCount(referenceProjectCount),
+  );
+
+  useLayoutEffect(() => {
+    const measureGridWidth = () => {
+      const el = gridMeasureRef.current;
+      if (!el) return;
+      setDotGridWidth(el.getBoundingClientRect().width);
+    };
+
+    measureGridWidth();
+    const gridObserver = new ResizeObserver(measureGridWidth);
+    const gridEl = gridMeasureRef.current;
+    if (gridEl) gridObserver.observe(gridEl);
+    window.addEventListener("resize", measureGridWidth);
+    return () => {
+      gridObserver.disconnect();
+      window.removeEventListener("resize", measureGridWidth);
+    };
+  }, []);
+
+  useLayoutEffect(() => {
+    if (!showPagination) {
+      setButtonSlotHeightPx(0);
+      return;
+    }
+
+    const measureButtonHeights = () => {
+      const column = columnRef.current;
+      if (!column || referenceDotsHeightPx <= 0) return;
+
+      const paginationArea =
+        column.clientHeight - referenceDotsHeightPx - TILE_GRID_GAP;
+      const slotHeight = (paginationArea - TILE_GRID_GAP) / 2;
+      if (slotHeight > 0) {
+        setButtonSlotHeightPx(slotHeight);
+      }
+    };
+
+    measureButtonHeights();
+    const columnObserver = new ResizeObserver(measureButtonHeights);
+    const columnEl = columnRef.current;
+    if (columnEl) columnObserver.observe(columnEl);
+    window.addEventListener("resize", measureButtonHeights);
+    return () => {
+      columnObserver.disconnect();
+      window.removeEventListener("resize", measureButtonHeights);
+    };
+  }, [showPagination, referenceDotsHeightPx]);
+
+  if (projects.length === 0) return null;
+
+  return (
+    <div
+      ref={columnRef}
+      style={{
+        position: "absolute",
+        top,
+        right: CLUSTER_STAGE_INSET,
+        zIndex: 20,
+        width: getTileNavColumnWidth(),
+        height,
+        minHeight: 0,
+        pointerEvents: "auto",
+        boxSizing: "border-box",
+        display: "grid",
+        gridTemplateRows: showPagination ? "auto 1fr" : "1fr",
+        gap: showPagination ? TILE_GRID_GAP : 0,
+      }}
+    >
+      <div
+        style={{
+          position: "relative",
+          minHeight:
+            showPagination && referenceDotsHeightPx > 0
+              ? referenceDotsHeightPx
+              : 0,
+          width: "100%",
+          overflow: "hidden",
+        }}
+      >
+        <TileDotGridMeasure measureRef={gridMeasureRef} />
+        <TileProgressDots projects={projects} pageIndex={pageIndex} />
+      </div>
+      {showPagination ? (
+        <div
+          data-tile-pagination
+          style={{
+            minHeight: 0,
+            height: "100%",
+            width: dotGridWidth > 0 ? dotGridWidth : undefined,
+            justifySelf: "end",
+            display: "flex",
+            flexDirection: "column",
+            gap: TILE_GRID_GAP,
+          }}
+        >
+          <RotatedPaginationSlot slotHeightPx={buttonSlotHeightPx}>
+            <TilePaginationButton mode="previous" navColumn onClick={onPrev} />
+          </RotatedPaginationSlot>
+          <RotatedPaginationSlot slotHeightPx={buttonSlotHeightPx}>
+            <TilePaginationButton mode="next" navColumn onClick={onNext} />
+          </RotatedPaginationSlot>
+        </div>
+      ) : null}
+    </div>
+  );
 }
 
 type TilePaginationMode = "next" | "previous";
@@ -192,59 +652,121 @@ function TilePaginationButton({
   height,
   onClick,
   inline = false,
+  compact = false,
+  tall = false,
+  navSlot = false,
+  navBar = false,
+  navColumn = false,
+  disabled = false,
+  style,
 }: {
   mode: TilePaginationMode;
-  width: number | string;
-  height: number | string;
+  width?: number | string;
+  height?: number | string;
   onClick: () => void;
-  /** When true, fills a grid cell on page 1 instead of overlaying the stage. */
   inline?: boolean;
+  compact?: boolean;
+  tall?: boolean;
+  navSlot?: boolean;
+  navBar?: boolean;
+  navColumn?: boolean;
+  disabled?: boolean;
+  style?: CSSProperties;
 }) {
   const [hovered, setHovered] = useState(false);
-  const label = mode === "next" ? "Next page" : "Previous page";
+  const navChrome = navBar || navColumn;
+  const label =
+    mode === "next"
+      ? compact || tall || navSlot || navChrome
+        ? "Next"
+        : "Next page"
+      : compact || tall || navSlot || navChrome
+        ? "Prev"
+        : "Previous page";
   const Icon = mode === "next" ? ArrowRight : ArrowLeft;
-  const foreground = hovered ? BG_CREAM : TILE_PAGINATION_COLOR;
+  const active = !disabled && hovered;
+  const filled = navChrome || active;
+  const foreground = filled ? BG_CREAM : TILE_PAGINATION_COLOR;
+  const background = navChrome
+    ? active
+      ? TILE_CARD_BG
+      : TILE_PAGINATION_HOVER_BG
+    : active
+      ? TILE_PAGINATION_COLOR
+      : "transparent";
+  const borderColor = navChrome
+    ? active
+      ? TILE_CARD_BG
+      : TILE_PAGINATION_HOVER_BG
+    : TILE_PAGINATION_COLOR;
+  const iconSize = navChrome ? 16 : navSlot ? 16 : tall ? 22 : compact ? 14 : 18;
 
   return (
     <button
       type="button"
       onClick={onClick}
+      disabled={disabled}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
-      aria-label={label}
+      aria-label={mode === "next" ? "Next page" : "Previous page"}
       style={{
-        position: inline ? "relative" : "absolute",
-        ...(inline ? {} : { bottom: 0, right: 0 }),
-        width,
-        height,
+        position: inline || tall || navSlot || navChrome ? "relative" : "absolute",
+        ...(inline || tall || navSlot || navChrome ? {} : { bottom: 0, right: 0 }),
+        flex: inline && compact ? 1 : navBar ? "1 1 0" : undefined,
+        width: navColumn ? "100%" : navBar ? "100%" : navSlot ? undefined : tall ? "100%" : width,
+        height: navColumn ? "100%" : navBar ? NAV_BOX_HEIGHT : navSlot ? undefined : tall ? "100%" : height,
         boxSizing: "border-box",
-        border: `1px solid ${TILE_PAGINATION_COLOR}`,
+        border: `1px solid ${borderColor}`,
         borderRadius: 0,
-        background: hovered ? TILE_PAGINATION_COLOR : "transparent",
+        background,
         color: foreground,
-        cursor: "pointer",
+        cursor: disabled ? "not-allowed" : "pointer",
+        opacity: disabled ? 0.35 : 1,
         display: "flex",
+        flexDirection: navChrome || (!tall && !navSlot) ? "row" : "column",
         alignItems: "center",
         justifyContent: "center",
-        gap: 8,
-        padding: "0 12px",
+        gap: navChrome ? 8 : navSlot ? 6 : tall ? 12 : compact ? 4 : 8,
+        padding: navChrome ? "0 12px" : navSlot ? "8px 4px" : tall ? "16px 8px" : compact ? "0 4px" : "0 12px",
         fontFamily: "var(--font-work-sans), system-ui, sans-serif",
-        fontSize: "1rem",
+        fontSize: navChrome ? TILE_CONTROL_FONT_SIZE : navSlot ? "0.7rem" : tall ? "1rem" : compact ? "0.75rem" : "1rem",
         fontWeight: 400,
         letterSpacing: "0.01em",
         lineHeight: 1,
         whiteSpace: "nowrap",
         zIndex: 6,
-        transition: "background 0.2s ease-out, color 0.2s ease-out",
+        minHeight: navBar ? NAV_BOX_HEIGHT : 0,
+        minWidth: navChrome || navSlot ? 0 : undefined,
+        transition: "background 0.2s ease-out, color 0.2s ease-out, border-color 0.2s ease-out, opacity 0.2s ease-out",
+        ...style,
       }}
     >
-      <span>{label}</span>
-      <Icon size={18} strokeWidth={2} aria-hidden />
+      {navChrome ? (
+        mode === "previous" ? (
+          <>
+            <Icon size={iconSize} strokeWidth={2} aria-hidden />
+            <span>{label}</span>
+          </>
+        ) : (
+          <>
+            <span>{label}</span>
+            <Icon size={iconSize} strokeWidth={2} aria-hidden />
+          </>
+        )
+      ) : tall || navSlot ? (
+        <>
+          <Icon size={iconSize} strokeWidth={2} aria-hidden />
+          <span>{label}</span>
+        </>
+      ) : (
+        <>
+          <span>{label}</span>
+          <Icon size={iconSize} strokeWidth={2} aria-hidden />
+        </>
+      )}
     </button>
   );
 }
-
-type TileFilterTransition = { prev: NetProject[]; next: NetProject[] };
 
 type TileProjectGridProps = {
   tileProjects: NetProject[];
@@ -255,107 +777,9 @@ type TileProjectGridProps = {
   onProjectClick: (id: string) => void;
   onTileHover: (id: string) => void;
   onGridLeave: () => void;
+  pageIndex: number;
   onTilePageChange?: (page: number) => void;
-  isMobile: boolean;
 };
-
-type ProjectTileButtonProps = {
-  project: NetProject;
-  activeProject: string | null;
-  hoveredProject: string | null;
-  isLeaving: boolean;
-  isEntering: boolean;
-  inTransition: boolean;
-  onProjectClick: (id: string) => void;
-  tall?: boolean;
-  style?: CSSProperties;
-};
-
-function ProjectTileButton({
-  project,
-  activeProject,
-  hoveredProject,
-  isLeaving,
-  isEntering,
-  inTransition,
-  onProjectClick,
-  tall = false,
-  style,
-}: ProjectTileButtonProps) {
-  const highlightId = activeProject ?? hoveredProject;
-  const dimmed = highlightId !== null && highlightId !== project.id;
-  const targetOpacity = isLeaving ? 0 : dimmed ? 0.45 : 1;
-
-  return (
-    <motion.button
-      type="button"
-      data-project-tile
-      data-project-id={project.id}
-      layout={false}
-      onClick={() => onProjectClick(project.id)}
-      aria-label={project.name}
-      initial={
-        isEntering ? { opacity: 0, backgroundColor: DOMAIN_COLORS[project.domain] } : false
-      }
-      animate={{
-        backgroundColor: DOMAIN_COLORS[project.domain],
-        opacity: targetOpacity,
-      }}
-      transition={{
-        backgroundColor: { duration: TILE_FILTER_TRANSITION_S, ease: TILE_FILTER_EASE },
-        opacity: {
-          duration: inTransition ? TILE_FILTER_TRANSITION_S : 0.12,
-          ease: TILE_FILTER_EASE,
-        },
-      }}
-      style={{
-        boxSizing: "border-box",
-        position: "relative",
-        display: "flex",
-        flexDirection: "column",
-        alignItems: "flex-start",
-        justifyContent: "flex-end",
-        textAlign: "left",
-        color: BG_CREAM,
-        border: "none",
-        padding: TILE_PAD,
-        height: tall ? "100%" : "100%",
-        minHeight: tall ? undefined : TILE_HEIGHT,
-        maxHeight: tall ? undefined : TILE_HEIGHT,
-        cursor: isLeaving ? "default" : "pointer",
-        overflow: "hidden",
-        pointerEvents: isLeaving ? "none" : "auto",
-        ...style,
-      }}
-    >
-      <AnimatePresence mode="popLayout" initial={false}>
-        <motion.span
-          key={project.id}
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          transition={{ duration: TILE_FILTER_TRANSITION_S * 0.72, ease: TILE_FILTER_EASE }}
-          style={{
-            margin: 0,
-            width: "100%",
-            display: "-webkit-box",
-            WebkitLineClamp: tall ? TILE_LINE_COUNT * 2 : TILE_LINE_COUNT,
-            WebkitBoxOrient: "vertical",
-            overflow: "hidden",
-            maxHeight: tall ? undefined : TILE_TITLE_BLOCK,
-            fontFamily: "var(--font-manrope), system-ui, sans-serif",
-            fontSize: TILE_FONT_SIZE,
-            fontWeight: 600,
-            lineHeight: TILE_LINE_HEIGHT,
-            textAlign: "left",
-          }}
-        >
-          {project.name}
-        </motion.span>
-      </AnimatePresence>
-    </motion.button>
-  );
-}
 
 function TileProjectGrid({
   tileProjects,
@@ -366,16 +790,13 @@ function TileProjectGrid({
   onProjectClick,
   onTileHover,
   onGridLeave,
+  pageIndex,
   onTilePageChange,
-  isMobile,
 }: TileProjectGridProps) {
-  const [tilePage, setTilePage] = useState(0);
-  const [transition, setTransition] = useState<TileFilterTransition | null>(null);
-  const committedRef = useRef<NetProject[]>(tileProjects);
-  const scrollRef = useRef<HTMLDivElement>(null);
   const gridRef = useRef<HTMLDivElement>(null);
   const onTileHoverRef = useRef(onTileHover);
   const onGridLeaveRef = useRef(onGridLeave);
+
   useEffect(() => {
     onTileHoverRef.current = onTileHover;
   }, [onTileHover]);
@@ -404,163 +825,17 @@ function TileProjectGrid({
     };
   }, []);
 
-  const layout = useMemo(
-    () => computeTileGridLayout(stageWidth, stageHeight),
-    [stageWidth, stageHeight],
-  );
+  useMemo(() => computeTileGridLayout(stageWidth, stageHeight), [stageWidth, stageHeight]);
 
-  const showPagination = tileProjects.length > layout.page1Capacity;
-
-  const displayProjects = useMemo(() => {
-    if (!showPagination) return tileProjects;
-    if (tilePage === 0) return tileProjects.slice(0, layout.page1Capacity);
-    return tileProjects.slice(layout.page1Capacity);
-  }, [tileProjects, tilePage, showPagination, layout.page1Capacity]);
+  const pageCount = getFeaturedPageCount(tileProjects.length);
+  const safePageIndex = wrapPageIndex(pageIndex, pageCount);
+  const featured = getFeaturedSlice(tileProjects, safePageIndex);
 
   useEffect(() => {
-    setTilePage(0);
-  }, [tileProjects]);
+    onTilePageChange?.(safePageIndex);
+  }, [safePageIndex, onTilePageChange]);
 
-  useEffect(() => {
-    onTilePageChange?.(tilePage);
-  }, [tilePage, onTilePageChange]);
-
-  useEffect(() => {
-    scrollRef.current?.scrollTo({ top: 0 });
-    onGridLeaveRef.current();
-  }, [tilePage]);
-
-  useEffect(() => {
-    const prev = committedRef.current;
-    if (tileProjectListsEqual(prev, displayProjects)) return;
-
-    if (
-      typeof window !== "undefined" &&
-      window.matchMedia("(prefers-reduced-motion: reduce)").matches
-    ) {
-      committedRef.current = displayProjects;
-      return;
-    }
-
-    setTransition({ prev, next: displayProjects });
-    const timer = window.setTimeout(() => {
-      setTransition(null);
-      committedRef.current = displayProjects;
-    }, TILE_FILTER_TRANSITION_S * 1000);
-
-    return () => window.clearTimeout(timer);
-  }, [displayProjects]);
-
-  const prev = transition?.prev ?? displayProjects;
-  const next = transition?.next ?? displayProjects;
-  const inTransition = transition !== null;
-
-  const paginationMode: TilePaginationMode = tilePage === 0 ? "next" : "previous";
   const gridBlockHeight = getTileGridBlockHeight();
-  const isPage1Layout = tilePage === 0;
-
-  const getProjectAt = (list: NetProject[], index: number) => list[index] ?? null;
-  const slotState = (index: number) => {
-    const isLeaving = inTransition && index >= next.length;
-    const isEntering = inTransition && index >= prev.length && index < next.length;
-    const project = isLeaving ? getProjectAt(prev, index) : getProjectAt(next, index);
-    return { isLeaving, isEntering, project };
-  };
-
-  const paginationCell = showPagination ? (
-    <div
-      style={{
-        gridColumn: `${layout.columns - 1} / span ${TILE_MODAL_COL_SPAN}`,
-        gridRow: TILE_VISIBLE_ROWS,
-        height: TILE_HEIGHT,
-        minHeight: TILE_HEIGHT,
-        maxHeight: TILE_HEIGHT,
-      }}
-    >
-      <TilePaginationButton
-        inline
-        mode={paginationMode}
-        width="100%"
-        height="100%"
-        onClick={() => setTilePage(tilePage === 0 ? 1 : 0)}
-      />
-    </div>
-  ) : null;
-
-  const renderModalSlot = (slotIndex: number) => {
-    const index = slotIndex;
-    const { isLeaving, isEntering, project } = slotState(index);
-    if (!project) return null;
-
-    const colStart = getModalSlotColumnStart(slotIndex);
-
-    return (
-      <motion.div
-        key={`modal-slot-${slotIndex}-${project.id}`}
-        initial={isEntering ? { opacity: 0 } : false}
-        animate={{ opacity: isLeaving ? 0 : 1 }}
-        transition={{ duration: TILE_FILTER_TRANSITION_S, ease: TILE_FILTER_EASE }}
-        style={{
-          gridColumn: `${colStart} / span ${TILE_MODAL_COL_SPAN}`,
-          gridRow: `1 / span ${TILE_VISIBLE_ROWS}`,
-          minHeight: 0,
-          height: "100%",
-          overflow: "hidden",
-        }}
-      >
-        <ExpandedProjectCard
-          embedded
-          project={project}
-          onClose={() => {}}
-          isMobile={isMobile}
-          showClose={false}
-        />
-      </motion.div>
-    );
-  };
-
-  const renderSideTile = (sideIndex: number) => {
-    const index = TILE_MODAL_SLOT_COUNT + sideIndex;
-    const { isLeaving, isEntering, project } = slotState(index);
-    if (!project) return null;
-
-    const { col, row } = getSideTileGridPosition(sideIndex);
-
-    return (
-      <ProjectTileButton
-        key={`side-tile-${sideIndex}`}
-        project={project}
-        activeProject={activeProject}
-        hoveredProject={hoveredProject}
-        isLeaving={isLeaving}
-        isEntering={isEntering}
-        inTransition={inTransition}
-        onProjectClick={onProjectClick}
-        style={{ gridColumn: col, gridRow: row }}
-      />
-    );
-  };
-
-  const renderFullGridTile = (index: number) => {
-    const { isLeaving, isEntering, project } = slotState(index);
-    if (!project) return null;
-
-    const { col, row } = getFullGridTilePosition(index, layout.columns);
-
-    return (
-      <ProjectTileButton
-        key={`full-tile-${index}`}
-        project={project}
-        activeProject={activeProject}
-        hoveredProject={hoveredProject}
-        isLeaving={isLeaving}
-        isEntering={isEntering}
-        inTransition={inTransition}
-        onProjectClick={onProjectClick}
-        style={{ gridColumn: col, gridRow: row }}
-      />
-    );
-  };
 
   return (
     <div style={{ position: "absolute", inset: 0, zIndex: 5 }}>
@@ -572,7 +847,6 @@ function TileProjectGrid({
         }}
       >
         <div
-          ref={scrollRef}
           style={{
             height: "100%",
             overflow: "hidden",
@@ -583,105 +857,43 @@ function TileProjectGrid({
             ref={gridRef}
             style={{
               display: "grid",
-              gridTemplateColumns: `repeat(${layout.columns}, minmax(0, 1fr))`,
+              gridTemplateColumns: `repeat(${TILE_GRID_COLUMNS}, minmax(0, 1fr))`,
               gridTemplateRows: `repeat(${TILE_VISIBLE_ROWS}, ${TILE_HEIGHT})`,
               gap: TILE_GRID_GAP,
               alignContent: "start",
               height: "100%",
             }}
           >
-            {isPage1Layout ? (
-              <>
-                {Array.from({ length: TILE_MODAL_SLOT_COUNT }, (_, i) => renderModalSlot(i))}
-                {Array.from({ length: TILE_PAGE1_SIDE_TILE_COUNT }, (_, i) => renderSideTile(i))}
-                {paginationCell}
-              </>
-            ) : (
-              <>
-                {Array.from({ length: displayProjects.length }, (_, i) => renderFullGridTile(i))}
-                {paginationCell}
-              </>
-            )}
+            {/* Four equal cards — cols 1–7; col 8 reserved on the right. */}
+            <div
+              style={{
+                gridColumn: `${TILE_CARD_COL_START} / span ${TILE_CARD_COL_SPAN}`,
+                gridRow: `1 / span ${TILE_VISIBLE_ROWS}`,
+                display: "grid",
+                gridTemplateColumns: `repeat(${TILE_GROUP_SIZE}, minmax(0, 1fr))`,
+                gap: TILE_GRID_GAP,
+                minHeight: 0,
+                height: "100%",
+                overflow: "hidden",
+              }}
+            >
+              {featured.map((project, slot) => (
+                <motion.div
+                  key={`expanded-${safePageIndex}-${slot}-${project.id}`}
+                  layout={false}
+                  style={{
+                    minHeight: 0,
+                    height: "100%",
+                    overflow: "hidden",
+                  }}
+                >
+                  <EmbeddedTileProjectCard project={project} />
+                </motion.div>
+              ))}
+            </div>
           </div>
         </div>
       </div>
-    </div>
-  );
-}
-
-function ViewModeToggle({
-  viewMode,
-  onChange,
-  width,
-}: {
-  viewMode: ViewMode;
-  onChange: (mode: ViewMode) => void;
-  width: number;
-}) {
-  const [hoveredId, setHoveredId] = useState<ViewMode | null>(null);
-  const segments: Array<{ id: ViewMode; label: string }> = [
-    { id: "tile", label: "Tile" },
-    { id: "node", label: "Node" },
-  ];
-
-  return (
-    <div
-      role="group"
-      aria-label="Project view mode"
-      style={{
-        display: "flex",
-        flexDirection: "column",
-        width,
-        minWidth: width,
-        maxWidth: width,
-        height: "100%",
-        border: `1px solid ${TILE_PAGINATION_COLOR}`,
-        padding: 4,
-        gap: TILE_GRID_GAP,
-        flexShrink: 0,
-        boxSizing: "border-box",
-      }}
-    >
-      {segments.map(({ id, label }) => {
-        const selected = viewMode === id;
-        const hovered = hoveredId === id;
-        const outlined = selected || hovered;
-        return (
-          <button
-            key={id}
-            type="button"
-            onClick={() => onChange(id)}
-            onMouseEnter={() => setHoveredId(id)}
-            onMouseLeave={() => setHoveredId(null)}
-            aria-pressed={selected}
-            style={{
-              flex: 1,
-              width: "100%",
-              minHeight: 0,
-              padding: "0 4px",
-              boxSizing: "border-box",
-              border: outlined
-                ? `1px solid ${TILE_PAGINATION_COLOR}`
-                : "1px solid transparent",
-              background: "transparent",
-              color: TILE_PAGINATION_COLOR,
-              fontFamily: "var(--font-work-sans), system-ui, sans-serif",
-              fontSize: "1rem",
-              fontWeight: 400,
-              letterSpacing: "0.01em",
-              cursor: "pointer",
-              lineHeight: 1,
-              whiteSpace: "nowrap",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              transition: "border-color 0.2s ease-out, color 0.2s ease-out",
-            }}
-          >
-            {label}
-          </button>
-        );
-      })}
     </div>
   );
 }
@@ -777,9 +989,10 @@ export default function ProjectCluster({ projects, backgroundColor, heading }: P
   const [hoveredProject, setHoveredProject] = useState<string | null>(null);
   const [activeFilter, setActiveFilter] = useState<Domain | null>(null);
   const [hoveredFilter, setHoveredFilter] = useState<Domain | null>(null);
-  const [viewMode, setViewMode] = useState<ViewMode>("tile");
+  const viewMode: ViewMode = NODE_VIEW_ENABLED ? "node" : "tile";
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
   const [photoIdx, setPhotoIdx] = useState(0);
+  const [tilePageIndex, setTilePageIndex] = useState(0);
 
   const tileProjects = useMemo(() => {
     const pool = activeFilter
@@ -787,6 +1000,14 @@ export default function ProjectCluster({ projects, backgroundColor, heading }: P
       : activeProjects;
     return sortProjectsForTileGrid(pool);
   }, [activeProjects, activeFilter]);
+
+  const tilePageCount = getFeaturedPageCount(tileProjects.length);
+  const safeTilePageIndex = wrapPageIndex(tilePageIndex, tilePageCount);
+  const showTileNavButtons = tilePageCount > 1;
+
+  useEffect(() => {
+    setTilePageIndex(0);
+  }, [tileProjects]);
 
   // Refs used by the rAF loop that drives the per-dot drift and cursor-snap
   // motion. Keeping these out of React state means the animation never
@@ -805,11 +1026,9 @@ export default function ProjectCluster({ projects, backgroundColor, heading }: P
   const lastHoverIdRef = useRef<string | null>(null);
 
   useEffect(() => {
-    if (viewMode === "node") {
-      lastHoverIdRef.current = null;
-      setHoveredProject(null);
-    }
-  }, [viewMode]);
+    lastHoverIdRef.current = null;
+    setHoveredProject(null);
+  }, [activeFilter]);
 
   // Measure the inset tile/node stage (page margins on left and right).
   useEffect(() => {
@@ -979,7 +1198,7 @@ export default function ProjectCluster({ projects, backgroundColor, heading }: P
   // the web breathes with the dots. All updates go straight to the DOM —
   // no setState, no re-renders.
   useEffect(() => {
-    if (viewMode !== "node") return;
+    if (!NODE_VIEW_ENABLED) return;
     const stage = clusterStageRef.current;
     if (!stage || dotPositions.size === 0) return;
 
@@ -1160,7 +1379,7 @@ export default function ProjectCluster({ projects, backgroundColor, heading }: P
   // to jitter instead of smoothly converging on the cursor. State is only
   // needed for the tooltip's position, so this throttle is invisible.
   useEffect(() => {
-    if (viewMode !== "node") return;
+    if (!NODE_VIEW_ENABLED) return;
     const el = clusterStageRef.current;
     if (!el) return;
     let rafPending = false;
@@ -1215,12 +1434,6 @@ export default function ProjectCluster({ projects, backgroundColor, heading }: P
   const tileGridBlockHeight = getTileGridBlockHeight();
   /** Top edge of the filter bar — gap below the tile grid matches nav-to-tile inset. */
   const tagBarTop = `calc(${clusterStageTop} + ${tileGridBlockHeight} + ${navToTileAreaGap})`;
-  /** Half the space between the tile grid and the section bottom margin. */
-  const filterBarHeight = `calc((100% - ${tagBarTop} - ${BOTTOM_OFFSET}) / 2)`;
-  const tileColWidth = useMemo(() => {
-    if (stageSize.w <= 0) return TILE_MIN_COL_WIDTH;
-    return computeTileGridLayout(stageSize.w, stageSize.h).colWidth;
-  }, [stageSize.w, stageSize.h]);
 
   return (
     <section
@@ -1257,40 +1470,39 @@ export default function ProjectCluster({ projects, backgroundColor, heading }: P
         </div>
       )}
 
-      {/* Bottom bar: view-mode toggle + domain tag filters, left-aligned to page margin. */}
+      {/* Progress dots + prev/next — col 8, aligned with card grid. */}
+      <TileProgressDotsColumn
+        projects={tileProjects}
+        referenceProjectCount={activeProjects.length}
+        pageIndex={safeTilePageIndex}
+        height={tileGridBlockHeight}
+        top={clusterStageTop}
+        showPagination={showTileNavButtons}
+        onPrev={() => setTilePageIndex((p) => wrapPageIndex(p - 1, tilePageCount))}
+        onNext={() => setTilePageIndex((p) => wrapPageIndex(p + 1, tilePageCount))}
+      />
+
+      {/* Bottom bar: 8 domain filters — one row, exact card-row width. */}
       <div
         style={{
           position: "absolute",
           top: tagBarTop,
           left: CLUSTER_STAGE_INSET,
-          right: CLUSTER_STAGE_INSET,
-          height: filterBarHeight,
-          display: "flex",
-          alignItems: "flex-start",
-          gap: TILE_GRID_GAP,
+          width: getTileCardAreaWidth(),
+          height: NAV_BOX_HEIGHT,
           zIndex: 10,
+          display: "grid",
+          gridTemplateColumns: `repeat(${TILE_GRID_COLUMNS}, minmax(0, 1fr))`,
+          gap: TILE_GRID_GAP,
+          boxSizing: "border-box",
+          overflow: "hidden",
         }}
       >
-        <ViewModeToggle viewMode={viewMode} onChange={setViewMode} width={tileColWidth} />
-        <div
-          style={{
-            flex: 1,
-            minWidth: 0,
-            height: "100%",
-            display: "grid",
-            gridTemplateColumns: "repeat(4, minmax(0, 1fr))",
-            gridTemplateRows: "1fr 1fr",
-            gap: TILE_GRID_GAP,
-          }}
-        >
           {VISIBLE_DOMAINS.map((domain) => {
             const isActive = activeFilter === domain;
             const isHovered = hoveredFilter === domain;
-            const tagBackground = isActive
-              ? DOMAIN_COLORS[domain]
-              : isHovered
-                ? domainTagBackground(domain, 0.5)
-                : "transparent";
+            const tagBackground =
+              isActive || isHovered ? DOMAIN_COLORS[domain] : "transparent";
             const tagColor = isActive || isHovered ? BG_CREAM : DOMAIN_COLORS[domain];
             return (
               <button
@@ -1303,13 +1515,13 @@ export default function ProjectCluster({ projects, backgroundColor, heading }: P
                 style={{
                   width: "100%",
                   boxSizing: "border-box",
-                  height: "100%",
-                  minHeight: 0,
-                  padding: "4px 8px 0 8px",
+                  height: NAV_BOX_HEIGHT,
+                  minHeight: NAV_BOX_HEIGHT,
+                  padding: "0 8px",
                   border: `1px solid ${DOMAIN_COLORS[domain]}`,
                   borderRadius: 0,
                   fontFamily: "var(--font-work-sans), system-ui, sans-serif",
-                  fontSize: "1rem",
+                  fontSize: TILE_CATEGORY_FONT_SIZE,
                   fontWeight: 400,
                   letterSpacing: "0.01em",
                   textTransform: "lowercase",
@@ -1321,13 +1533,15 @@ export default function ProjectCluster({ projects, backgroundColor, heading }: P
                   overflow: "hidden",
                   textOverflow: "ellipsis",
                   lineHeight: 1,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
                 }}
               >
                 {DOMAIN_LABELS[domain]}
               </button>
             );
           })}
-        </div>
       </div>
 
       {/* Tile + node field — inset to page margins. */}
@@ -1343,26 +1557,24 @@ export default function ProjectCluster({ projects, backgroundColor, heading }: P
         }}
       >
       {/* Tile grid — domain-coloured cards in tag-menu order (LTR, matches bottom bar). */}
-      {viewMode === "tile" && (
-        <TileProjectGrid
-          tileProjects={tileProjects}
-          stageWidth={stageSize.w}
-          stageHeight={stageSize.h}
-          activeProject={activeProject}
-          hoveredProject={hoveredProject}
-          onProjectClick={handleDotClick}
-          onGridLeave={() => setHoveredProject(null)}
-          onTileHover={handleTileHover}
-          isMobile={isMobile}
-        />
-      )}
+      <TileProjectGrid
+        tileProjects={tileProjects}
+        stageWidth={stageSize.w}
+        stageHeight={stageSize.h}
+        activeProject={activeProject}
+        hoveredProject={hoveredProject}
+        onProjectClick={handleDotClick}
+        onGridLeave={() => setHoveredProject(null)}
+        onTileHover={handleTileHover}
+        pageIndex={tilePageIndex}
+      />
 
       {/* Constellation lines. Dark-green hairlines on beige; the per-line
           opacity reacts to hover / open card / active filter so the web
           recedes when something else demands attention. With endpoints'
           IDs stored, the filter logic dims lines whose endpoints don't
           touch the active filter. */}
-      {viewMode === "node" && stageSize.w > 0 && (
+      {NODE_VIEW_ENABLED && stageSize.w > 0 && (
         <svg
           style={{ position: "absolute", inset: 0, width: "100%", height: "100%", pointerEvents: "none" }}
           aria-hidden="true"
@@ -1412,7 +1624,7 @@ export default function ProjectCluster({ projects, backgroundColor, heading }: P
           none` so it never competes with the wrapper for events. This
           collapses the old two-button structure (visible + invisible-on-
           top) that was creating hit-test ambiguity. */}
-      {viewMode === "node" && stageSize.w > 0 &&
+      {NODE_VIEW_ENABLED && stageSize.w > 0 &&
         activeProjects.map((project) => {
           const pos = dotPositions.get(project.id);
           if (!pos) return null;
@@ -1509,7 +1721,7 @@ export default function ProjectCluster({ projects, backgroundColor, heading }: P
       </div>
 
       {/* Hover tooltip */}
-      {viewMode === "node" && hoveredData && !activeProject && !isMobile && (
+      {NODE_VIEW_ENABLED && hoveredData && !activeProject && !isMobile && (
         <div
           style={{
             position: "fixed",
@@ -1559,6 +1771,385 @@ export default function ProjectCluster({ projects, backgroundColor, heading }: P
 }
 
 // ---------------------------------------------------------------------------
+// EmbeddedTileProjectCard
+//
+// Tile-grid project card (2×4). Detail layout only: cropped top image +
+// full text, tags, and contact — no internal scroll or wheel states.
+// ---------------------------------------------------------------------------
+
+const EMBEDDED_DETAIL_IMAGE_FRACTION = 0.32;
+const EMBEDDED_SUMMARY_LINE_CLAMP = 9;
+
+function EmbeddedTileProjectCard({ project }: { project: NetProject }) {
+  const [photoIdx, setPhotoIdx] = useState(0);
+
+  useEffect(() => {
+    setPhotoIdx(0);
+  }, [project.id]);
+
+  const galleryUrls = useMemo(() => getProjectGalleryUrls(project), [project]);
+  const accent = DOMAIN_COLORS[project.domain];
+  const customers =
+    project.customers && project.customers.length > 0
+      ? project.customers
+      : project.client
+        ? [project.client]
+        : [];
+  const subCategories = project.subCategories ?? project.displayTags ?? [];
+  const responsible = project.responsible;
+  const methodLabels = (project.methods ?? [])
+    .filter((m): m is Method => m in METHOD_LABELS)
+    .map((m) => METHOD_LABELS[m]);
+  const cardLinks = (project.cardLinks ?? []).filter((l) => l.url);
+  const pad = "10px";
+
+  const renderGallery = () => {
+    if (galleryUrls.length === 0) {
+      return (
+        <div
+          style={{
+            width: "100%",
+            height: "100%",
+            background: `linear-gradient(145deg, ${accent}88, ${TILE_CARD_BG})`,
+          }}
+        />
+      );
+    }
+    return (
+      <div style={{ position: "relative", width: "100%", height: "100%", overflow: "hidden" }}>
+        <Image
+          key={galleryUrls[photoIdx]}
+          src={galleryUrls[photoIdx]}
+          alt=""
+          fill
+          className="object-cover"
+          style={{ objectPosition: "center top" }}
+          sizes="320px"
+        />
+        {galleryUrls.length > 1 ? (
+          <>
+            <button
+              type="button"
+              aria-label="Previous image"
+              onClick={(e) => {
+                e.stopPropagation();
+                setPhotoIdx((i) => (i - 1 + galleryUrls.length) % galleryUrls.length);
+              }}
+              style={{
+                position: "absolute",
+                left: 6,
+                top: "50%",
+                transform: "translateY(-50%)",
+                width: 28,
+                height: 28,
+                border: "1px solid rgba(255,255,255,0.2)",
+                background: "rgba(0,0,0,0.45)",
+                color: "#fff",
+                cursor: "pointer",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                zIndex: 2,
+              }}
+            >
+              <ChevronLeft size={16} />
+            </button>
+            <button
+              type="button"
+              aria-label="Next image"
+              onClick={(e) => {
+                e.stopPropagation();
+                setPhotoIdx((i) => (i + 1) % galleryUrls.length);
+              }}
+              style={{
+                position: "absolute",
+                right: 6,
+                top: "50%",
+                transform: "translateY(-50%)",
+                width: 28,
+                height: 28,
+                border: "1px solid rgba(255,255,255,0.2)",
+                background: "rgba(0,0,0,0.45)",
+                color: "#fff",
+                cursor: "pointer",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                zIndex: 2,
+              }}
+            >
+              <ChevronRight size={16} />
+            </button>
+          </>
+        ) : null}
+      </div>
+    );
+  };
+
+  const renderTags = () => (
+    <div
+      style={{
+        display: "flex",
+        flexWrap: "wrap",
+        gap: 4,
+        marginTop: 6,
+        alignItems: "center",
+      }}
+    >
+      <span
+        style={{
+          display: "inline-block",
+          padding: "2px 8px",
+          fontSize: "0.6rem",
+          fontFamily: "var(--font-manrope), system-ui, sans-serif",
+          letterSpacing: "0.05em",
+          color: BG_CREAM,
+          background: "transparent",
+          border: `1px solid ${accent}`,
+        }}
+      >
+        {DOMAIN_LABELS[project.domain]}
+      </span>
+      {subCategories.map((cat) => (
+        <span
+          key={cat.id}
+          style={{
+            display: "inline-block",
+            padding: "2px 8px",
+            fontSize: "0.6rem",
+            fontFamily: "var(--font-manrope), system-ui, sans-serif",
+            letterSpacing: "0.05em",
+            color: BG_CREAM,
+            background: "transparent",
+            border: `1px solid ${cat.color ?? "rgba(255,255,255,0.4)"}`,
+          }}
+        >
+          {cat.label}
+        </span>
+      ))}
+    </div>
+  );
+
+  const renderContact = () => {
+    if (!responsible) return null;
+    return (
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 8,
+          marginTop: 8,
+          paddingTop: 8,
+          borderTop: "1px solid rgba(255,255,255,0.08)",
+          minWidth: 0,
+        }}
+      >
+        <div
+          style={{
+            position: "relative",
+            width: 32,
+            height: 32,
+            flexShrink: 0,
+            overflow: "hidden",
+            background: "rgba(255,255,255,0.06)",
+          }}
+        >
+          {responsible.photoUrl ? (
+            <Image
+              src={responsible.photoUrl}
+              alt={responsible.name}
+              fill
+              sizes="32px"
+              className="object-cover"
+            />
+          ) : null}
+        </div>
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            fontFamily: "var(--font-manrope), system-ui, sans-serif",
+            fontSize: "0.72rem",
+            lineHeight: 1.25,
+            minWidth: 0,
+          }}
+        >
+          {responsible.phone ? (
+            <a
+              href={`tel:${responsible.phone.replace(/\s+/g, "")}`}
+              style={{ color: "rgba(255,255,255,0.85)", textDecoration: "none" }}
+            >
+              {responsible.phone}
+            </a>
+          ) : (
+            <span style={{ color: "rgba(255,255,255,0.55)" }}>{responsible.name}</span>
+          )}
+          {responsible.email ? (
+            <a
+              href={`mailto:${responsible.email}`}
+              style={{
+                color: "rgba(255,255,255,0.7)",
+                textDecoration: "none",
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+                whiteSpace: "nowrap",
+              }}
+            >
+              {responsible.email}
+            </a>
+          ) : null}
+        </div>
+      </div>
+    );
+  };
+
+  return (
+    <article
+      aria-label={project.name}
+      data-comte-embedded-card="true"
+      style={{
+        position: "relative",
+        width: "100%",
+        height: "100%",
+        background: TILE_CARD_BG,
+        overflow: "hidden",
+        display: "flex",
+        flexDirection: "column",
+        boxSizing: "border-box",
+      }}
+    >
+      <div
+        style={{
+          flex: `0 0 ${EMBEDDED_DETAIL_IMAGE_FRACTION * 100}%`,
+          minHeight: 0,
+          overflow: "hidden",
+        }}
+      >
+        {renderGallery()}
+      </div>
+      <div
+        style={{
+          padding: "16px 10px 18px",
+          flex: 1,
+          minHeight: 0,
+          display: "flex",
+          flexDirection: "column",
+          overflow: "hidden",
+        }}
+      >
+        <h3
+          style={{
+            margin: 0,
+            fontSize: "1rem",
+            fontWeight: 600,
+            color: "#fff",
+            fontFamily: "var(--font-manrope), system-ui, sans-serif",
+            lineHeight: 1.25,
+            flexShrink: 0,
+          }}
+        >
+          {project.name}
+        </h3>
+        {customers.length > 0 ? (
+          <p
+            style={{
+              margin: "3px 0 0",
+              fontSize: "0.68rem",
+              color: "rgba(255,255,255,0.75)",
+              fontFamily: "var(--font-manrope), system-ui, sans-serif",
+              flexShrink: 0,
+            }}
+          >
+            {customers.join(" · ")}
+          </p>
+        ) : null}
+        <p
+          style={{
+            margin: "2px 0 0",
+            fontSize: "0.65rem",
+            color: "rgba(255,255,255,0.55)",
+            fontFamily: "var(--font-manrope), system-ui, sans-serif",
+            flexShrink: 0,
+          }}
+        >
+          {project.year}
+        </p>
+        <p
+          style={{
+            margin: "16px 0 0",
+            fontSize: "0.7rem",
+            color: "rgba(255,255,255,0.78)",
+            fontFamily: "var(--font-manrope), system-ui, sans-serif",
+            lineHeight: 1.45,
+            flex: 1,
+            minHeight: 0,
+            overflow: "hidden",
+            display: "-webkit-box",
+            WebkitBoxOrient: "vertical",
+            WebkitLineClamp: EMBEDDED_SUMMARY_LINE_CLAMP,
+            paddingBottom: 12,
+          }}
+        >
+          {project.summary}
+        </p>
+        {methodLabels.length > 0 ? (
+          <div
+            style={{
+              display: "flex",
+              flexWrap: "wrap",
+              gap: 4,
+              marginTop: 6,
+              flexShrink: 0,
+            }}
+          >
+            {methodLabels.map((label) => (
+              <span
+                key={label}
+                style={{
+                  padding: "2px 8px",
+                  fontSize: "0.58rem",
+                  fontFamily: "var(--font-manrope), system-ui, sans-serif",
+                  letterSpacing: "0.05em",
+                  color: "rgba(255,255,255,0.85)",
+                  border: "1px solid rgba(255,255,255,0.35)",
+                }}
+              >
+                {label}
+              </span>
+            ))}
+          </div>
+        ) : null}
+        {cardLinks.length > 0 ? (
+          <div style={{ display: "flex", flexDirection: "column", gap: 4, marginTop: 6, flexShrink: 0 }}>
+            {cardLinks.map((link) =>
+              link.url ? (
+                <a
+                  key={link.url}
+                  href={link.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{
+                    fontSize: "0.68rem",
+                    fontWeight: 500,
+                    color: accent,
+                    fontFamily: "var(--font-manrope), system-ui, sans-serif",
+                    textDecoration: "none",
+                  }}
+                >
+                  {link.label || link.url}
+                </a>
+              ) : null,
+            )}
+          </div>
+        ) : null}
+        {renderTags()}
+        {renderContact()}
+      </div>
+    </article>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // ExpandedProjectCard
 //
 // Modal-style card that opens when a project dot is clicked. The card has its
@@ -1574,7 +2165,7 @@ export default function ProjectCluster({ projects, backgroundColor, heading }: P
 //   - Title
 //   - Customers (joined with " · ") + year on its own line
 //   - Description
-//   - Scale + Method chips on one row
+//   - Method chips on one row
 //   - Responsible: small headshot left, phone / email right (two lines)
 //   - Optional auxiliary links
 // ---------------------------------------------------------------------------
@@ -1586,9 +2177,6 @@ type ExpandedProjectCardProps = {
   setPhotoIdx?: (updater: (i: number) => number) => void;
   onClose: () => void;
   isMobile: boolean;
-  /** Fills a tile-grid cell (2×4) instead of a centered overlay. */
-  embedded?: boolean;
-  showClose?: boolean;
 };
 
 // Parallax factor: scrolled text moves at this fraction of scroll speed (lags the scroll).
@@ -1607,27 +2195,19 @@ function ExpandedProjectCard({
   setPhotoIdx: setPhotoIdxProp,
   onClose,
   isMobile,
-  embedded = false,
-  showClose = true,
 }: ExpandedProjectCardProps) {
   const scrollerRef = useRef<HTMLDivElement>(null);
   const parallaxRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
-  const shellRef = useRef<HTMLDivElement>(null);
   const rafIdRef = useRef<number | null>(null);
   const [scrollEnabled, setScrollEnabled] = useState(false);
-  const [localPhotoIdx, setLocalPhotoIdx] = useState(0);
 
   const resolvedGallery =
     galleryUrlsProp && galleryUrlsProp.length > 0
       ? galleryUrlsProp
       : getProjectGalleryUrls(project);
-  const photoIdx = embedded ? localPhotoIdx : photoIdxProp;
-  const setPhotoIdx = embedded ? setLocalPhotoIdx : (setPhotoIdxProp ?? setLocalPhotoIdx);
-
-  useEffect(() => {
-    setLocalPhotoIdx(0);
-  }, [project.id]);
+  const photoIdx = photoIdxProp;
+  const setPhotoIdx = setPhotoIdxProp ?? (() => {});
 
   const accent = DOMAIN_COLORS[project.domain];
   const customers =
@@ -1638,10 +2218,6 @@ function ExpandedProjectCard({
         : [];
   const subCategories = project.subCategories ?? project.displayTags ?? [];
   const responsible = project.responsible;
-  const scaleLabel =
-    project.scale && project.scale in SCALE_LABELS
-      ? SCALE_LABELS[project.scale as Scale]
-      : null;
   const methodLabels = (project.methods ?? [])
     .filter((m): m is Method => m in METHOD_LABELS)
     .map((m) => METHOD_LABELS[m]);
@@ -1652,7 +2228,6 @@ function ExpandedProjectCard({
     if (!scroller || !content) return;
 
     const measureMaxHeightPx = () => {
-      if (embedded) return scroller.clientHeight;
       const probe = document.createElement("div");
       probe.style.position = "absolute";
       probe.style.visibility = "hidden";
@@ -1675,13 +2250,12 @@ function ExpandedProjectCard({
     const ro = new ResizeObserver(measure);
     ro.observe(content);
     ro.observe(scroller);
-    if (embedded && shellRef.current) ro.observe(shellRef.current);
     window.addEventListener("resize", measure);
     return () => {
       ro.disconnect();
       window.removeEventListener("resize", measure);
     };
-  }, [project.id, resolvedGallery.length, photoIdx, embedded]);
+  }, [project.id, resolvedGallery.length, photoIdx]);
 
   useEffect(() => {
     const scroller = scrollerRef.current;
@@ -1711,21 +2285,31 @@ function ExpandedProjectCard({
       scroller.removeEventListener("scroll", onScroll);
       if (rafIdRef.current != null) cancelAnimationFrame(rafIdRef.current);
     };
-  }, [project.id, resolvedGallery.length, scrollEnabled, embedded]);
+  }, [project.id, resolvedGallery.length, scrollEnabled]);
 
-  const renderGallery = (staticImage: boolean) => {
+  const renderGallery = () => {
     if (resolvedGallery.length === 0) return null;
     return (
       <div
         style={{
           position: "relative",
           width: "100%",
-          aspectRatio: embedded ? "4/3" : "16/10",
+          aspectRatio: "16/10",
           overflow: "hidden",
           flexShrink: 0,
         }}
       >
-        {staticImage ? (
+        <div
+          ref={parallaxRef}
+          style={{
+            position: "absolute",
+            left: 0,
+            right: 0,
+            top: 0,
+            height: `${CARD_IMAGE_PARALLAX_HEADROOM * 100}%`,
+            willChange: "transform",
+          }}
+        >
           <div className="relative h-full w-full">
             <Image
               key={resolvedGallery[photoIdx]}
@@ -1733,33 +2317,10 @@ function ExpandedProjectCard({
               alt=""
               fill
               className="object-cover"
-              sizes={embedded ? "320px" : "480px"}
+              sizes="480px"
             />
           </div>
-        ) : (
-          <div
-            ref={parallaxRef}
-            style={{
-              position: "absolute",
-              left: 0,
-              right: 0,
-              top: 0,
-              height: `${CARD_IMAGE_PARALLAX_HEADROOM * 100}%`,
-              willChange: "transform",
-            }}
-          >
-            <div className="relative h-full w-full">
-              <Image
-                key={resolvedGallery[photoIdx]}
-                src={resolvedGallery[photoIdx]}
-                alt=""
-                fill
-                className="object-cover"
-                sizes="480px"
-              />
-            </div>
-          </div>
-        )}
+        </div>
         {resolvedGallery.length > 1 ? (
           <>
             <button
@@ -1820,19 +2381,19 @@ function ExpandedProjectCard({
     );
   };
 
-  const textPadding = embedded ? "12px" : "clamp(16px, 3vw, 24px)";
+  const textPadding = "clamp(16px, 3vw, 24px)";
 
   const renderScrollableText = () => (
     <>
       <h3
         style={{
           margin: "0 0 6px 0",
-          fontSize: embedded ? "0.95rem" : "clamp(1.1rem, 2vw, 1.3rem)",
+          fontSize: "1rem",
           fontWeight: 500,
           color: "#fff",
           fontFamily: "var(--font-manrope), system-ui, sans-serif",
           lineHeight: 1.3,
-          paddingRight: showClose ? 24 : 0,
+          paddingRight: 24,
         }}
       >
         {project.name}
@@ -1841,7 +2402,7 @@ function ExpandedProjectCard({
         <p
           style={{
             margin: "0 0 2px 0",
-            fontSize: embedded ? "0.75rem" : "0.85rem",
+            fontSize: "0.85rem",
             color: "rgba(255,255,255,0.75)",
             fontFamily: "var(--font-manrope), system-ui, sans-serif",
           }}
@@ -1852,7 +2413,7 @@ function ExpandedProjectCard({
       <p
         style={{
           margin: "0 0 14px 0",
-          fontSize: embedded ? "0.7rem" : "0.8rem",
+          fontSize: "0.8rem",
           color: "rgba(255,255,255,0.55)",
           fontFamily: "var(--font-manrope), system-ui, sans-serif",
         }}
@@ -1862,7 +2423,7 @@ function ExpandedProjectCard({
       <p
         style={{
           margin: "0 0 14px 0",
-          fontSize: embedded ? "0.8rem" : "0.9rem",
+          fontSize: "0.9rem",
           color: "rgba(255,255,255,0.78)",
           fontFamily: "var(--font-manrope), system-ui, sans-serif",
           lineHeight: 1.55,
@@ -1870,23 +2431,8 @@ function ExpandedProjectCard({
       >
         {project.summary}
       </p>
-      {scaleLabel || methodLabels.length > 0 ? (
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: embedded ? 8 : 16 }}>
-          {scaleLabel ? (
-            <span
-              style={{
-                display: "inline-block",
-                padding: "3px 10px",
-                fontSize: "0.65rem",
-                fontFamily: "var(--font-manrope), system-ui, sans-serif",
-                letterSpacing: "0.05em",
-                color: "rgba(255,255,255,0.85)",
-                border: "1px solid rgba(255,255,255,0.35)",
-              }}
-            >
-              {scaleLabel}
-            </span>
-          ) : null}
+      {methodLabels.length > 0 ? (
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 16 }}>
           {methodLabels.map((label) => (
             <span
               key={label}
@@ -1908,149 +2454,6 @@ function ExpandedProjectCard({
     </>
   );
 
-  const renderStaticFooter = () => (
-    <div style={{ padding: textPadding, paddingTop: embedded ? 8 : 0, flexShrink: 0 }}>
-      <div
-        style={{
-          display: "flex",
-          flexWrap: "wrap",
-          gap: 6,
-          marginBottom: responsible || (project.cardLinks ?? []).some((l) => l.url) ? 12 : 0,
-          alignItems: "center",
-        }}
-      >
-        <span
-          style={{
-            display: "inline-block",
-            padding: "3px 10px",
-            fontSize: "0.65rem",
-            fontFamily: "var(--font-manrope), system-ui, sans-serif",
-            letterSpacing: "0.05em",
-            color: "#fff",
-            background: accent,
-          }}
-        >
-          {DOMAIN_LABELS[project.domain]}
-        </span>
-        {subCategories.map((cat) => (
-          <span
-            key={cat.id}
-            style={{
-              display: "inline-block",
-              padding: "3px 10px",
-              fontSize: "0.65rem",
-              fontFamily: "var(--font-manrope), system-ui, sans-serif",
-              letterSpacing: "0.05em",
-              color: cat.color ?? "rgba(255,255,255,0.85)",
-              background: "transparent",
-              border: `1px solid ${cat.color ?? "rgba(255,255,255,0.4)"}`,
-            }}
-          >
-            {cat.label}
-          </span>
-        ))}
-      </div>
-      {responsible ? (
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 12,
-            paddingTop: 10,
-            borderTop: "1px solid rgba(255,255,255,0.08)",
-          }}
-        >
-          <div
-            style={{
-              position: "relative",
-              width: 40,
-              height: 40,
-              flexShrink: 0,
-              overflow: "hidden",
-              background: "rgba(255,255,255,0.06)",
-            }}
-          >
-            {responsible.photoUrl ? (
-              <Image
-                src={responsible.photoUrl}
-                alt={responsible.name}
-                fill
-                sizes="40px"
-                className="object-cover"
-              />
-            ) : null}
-          </div>
-          <div
-            style={{
-              display: "flex",
-              flexDirection: "column",
-              fontFamily: "var(--font-manrope), system-ui, sans-serif",
-              fontSize: "0.78rem",
-              lineHeight: 1.3,
-              minWidth: 0,
-            }}
-          >
-            {responsible.phone ? (
-              <a
-                href={`tel:${responsible.phone.replace(/\s+/g, "")}`}
-                style={{ color: "rgba(255,255,255,0.85)", textDecoration: "none" }}
-              >
-                {responsible.phone}
-              </a>
-            ) : (
-              <span style={{ color: "rgba(255,255,255,0.55)" }}>{responsible.name}</span>
-            )}
-            {responsible.email ? (
-              <a
-                href={`mailto:${responsible.email}`}
-                style={{
-                  color: "rgba(255,255,255,0.7)",
-                  textDecoration: "none",
-                  overflow: "hidden",
-                  textOverflow: "ellipsis",
-                  whiteSpace: "nowrap",
-                }}
-              >
-                {responsible.email}
-              </a>
-            ) : null}
-          </div>
-        </div>
-      ) : null}
-      {(project.cardLinks ?? []).filter((l) => l.url).length > 0 ? (
-        <div
-          style={{
-            display: "flex",
-            flexDirection: "column",
-            alignItems: "flex-start",
-            gap: 6,
-            marginTop: 10,
-          }}
-        >
-          {(project.cardLinks ?? []).map((link) =>
-            link.url ? (
-              <a
-                key={link.url}
-                href={link.url}
-                target="_blank"
-                rel="noopener noreferrer"
-                style={{
-                  fontSize: "0.82rem",
-                  fontWeight: 500,
-                  color: accent,
-                  fontFamily: "var(--font-manrope), system-ui, sans-serif",
-                  textDecoration: "none",
-                }}
-              >
-                {link.label || link.url}
-              </a>
-            ) : null,
-          )}
-        </div>
-      ) : null}
-    </div>
-  );
-
   const renderOverlayCategoryRow = () => (
     <div
       style={{
@@ -2068,8 +2471,9 @@ function ExpandedProjectCard({
           fontSize: "0.65rem",
           fontFamily: "var(--font-manrope), system-ui, sans-serif",
           letterSpacing: "0.05em",
-          color: "#fff",
-          background: accent,
+          color: BG_CREAM,
+          background: "transparent",
+          border: `1px solid ${accent}`,
         }}
       >
         {DOMAIN_LABELS[project.domain]}
@@ -2083,7 +2487,7 @@ function ExpandedProjectCard({
             fontSize: "0.65rem",
             fontFamily: "var(--font-manrope), system-ui, sans-serif",
             letterSpacing: "0.05em",
-            color: cat.color ?? "rgba(255,255,255,0.85)",
+            color: BG_CREAM,
             background: "transparent",
             border: `1px solid ${cat.color ?? "rgba(255,255,255,0.4)"}`,
           }}
@@ -2166,138 +2570,106 @@ function ExpandedProjectCard({
 
   return (
     <>
-      {!embedded ? (
-        <div
-          onClick={onClose}
-          style={{ position: "absolute", inset: 0, zIndex: 25 }}
-          aria-hidden="true"
-        />
-      ) : null}
       <div
-        ref={shellRef}
-        role={embedded ? "article" : "dialog"}
+        onClick={onClose}
+        style={{ position: "absolute", inset: 0, zIndex: 25 }}
+        aria-hidden="true"
+      />
+      <div
+        role="dialog"
         aria-label={project.name}
         onClick={(e) => e.stopPropagation()}
         style={{
-          position: embedded ? "relative" : "absolute",
-          top: embedded ? undefined : "50%",
-          left: embedded ? undefined : "50%",
-          transform: embedded ? undefined : "translate(-50%, -50%)",
-          width: embedded ? "100%" : isMobile ? "calc(100% - 48px)" : 440,
-          height: embedded ? "100%" : undefined,
-          maxWidth: embedded ? "none" : 480,
-          maxHeight: embedded ? "100%" : CARD_MAX_HEIGHT,
-          background: "#2a2a2a",
-          border: embedded ? "none" : "1px solid rgba(255,255,255,0.1)",
+          position: "absolute",
+          top: "50%",
+          left: "50%",
+          transform: "translate(-50%, -50%)",
+          width: isMobile ? "calc(100% - 48px)" : 440,
+          maxWidth: 480,
+          maxHeight: CARD_MAX_HEIGHT,
+          background: TILE_CARD_BG,
+          border: "1px solid rgba(255,255,255,0.1)",
           padding: 0,
           overflow: "hidden",
-          zIndex: embedded ? 1 : 30,
-          animation: embedded ? undefined : "clusterCardIn 0.3s ease-out",
+          zIndex: 30,
+          animation: "clusterCardIn 0.3s ease-out",
           boxSizing: "border-box",
-          display: embedded ? "flex" : undefined,
-          flexDirection: embedded ? "column" : undefined,
         }}
       >
-        {showClose ? (
-          <button
-            onClick={onClose}
-            aria-label="Close project details"
-            style={{
-              position: "absolute",
-              top: 12,
-              right: 12,
-              width: 32,
-              height: 32,
-              border: "1px solid rgba(255,255,255,0.15)",
-              background: "rgba(0,0,0,0.55)",
-              color: "rgba(255,255,255,0.9)",
-              fontSize: "1rem",
-              cursor: "pointer",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              lineHeight: 1,
-              zIndex: 40,
-            }}
-          >
-            ✕
-          </button>
-        ) : null}
+        <button
+          onClick={onClose}
+          aria-label="Close project details"
+          style={{
+            position: "absolute",
+            top: 12,
+            right: 12,
+            width: 32,
+            height: 32,
+            border: "1px solid rgba(255,255,255,0.15)",
+            background: "rgba(0,0,0,0.55)",
+            color: "rgba(255,255,255,0.9)",
+            fontSize: "1rem",
+            cursor: "pointer",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            lineHeight: 1,
+            zIndex: 40,
+          }}
+        >
+          ✕
+        </button>
 
-        {embedded ? (
-          <>
-            {renderGallery(true)}
-            <div
-              ref={scrollerRef}
-              data-comte-modal-scroll="true"
-              style={{
-                flex: 1,
-                minHeight: 0,
-                overflowY: scrollEnabled ? "auto" : "hidden",
-                overflowX: "hidden",
-                WebkitOverflowScrolling: "touch",
-              }}
-            >
-              <div ref={parallaxRef} style={{ willChange: scrollEnabled ? "transform" : undefined }}>
-                <div ref={contentRef} style={{ padding: textPadding, paddingBottom: 8 }}>
-                  {renderScrollableText()}
+        <div
+          ref={scrollerRef}
+          data-comte-modal-scroll="true"
+          style={{
+            maxHeight: CARD_MAX_HEIGHT,
+            overflowY: scrollEnabled ? "auto" : "visible",
+            overflowX: "hidden",
+            WebkitOverflowScrolling: "touch",
+          }}
+        >
+          <div ref={contentRef}>
+            {renderGallery()}
+            <div style={{ padding: textPadding }}>
+              {renderOverlayCategoryRow()}
+              {renderScrollableText()}
+              {renderOverlayResponsible()}
+              {(project.cardLinks ?? []).filter((l) => l.url).length > 0 ? (
+                <div
+                  style={{
+                    display: "flex",
+                    flexDirection: "column",
+                    alignItems: "flex-start",
+                    gap: 6,
+                    marginTop: 14,
+                  }}
+                >
+                  {(project.cardLinks ?? []).map((link) =>
+                    link.url ? (
+                      <a
+                        key={link.url}
+                        href={link.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        style={{
+                          fontSize: "0.82rem",
+                          fontWeight: 500,
+                          color: accent,
+                          fontFamily: "var(--font-manrope), system-ui, sans-serif",
+                          textDecoration: "none",
+                        }}
+                      >
+                        {link.label || link.url}
+                      </a>
+                    ) : null,
+                  )}
                 </div>
-              </div>
-            </div>
-            {renderStaticFooter()}
-          </>
-        ) : (
-          <div
-            ref={scrollerRef}
-            data-comte-modal-scroll="true"
-            style={{
-              maxHeight: CARD_MAX_HEIGHT,
-              overflowY: scrollEnabled ? "auto" : "visible",
-              overflowX: "hidden",
-              WebkitOverflowScrolling: "touch",
-            }}
-          >
-            <div ref={contentRef}>
-              {renderGallery(false)}
-              <div style={{ padding: textPadding }}>
-                {renderOverlayCategoryRow()}
-                {renderScrollableText()}
-                {renderOverlayResponsible()}
-                {(project.cardLinks ?? []).filter((l) => l.url).length > 0 ? (
-                  <div
-                    style={{
-                      display: "flex",
-                      flexDirection: "column",
-                      alignItems: "flex-start",
-                      gap: 6,
-                      marginTop: 14,
-                    }}
-                  >
-                    {(project.cardLinks ?? []).map((link) =>
-                      link.url ? (
-                        <a
-                          key={link.url}
-                          href={link.url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          style={{
-                            fontSize: "0.82rem",
-                            fontWeight: 500,
-                            color: accent,
-                            fontFamily: "var(--font-manrope), system-ui, sans-serif",
-                            textDecoration: "none",
-                          }}
-                        >
-                          {link.label || link.url}
-                        </a>
-                      ) : null,
-                    )}
-                  </div>
-                ) : null}
-              </div>
+              ) : null}
             </div>
           </div>
-        )}
+        </div>
       </div>
     </>
   );

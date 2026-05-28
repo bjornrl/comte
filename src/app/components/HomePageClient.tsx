@@ -8,7 +8,10 @@ import LandingSpacer from "./LandingSpacer";
 import SectionAboutIntro from "./sections/SectionAboutIntro";
 import SectionWhatWeDo from "./sections/SectionWhatWeDo";
 import SectionProjects from "./sections/SectionProjects";
-import SectionTeam, { getTeamSectionWidth } from "./sections/SectionTeam";
+import SectionTeam, {
+  getTeamSectionWidth,
+  type TeamCarouselVideo,
+} from "./sections/SectionTeam";
 import SectionVentures from "./sections/SectionVentures";
 import SectionPublications from "./sections/SectionPublications";
 import SectionContact from "./sections/SectionContact";
@@ -43,7 +46,11 @@ export type HomeData = {
     datapoint3?: { value?: string; label?: string };
   };
   projects: WithInterstitial & { backgroundColor?: string; heading?: string };
-  team: WithInterstitial & { heading?: string; members: any[] };
+  team: WithInterstitial & {
+    heading?: string;
+    members: any[];
+    carouselVideos?: TeamCarouselVideo[];
+  };
   publications: WithInterstitial & { heading?: string; body?: string; items: CardItem[] };
   ventures: WithInterstitial & {
     heading?: string;
@@ -147,17 +154,21 @@ export default function HomePageClient({ data, projects, connections }: Props) {
         <SectionTeam
           heading={data.team.heading}
           teamMembers={data.team.members}
+          carouselVideos={data.team.carouselVideos ?? []}
         />
       ),
       interstitial: maybeInterstitial(data.team.interstitial),
-      width: getTeamSectionWidth(data.team.members.length),
+      width: getTeamSectionWidth(
+        data.team.members.length,
+        data.team.carouselVideos?.length ?? 0,
+      ),
     },
     {
       id: "publications",
       content: (
         <SectionPublications
-          backgroundColor="#FFD2D2"
-          foregroundColor="#1F3A32"
+          backgroundColor="#F5F5E9"
+          foregroundColor="#5A7482"
           heading={data.publications.heading}
           body={data.publications.body}
           items={data.publications.items}
@@ -198,7 +209,7 @@ export default function HomePageClient({ data, projects, connections }: Props) {
         showInteractiveNetwork={data.home.showInteractiveNetwork}
         motto={{
           heroText: data.motto.heroText,
-          backgroundColor: data.motto.backgroundColor,
+          backgroundColor: data.motto.backgroundColor ?? MOTTO_DEFAULT_BG,
           backgroundVideoUrl: data.motto.backgroundVideoUrl,
         }}
       />

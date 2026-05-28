@@ -70,12 +70,12 @@ export const NO_FILTERS: FilterState = { domain: null, scale: null, method: null
 export const DOMAIN_COLORS: Record<Domain, string> = {
   health: "#1F3A32",
   education: "#F27887",
-  integration: "#D6B84C",
-  urban: "#5F7C8A",
+  integration: "#676160",
+  urban: "#5A7482",
   climate: "#4F7C6C",
   digital: "#FF5252",
-  culture: "#B47AC9",
-  policy: "#9AA4B2",
+  culture: "#4F537A",
+  policy: "#5A7482",
 };
 
 export const DOMAIN_LABELS: Record<Domain, string> = {

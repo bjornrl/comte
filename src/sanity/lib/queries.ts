@@ -116,6 +116,12 @@ export const PROJECTS_SECTION_QUERY = groq`
 export const TEAM_SECTION_QUERY = groq`
   *[_type == "teamSection"][0] {
     heading,
+    carouselVideos[] {
+      _key,
+      label,
+      "url": video.asset->url,
+      "mimeType": video.asset->mimeType
+    },
     ${INTERSTITIAL_FIELDS}
   }
 `;

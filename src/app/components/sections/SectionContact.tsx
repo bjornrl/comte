@@ -1,7 +1,7 @@
 import SectionShell, { CONTENT_TOP, PANEL_PADDING } from "./SectionShell";
 
-const BG = "#F5F5E9";
-const FG = "#1F3A32";
+const BG = "#4F7C6C";
+const FG = "#F5F5E9";
 
 type Props = {
   block1Title?: string;

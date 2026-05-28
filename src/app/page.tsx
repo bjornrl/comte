@@ -24,7 +24,13 @@ import {
 import type { Project } from "@/app/components/projectNetworkData";
 import HomePageClient, { type HomeData } from "@/app/components/HomePageClient";
 import { urlFor } from "@/sanity/lib/image";
+import {
+  resolveDatapoint,
+  resolveLocaleString,
+  resolveLocaleText,
+} from "@/sanity/lib/locale";
 import { FALLBACK_PROJECTS } from "@/lib/fallbacks";
+import type { CardItem } from "@/app/components/sections/SectionCardGrid";
 
 export const revalidate = 60;
 
@@ -35,13 +41,23 @@ function sanityImageUrl(imageField: any, width = 1600): string | undefined {
 
 function mapInterstitial(raw: any) {
   if (!raw) return undefined;
-  const hasContent = !!(raw.text || raw.image || raw.videoUrl);
+  const text = resolveLocaleText(raw.text);
+  const hasContent = !!(text || raw.image || raw.videoUrl);
   if (!hasContent) return undefined;
   return {
-    text: raw.text ?? undefined,
+    text,
     image: raw.image ?? undefined,
     videoUrl: raw.videoUrl ?? undefined,
     backgroundColor: raw.backgroundColor ?? undefined,
+  };
+}
+
+function mapCardItem(doc: any): CardItem {
+  return {
+    _id: doc._id,
+    title: resolveLocaleString(doc.title),
+    description: resolveLocaleText(doc.description),
+    image: doc.image,
   };
 }
 
@@ -91,11 +107,11 @@ function mapSanityProject(doc: any): Project {
   return {
     id: doc._id,
     slug: doc.slug,
-    name: doc.title,
+    name: resolveLocaleString(doc.title) ?? "",
     client: customers[0] ?? "",
     customers,
     domain,
-    summary: doc.summary ?? "",
+    summary: resolveLocaleText(doc.summary) ?? "",
     featured: false,
     year: doc.year ?? new Date().getFullYear(),
     scale: (doc.scale as Project["scale"]) ?? "municipal",
@@ -155,7 +171,9 @@ export default async function Home() {
       client.fetch(PUBLICATIONS_QUERY),
       client.fetch(VENTURES_QUERY),
     ]);
-  } catch {}
+  } catch (error) {
+    console.error("[Home] Sanity fetch failed:", error);
+  }
 
   const projects: Project[] = sanityProjects?.length
     ? sanityProjects.map(mapSanityProject)
@@ -168,7 +186,7 @@ export default async function Home() {
       interstitial: mapInterstitial(home?.interstitial),
     },
     motto: {
-      heroText: motto?.heroText,
+      heroText: resolveLocaleString(motto?.heroText),
       backgroundColor: motto?.backgroundColor,
       backgroundVideoUrl: motto?.backgroundVideoUrl,
       interstitial: mapInterstitial(motto?.interstitial),
@@ -176,48 +194,67 @@ export default async function Home() {
     aboutIntro: {
       imageUrl: sanityImageUrl(aboutIntro?.image),
       imageAlt: aboutIntro?.image?.alt,
-      whoIsComteTitle: aboutIntro?.whoIsComteTitle,
-      whoIsComte: aboutIntro?.whoIsComte,
-      whoAreWeTitle: aboutIntro?.whoAreWeTitle,
-      whoAreWe: aboutIntro?.whoAreWe,
+      whoIsComteTitle: resolveLocaleString(aboutIntro?.whoIsComteTitle),
+      whoIsComte: resolveLocaleText(aboutIntro?.whoIsComte),
+      whoAreWeTitle: resolveLocaleString(aboutIntro?.whoAreWeTitle),
+      whoAreWe: resolveLocaleText(aboutIntro?.whoAreWe),
       interstitial: mapInterstitial(aboutIntro?.interstitial),
     },
     whatWeDo: {
-      textbox: whatWeDo?.textbox,
-      datapoint1: whatWeDo?.datapoint1,
-      datapoint2: whatWeDo?.datapoint2,
-      datapoint3: whatWeDo?.datapoint3,
+      textbox: resolveLocaleText(whatWeDo?.textbox),
+      datapoint1: resolveDatapoint(whatWeDo?.datapoint1),
+      datapoint2: resolveDatapoint(whatWeDo?.datapoint2),
+      datapoint3: resolveDatapoint(whatWeDo?.datapoint3),
       interstitial: mapInterstitial(whatWeDo?.interstitial),
     },
     projects: {
       backgroundColor: projectsSection?.backgroundColor,
-      heading: projectsSection?.heading,
+      heading: resolveLocaleString(projectsSection?.heading),
       interstitial: mapInterstitial(projectsSection?.interstitial),
     },
     team: {
-      heading: teamSection?.heading,
+      heading: resolveLocaleString(teamSection?.heading),
       members: team ?? [],
+      carouselVideos: (teamSection?.carouselVideos ?? [])
+        .map(
+          (
+            video: {
+              _key?: string;
+              url?: string | null;
+              mimeType?: string;
+              label?: string;
+            },
+            index: number,
+          ) => ({
+            _key: video._key,
+            url: video.url,
+            mimeType: video.mimeType,
+            label: video.label,
+            cmsOrder: index,
+          }),
+        )
+        .filter((video: { url?: string | null }) => Boolean(video.url)),
       interstitial: mapInterstitial(teamSection?.interstitial),
     },
     publications: {
-      heading: publicationsSection?.heading,
-      body: publicationsSection?.body,
-      items: publications ?? [],
+      heading: resolveLocaleString(publicationsSection?.heading),
+      body: resolveLocaleText(publicationsSection?.body),
+      items: (publications ?? []).map(mapCardItem),
       interstitial: mapInterstitial(publicationsSection?.interstitial),
     },
     ventures: {
-      heading: venturesSection?.heading,
-      body: venturesSection?.body,
+      heading: resolveLocaleString(venturesSection?.heading),
+      body: resolveLocaleText(venturesSection?.body),
       featuredVideoUrl: venturesSection?.featuredVideoUrl,
       featuredImage: venturesSection?.featuredImage,
-      items: ventures ?? [],
+      items: (ventures ?? []).map(mapCardItem),
       interstitial: mapInterstitial(venturesSection?.interstitial),
     },
     contact: {
-      block1Title: contactSection?.block1Title,
-      block1Body: contactSection?.block1Body,
-      block2Title: contactSection?.block2Title,
-      block2Body: contactSection?.block2Body,
+      block1Title: resolveLocaleString(contactSection?.block1Title),
+      block1Body: resolveLocaleText(contactSection?.block1Body),
+      block2Title: resolveLocaleString(contactSection?.block2Title),
+      block2Body: resolveLocaleText(contactSection?.block2Body),
       interstitial: mapInterstitial(contactSection?.interstitial),
     },
   };

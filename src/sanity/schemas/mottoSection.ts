@@ -18,8 +18,8 @@ export const mottoSection = defineType({
       title: "Background Color (fallback)",
       type: "string",
       description:
-        "Hex behind the lights or video. Defaults to #1F3A32. Only visible at edges if the background does not fully cover.",
-      initialValue: "#1F3A32",
+        "Hex behind the lights or video. Defaults to #5A7482. Only visible at edges if the background does not fully cover.",
+      initialValue: "#5A7482",
     }),
     defineField({
       name: "heroText",

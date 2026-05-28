@@ -8,8 +8,8 @@ import {
   HERO_MATTERS_LINE_DELAY_MS,
 } from "../heroIntroTiming";
 
-const DEFAULT_BG = "#1F3A32";
-const TILT_COLOR = "#4F7C6C";
+const DEFAULT_BG = "#5A7482";
+const TILT_COLOR = "#F5F5E9";
 
 const LINES = ["Design to", "evolve"];
 
