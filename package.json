@@ -8,7 +8,9 @@
     "start": "next start",
     "lint": "eslint",
     "format": "prettier --write .",
-    "format:check": "prettier --check ."
+    "format:check": "prettier --check .",
+    "migrate:locales": "node scripts/migrate-locale-fields.mjs",
+    "migrate:locales:dry-run": "node scripts/migrate-locale-fields.mjs --dry-run"
   },
   "dependencies": {
     "@portabletext/react": "^6.0.3",

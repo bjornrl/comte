@@ -58,6 +58,30 @@ var HEADER_ROW = 1;  // row containing ID | Title | Year | …
 var MULTI_SEP = " / ";
 var API_VERSION = "v2024-01-01";
 
+/** Read English (or legacy plain string) from a localeString/localeText field. */
+function pickLocale_(value) {
+  if (!value) return "";
+  if (typeof value === "string") return value;
+  if (typeof value === "object") {
+    if (value.en) return String(value.en);
+    if (value.no) return String(value.no);
+  }
+  return "";
+}
+
+/** Write a plain sheet string as `{ en: value }` for localeString fields. */
+function localeString_(value) {
+  if (!value) return { en: "" };
+  if (typeof value === "object" && (value.en !== undefined || value.no !== undefined)) {
+    return value;
+  }
+  return { en: String(value).trim() };
+}
+
+function localeText_(value) {
+  return localeString_(value);
+}
+
 // Internal field keys that must be present in row HEADER_ROW.
 var REQUIRED_FIELDS = ["title"];
 
@@ -322,12 +346,13 @@ function pushRow_(sheet, row, headers) {
     }
   }
 
+  var titleText = String(data.title).trim();
   var doc = {
     _type: "project",
-    title: String(data.title).trim(),
-    slug: { _type: "slug", current: slugify_(String(data.title).trim()) },
+    title: localeString_(titleText),
+    slug: { _type: "slug", current: slugify_(titleText) },
     year: data.year !== "" && data.year != null ? Number(data.year) : null,
-    summary: data.description ? String(data.description) : "",
+    summary: localeText_(data.description ? String(data.description) : ""),
     customers: parseMulti_(data.customers),
     mainCategory: CATEGORY_VALUES[String(data.mainCategory || "").trim()] || null,
     allCategories: parseMulti_(data.allCategories)
@@ -352,7 +377,7 @@ function pushRow_(sheet, row, headers) {
     doc.gallery = buildGallery_(
       String(data.photoFilename || "").trim(),
       existingId || null,
-      String(data.title).trim()
+      titleText
     );
   }
 
@@ -381,9 +406,9 @@ function writeProjectRow_(sheet, row, headers, p) {
 
   var writes = {
     id:              p._id || "",
-    title:           p.title || "",
+    title:           pickLocale_(p.title),
     year:            p.year || "",
-    description:     p.summary || "",
+    description:     pickLocale_(p.summary),
     customers:       customers.join(MULTI_SEP),
     contact:         responsible.name || "",
     mail:            responsible.email || "",
@@ -425,7 +450,7 @@ function buildGallery_(filename, existingProjectId, altText) {
       return [{
         _key: shortKey_(),
         _type: "image",
-        alt: altText || "",
+        alt: localeString_(altText || ""),
         asset: { _type: "reference", _ref: current.ref },
       }];
     }
@@ -444,7 +469,7 @@ function buildGallery_(filename, existingProjectId, altText) {
     return [{
       _key: shortKey_(),
       _type: "image",
-      alt: altText || "",
+      alt: localeString_(altText || ""),
       asset: { _type: "reference", _ref: assetId },
     }];
   } catch (err) {
