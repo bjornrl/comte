@@ -529,6 +529,9 @@ function SectionProjectsMobile({
   projects: Project[];
 }) {
   const [activeFilter, setActiveFilter] = useState<Domain | null>(null);
+  // Filter chips are hidden behind a "filter" toggle by default — keeps
+  // the sticky header compact and matches the mobile-nav hamburger.
+  const [filterOpen, setFilterOpen] = useState(false);
   // Page size for the "show more" pagination — six tiles (three rows of
   // two) fits comfortably in the viewport before the user needs to ask
   // for the next page.
@@ -547,7 +550,18 @@ function SectionProjectsMobile({
   const setFilter = (next: Domain | null) => {
     setActiveFilter(next);
     setVisibleCount(PAGE_SIZE);
+    // Close the chip menu after a pick so the tile grid takes back
+    // the screen — same UX as the mobile nav hamburger collapsing
+    // after a section jump.
+    setFilterOpen(false);
   };
+
+  const activeLabel = activeFilter
+    ? PROJECT_DOMAIN_LABELS[activeFilter]
+    : null;
+  const activeColor = activeFilter
+    ? PROJECT_DOMAIN_COLORS[activeFilter]
+    : PROJECT_FG;
 
   return (
     <section
@@ -563,16 +577,12 @@ function SectionProjectsMobile({
         <span style={{ color: LANDING_HERO_ACCENT }}>.</span>
       </h2>
 
-      {/* Filter bar — same lowercase Work Sans + domain-colored outline
-          treatment as the desktop tag menu. Two columns on phones, three
-          once the viewport widens (tablet mobile). An "all" pill at the
-          top clears the filter.
-
-          The sticky wrapper keeps the filter row pinned just below the
-          fixed top nav while the projects section is in view, then
-          scrolls away with the section. Negative horizontal margins
-          extend the cream background to both screen edges so tiles
-          underneath are fully covered while pinned. */}
+      {/* Filter bar — single "filter" toggle pinned below the top nav
+          while the projects section is in view. Tapping reveals the
+          category chips with a staggered slide-in (mirrors the mobile
+          hamburger nav). Negative horizontal margins extend the section
+          background to both screen edges so tiles underneath stay
+          covered while the bar is sticky. */}
       <div
         className="sticky -mx-6 mb-6 sm:-mx-8"
         style={{
@@ -585,41 +595,143 @@ function SectionProjectsMobile({
           paddingRight: "1.5rem",
         }}
       >
-      {/* 2 rows × 4 columns — all eight categories visible at once. Long
-          labels wrap to a second line; chips in the same row share height
-          via CSS grid so the rows stay tidy. */}
-      <div className="grid grid-cols-4 gap-1">
-        {PROJECT_VISIBLE_DOMAINS.map((domain) => {
-          const color = PROJECT_DOMAIN_COLORS[domain];
-          const isActive = activeFilter === domain;
-          return (
-            <button
-              key={domain}
-              type="button"
-              onClick={() => setFilter(activeFilter === domain ? null : domain)}
-              aria-pressed={isActive}
-              aria-label={`Filter by ${PROJECT_DOMAIN_LABELS[domain]}`}
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setFilterOpen((v) => !v)}
+            aria-expanded={filterOpen}
+            aria-controls="mobile-projects-filter-list"
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: 8,
+              padding: "8px 14px",
+              border: `1px solid ${activeColor}`,
+              background: filterOpen ? activeColor : "transparent",
+              color: filterOpen ? PROJECT_BG : activeColor,
+              fontFamily: "var(--font-work-sans), system-ui, sans-serif",
+              fontSize: "0.8125rem",
+              letterSpacing: "0.04em",
+              textTransform: "lowercase",
+              cursor: "pointer",
+              minHeight: 36,
+              lineHeight: 1.1,
+              transition:
+                "background 0.2s ease, color 0.2s ease, border-color 0.2s ease",
+            }}
+          >
+            <span>filter{activeLabel ? `: ${activeLabel.toLowerCase()}` : ""}</span>
+            {/* Chevron flips when the menu is open. */}
+            <span
+              aria-hidden
               style={{
-                padding: "6px 8px",
-                border: `1px solid ${color}`,
-                background: isActive ? color : "transparent",
-                color: isActive ? PROJECT_BG : color,
-                fontFamily: "var(--font-work-sans), system-ui, sans-serif",
-                fontSize: "0.6875rem",
-                letterSpacing: "0.01em",
-                textTransform: "lowercase",
-                cursor: "pointer",
-                minHeight: 32,
-                lineHeight: 1.1,
-                textAlign: "center",
-                transition: "background 0.2s ease, color 0.2s ease",
+                display: "inline-block",
+                transform: filterOpen ? "rotate(180deg)" : "rotate(0deg)",
+                transition: "transform 0.2s ease",
+                fontSize: "0.625rem",
+                lineHeight: 1,
               }}
             >
-              {PROJECT_DOMAIN_LABELS[domain]}
+              ▾
+            </span>
+          </button>
+          {activeFilter ? (
+            <button
+              type="button"
+              onClick={() => setFilter(null)}
+              aria-label="Clear filter"
+              style={{
+                padding: "4px 8px",
+                border: "none",
+                background: "transparent",
+                color: PROJECT_FG,
+                fontFamily: "var(--font-work-sans), system-ui, sans-serif",
+                fontSize: "0.6875rem",
+                letterSpacing: "0.04em",
+                textTransform: "lowercase",
+                cursor: "pointer",
+                opacity: 0.7,
+              }}
+            >
+              clear
             </button>
-          );
-        })}
+          ) : null}
+        </div>
       </div>
+
+      {/* Chip list — collapses to zero height when closed, then expands
+          with a staggered slide-in per chip (matches the mobile nav
+          hamburger reveal). Not sticky; scrolls with the section. */}
+      <div
+        id="mobile-projects-filter-list"
+        aria-hidden={!filterOpen}
+        style={{
+          overflow: "hidden",
+          // 3 rows of ~52px chips + gaps + breathing room.
+          maxHeight: filterOpen ? 320 : 0,
+          marginBottom: filterOpen ? 24 : 0,
+          transition:
+            "max-height 380ms cubic-bezier(0.25, 1, 0.5, 1), margin-bottom 380ms cubic-bezier(0.25, 1, 0.5, 1)",
+        }}
+      >
+        {/* 3 × 3 grid — eight categories fill the first eight cells, the
+            last cell stays empty. Wider chips mean labels wrap on word
+            boundaries instead of mid-glyph, so no hyphenation needed. */}
+        <div className="grid grid-cols-3 gap-1">
+          {PROJECT_VISIBLE_DOMAINS.map((domain, i) => {
+            const color = PROJECT_DOMAIN_COLORS[domain];
+            const isActive = activeFilter === domain;
+            // Staggered slide-in mirroring MobileNav: items reveal left
+            // → right when opening, reverse when closing.
+            const STEP_MS = 35;
+            const BASE_MS = 380;
+            const reverseI = PROJECT_VISIBLE_DOMAINS.length - 1 - i;
+            const delay = filterOpen ? i * STEP_MS : reverseI * STEP_MS;
+            return (
+              <button
+                key={domain}
+                type="button"
+                onClick={() => setFilter(isActive ? null : domain)}
+                aria-pressed={isActive}
+                aria-label={`Filter by ${PROJECT_DOMAIN_LABELS[domain]}`}
+                tabIndex={filterOpen ? 0 : -1}
+                style={{
+                  // Flex with both-axis centering so the wrapped lines of
+                  // long labels (e.g. "Inclusion & Participation") sit
+                  // visually centered inside the chip.
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  padding: "10px 10px",
+                  border: `1px solid ${color}`,
+                  background: isActive ? color : "transparent",
+                  color: isActive ? PROJECT_BG : color,
+                  fontFamily: "var(--font-work-sans), system-ui, sans-serif",
+                  fontSize: "0.8125rem",
+                  letterSpacing: "0.01em",
+                  textTransform: "lowercase",
+                  cursor: "pointer",
+                  minHeight: 52,
+                  lineHeight: 1.15,
+                  textAlign: "center",
+                  // Wrap on word boundaries only — no mid-word breaks.
+                  overflowWrap: "normal",
+                  wordBreak: "normal",
+                  hyphens: "none",
+                  opacity: filterOpen ? 1 : 0,
+                  transform: filterOpen
+                    ? "translateY(0)"
+                    : "translateY(-8px)",
+                  pointerEvents: filterOpen ? "auto" : "none",
+                  transition: `background 0.2s ease, color 0.2s ease, opacity ${BASE_MS}ms cubic-bezier(0.25, 1, 0.5, 1) ${delay}ms, transform ${BASE_MS}ms cubic-bezier(0.25, 1, 0.5, 1) ${delay}ms`,
+                }}
+              >
+                {PROJECT_DOMAIN_LABELS[domain]}
+              </button>
+            );
+          })}
+        </div>
       </div>
 
       {/* Tile grid — domain-bordered cards matching the desktop tile view,
