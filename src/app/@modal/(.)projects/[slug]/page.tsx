@@ -1,21 +1,20 @@
 export const revalidate = 60;
 
 import { notFound } from "next/navigation";
-import ResponsiveNav from "@/app/components/ResponsiveNav";
-import Footer from "@/app/components/Footer";
+import BottomSheet from "@/app/components/BottomSheet";
 import ProjectDetailContent from "@/app/components/ProjectDetailContent";
 import { client } from "@/sanity/lib/client";
 import { PROJECT_DETAIL_QUERY } from "@/sanity/lib/queries";
 import { getServerLocale } from "@/lib/locale-server";
 
-export default async function ProjectPage({
+export default async function ProjectModal({
   params,
 }: {
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = await params;
   const locale = await getServerLocale();
-  let project = null;
+  let project: any = null;
   try {
     project = await client.fetch(PROJECT_DETAIL_QUERY, { slug, locale });
   } catch {}
@@ -23,10 +22,11 @@ export default async function ProjectPage({
   if (!project) return notFound();
 
   return (
-    <div className="min-h-svh">
-      <ResponsiveNav activeSection="projects" />
-      <ProjectDetailContent project={project} variant="page" />
-      <Footer />
-    </div>
+    <BottomSheet
+      ariaLabel={project.title ?? "Project"}
+      title={project.title ?? "Project"}
+    >
+      <ProjectDetailContent project={project} variant="sheet" />
+    </BottomSheet>
   );
 }

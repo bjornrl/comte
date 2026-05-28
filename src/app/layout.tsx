@@ -4,6 +4,7 @@ import "./globals.css";
 import { client } from "@/sanity/lib/client";
 import { SITE_SETTINGS_QUERY } from "@/sanity/lib/queries";
 import { FALLBACK_SITE_SETTINGS } from "@/lib/fallbacks";
+import { getServerLocale } from "@/lib/locale-server";
 
 const manrope = Manrope({
   variable: "--font-manrope",
@@ -30,9 +31,10 @@ const roboto = Roboto({
 });
 
 export async function generateMetadata(): Promise<Metadata> {
+  const locale = await getServerLocale();
   let settings = null;
   try {
-    settings = await client.fetch(SITE_SETTINGS_QUERY);
+    settings = await client.fetch(SITE_SETTINGS_QUERY, { locale });
   } catch {}
   return {
     title: settings?.siteName ?? FALLBACK_SITE_SETTINGS.siteName,
@@ -44,8 +46,13 @@ export const revalidate = 60;
 
 export default function RootLayout({
   children,
+  modal,
 }: Readonly<{
   children: React.ReactNode;
+  /** Parallel-route slot used by intercepting routes (publications + project
+   *  detail overlays). Optional so the generated LayoutProps type remains
+   *  satisfiable even before Next regenerates after adding @modal. */
+  modal?: React.ReactNode;
 }>) {
   return (
     <html lang="en">
@@ -53,6 +60,7 @@ export default function RootLayout({
         className={`${manrope.variable} ${abhayaLibre.variable} ${workSans.variable} ${roboto.variable} antialiased`}
       >
         {children}
+        {modal}
       </body>
     </html>
   );

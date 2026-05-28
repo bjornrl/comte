@@ -8,26 +8,22 @@ export const contactSection = defineType({
     defineField({
       name: "block1Title",
       title: "First block – Title",
-      type: "string",
-      initialValue: "Get in touch",
+      type: "localeString",
     }),
     defineField({
       name: "block1Body",
       title: "First block – Body",
-      type: "text",
-      rows: 4,
+      type: "localeText",
     }),
     defineField({
       name: "block2Title",
       title: "Second block – Title",
-      type: "string",
-      initialValue: "Where to find us",
+      type: "localeString",
     }),
     defineField({
       name: "block2Body",
       title: "Second block – Body",
-      type: "text",
-      rows: 4,
+      type: "localeText",
     }),
     defineField({
       name: "interstitial",

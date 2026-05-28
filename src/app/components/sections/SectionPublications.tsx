@@ -1,12 +1,17 @@
 "use client";
 
 import Image from "next/image";
+import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ChevronUp, ChevronDown, ArrowDown } from "lucide-react";
 import SectionShell, { CONTENT_TOP, PANEL_PADDING } from "./SectionShell";
 import TiltedHeading from "../TiltedHeading";
 import { urlFor } from "@/sanity/lib/image";
 import type { CardItem } from "./SectionCardGrid";
+
+function publicationHref(item: CardItem): string | null {
+  return item.slug ? `/publications/${item.slug}` : null;
+}
 
 const PLACEHOLDER_IMAGE =
   "https://images.unsplash.com/photo-1773558058134-9ff1a3212ef0?q=80&w=1572&auto=format&fit=crop";
@@ -71,23 +76,44 @@ function MarqueeTile({
 }) {
   const [hovered, setHovered] = useState(false);
   const imageUrl = sanityImageUrl(item.image, 800) ?? PLACEHOLDER_IMAGE;
+  const href = publicationHref(item);
+
+  const sharedProps = {
+    onMouseEnter: () => {
+      setHovered(true);
+      onHover();
+    },
+    onMouseLeave: () => {
+      setHovered(false);
+      onLeave();
+    },
+    "aria-label": item.title
+      ? `Read more about ${item.title}`
+      : "Read more about this publication",
+    className: "relative block w-full overflow-hidden bg-gray-100 text-left",
+    style: {
+      height: MARQUEE_TILE_HEIGHT,
+      flexShrink: 0,
+      cursor: "pointer",
+      border: "none",
+      padding: 0,
+    } as const,
+  };
+
+  const Wrapper = href
+    ? ({ children }: { children: React.ReactNode }) => (
+        <Link href={href} {...sharedProps}>
+          {children}
+        </Link>
+      )
+    : ({ children }: { children: React.ReactNode }) => (
+        <button type="button" onClick={onClick} {...sharedProps}>
+          {children}
+        </button>
+      );
 
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      onMouseEnter={() => {
-        setHovered(true);
-        onHover();
-      }}
-      onMouseLeave={() => {
-        setHovered(false);
-        onLeave();
-      }}
-      aria-label={item.title ? `Read more about ${item.title}` : "Read more about this publication"}
-      className="relative block w-full overflow-hidden bg-gray-100 text-left"
-      style={{ height: MARQUEE_TILE_HEIGHT, flexShrink: 0, cursor: "pointer", border: "none", padding: 0 }}
-    >
+    <Wrapper>
       <Image
         src={imageUrl}
         alt={item.image?.alt ?? item.title ?? ""}
@@ -160,7 +186,7 @@ function MarqueeTile({
           Read more and order
         </span>
       </div>
-    </button>
+    </Wrapper>
   );
 }
 

@@ -39,7 +39,7 @@ export const project = defineType({
     defineField({
       name: "title",
       title: "Title",
-      type: "string",
+      type: "localeString",
       group: "main",
       validation: (Rule) => Rule.required(),
     }),
@@ -48,7 +48,7 @@ export const project = defineType({
       title: "Slug",
       type: "slug",
       group: "main",
-      options: { source: "title", maxLength: 96 },
+      options: { source: "title.en", maxLength: 96 },
       validation: (Rule) => Rule.required(),
     }),
     defineField({
@@ -61,9 +61,8 @@ export const project = defineType({
     defineField({
       name: "summary",
       title: "Description",
-      type: "text",
+      type: "localeText",
       group: "main",
-      rows: 4,
       description: "Short description shown on the project card.",
       validation: (Rule) => Rule.required(),
     }),
@@ -75,7 +74,7 @@ export const project = defineType({
       of: [{ type: "string" }],
       options: { layout: "tags" },
       description:
-        'One entry per customer. Multiple customers render with a dot separator on the card (e.g. "NAV · Trondheim Kommune").',
+        'One entry per customer. Proper organisation names — kept un-translated. Multiple customers render with a dot separator on the card (e.g. "NAV · Trondheim Kommune").',
     }),
     defineField({
       name: "responsible",
@@ -134,8 +133,8 @@ export const project = defineType({
           type: "image",
           options: { hotspot: true },
           fields: [
-            defineField({ name: "alt", title: "Alt Text", type: "string" }),
-            defineField({ name: "caption", title: "Caption", type: "string" }),
+            defineField({ name: "alt", title: "Alt Text", type: "localeString" }),
+            defineField({ name: "caption", title: "Caption", type: "localeString" }),
           ],
         },
       ],
@@ -153,7 +152,7 @@ export const project = defineType({
             defineField({
               name: "label",
               title: "Label",
-              type: "string",
+              type: "localeString",
               validation: (Rule) => Rule.required(),
             }),
             defineField({
@@ -163,7 +162,7 @@ export const project = defineType({
               validation: (Rule) => Rule.required(),
             }),
           ],
-          preview: { select: { title: "label", subtitle: "url" } },
+          preview: { select: { title: "label.en", subtitle: "url" } },
         },
       ],
     }),
@@ -226,9 +225,15 @@ export const project = defineType({
   ],
   preview: {
     select: {
-      title: "title",
+      en: "title.en",
+      no: "title.no",
       subtitle: "customers.0",
       media: "gallery.0",
     },
+    prepare: ({ en, no, subtitle, media }) => ({
+      title: en || no || "Untitled",
+      subtitle,
+      media,
+    }),
   },
 });
