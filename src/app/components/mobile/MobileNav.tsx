@@ -183,7 +183,11 @@ export default function MobileNav({ activeSection }: Props) {
             paddingTop: BOX_HEIGHT + 24,
           }}
         >
-          {NAV_ITEMS.map((item, i) => {
+          {NAV_ITEMS
+            // Ventures is hidden from the mobile nav for now — the
+            // section isn't part of the mobile vertical-scroll flow.
+            .filter((item) => item.sectionId !== "ventures")
+            .map((item, i, items) => {
             const active = isNavItemActive(item.sectionId, activeSection);
             // Staggered per-button slide-in from the left, mirroring the
             // desktop deck-collapse. Items closer to the hamburger move
@@ -191,7 +195,7 @@ export default function MobileNav({ activeSection }: Props) {
             // away in the opposite direction.
             const STEP_MS = 40;
             const BASE_MS = 380;
-            const reverseI = NAV_ITEMS.length - 1 - i;
+            const reverseI = items.length - 1 - i;
             const delay = open ? i * STEP_MS : reverseI * STEP_MS;
             return (
               <li
