@@ -2,14 +2,15 @@ import { groq } from "next-sanity";
 
 /**
  * GROQ-side locale picker. Returns the active locale's value, falling
- * back to English, then to the raw field — so unmigrated plain-string
- * documents keep rendering until an editor sets their translations.
+ * back to English, then — only for unmigrated plain-string documents —
+ * to the raw field. A localeString whose locale slots are all null no
+ * longer leaks the wrapper object to React; it resolves to null instead.
  *
- *   ${t("title")}     →  "title": coalesce(title[$locale], title.en, title)
+ *   ${t("title")}     →  "title": coalesce(title[$locale], title.en, <fallback>)
  *   ${t("body")}      →  same shape, works for arrays + portable text
  */
 const t = (field: string) =>
-  `"${field}": coalesce(${field}[$locale], ${field}.en, ${field})`;
+  `"${field}": coalesce(${field}[$locale], ${field}.en, select(defined(${field}._type) => null, ${field}))`;
 
 // Re-usable interstitial projection. Each section singleton query spreads
 // this so the editor can attach a narrow parallax panel to any section.

@@ -64,6 +64,14 @@ function mapCardItem(doc: any): CardItem {
   };
 }
 
+function mapTeamMember(doc: any) {
+  return {
+    ...doc,
+    role: resolveLocaleString(doc.role) ?? "",
+    bio: resolveLocaleText(doc.bio) ?? "",
+  };
+}
+
 function mapSanityProject(doc: any): Project {
   // Prefer the new `mainCategory` field; fall back to the first legacy tag.
   const mainCategoryRaw: string | undefined = doc.mainCategory;
@@ -91,7 +99,7 @@ function mapSanityProject(doc: any): Project {
 
   const galleryUrls = (doc.galleryUrls ?? []).filter(Boolean) as string[];
   const cardLinks = (doc.links ?? []).map((l: any) => ({
-    label: l?.label ?? "",
+    label: resolveLocaleString(l?.label) ?? "",
     url: l?.url ?? "",
   }));
 
@@ -100,7 +108,7 @@ function mapSanityProject(doc: any): Project {
     ? {
         id: responsibleDoc._id,
         name: responsibleDoc.name ?? "",
-        role: responsibleDoc.role ?? undefined,
+        role: resolveLocaleString(responsibleDoc.role) ?? undefined,
         email: responsibleDoc.email ?? undefined,
         phone: responsibleDoc.phone ?? undefined,
         photoUrl: responsibleDoc.photoUrl ?? undefined,
@@ -223,7 +231,7 @@ export default async function Home() {
     },
     team: {
       heading: resolveLocaleString(teamSection?.heading),
-      members: team ?? [],
+      members: (team ?? []).map(mapTeamMember),
       carouselVideos: (teamSection?.carouselVideos ?? [])
         .map(
           (
@@ -275,9 +283,9 @@ export default async function Home() {
   )
     ? aboutOffice.locations
         .map((loc: any) => ({
-          title: loc?.title ?? "",
+          title: resolveLocaleString(loc?.title) ?? "",
           address: loc?.address ?? "",
-          description: loc?.description ?? "",
+          description: resolveLocaleText(loc?.description) ?? "",
           zoom: typeof loc?.zoom === "number" ? loc.zoom : undefined,
         }))
         .filter((loc: MobileContactLocation) => !!loc.title)
