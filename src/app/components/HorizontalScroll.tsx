@@ -342,6 +342,10 @@ export default function HorizontalScroll({
       const currentIdx = canonical.findIndex((s) => s.id === currentId);
       if (currentIdx < 0 || currentIdx === targetIdx) return;
 
+      // Highlight the destination nav item immediately on click — don't wait
+      // for the scroll / snap animation to finish.
+      onActiveSectionChange?.(id);
+
       // Landing → contact: one panel left via the loop clone (not a long
       // rightward hop through every section).
       if (id === "contact" && isLandingSectionId(currentId)) {

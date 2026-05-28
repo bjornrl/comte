@@ -32,17 +32,12 @@ const BOTTOM_TAG_ROW_GAP = 4;
 const BOTTOM_OFFSET = "clamp(16px, 3vh, 32px)";
 /** Vertical gap below nav (and above tag bar) — matches tile-area top inset. */
 const TILE_VERTICAL_MARGIN = "clamp(1rem, 2vw, 1.5rem)";
+/** Extra breathing room between the card grid bottom and the tag menu. */
+const TILE_GRID_TO_TAG_EXTRA = "clamp(2rem, 4vh, 3rem)";
 /** Extra space below navbar before cards + category row (dots/pagination stay put). */
 const TILE_CARDS_TOP_EXTRA = "clamp(2rem, 5vh, 3.5rem)";
 
-// Tile view — row height sized for embedded detail cards (image + body text).
-const TILE_PAD = 12;
-const TILE_FONT_SIZE = "0.875rem";
-const TILE_LINE_HEIGHT = 1.25;
-/** Line units per grid row — drives overall embedded card height. */
-const TILE_EMBEDDED_TEXT_LINES = 6;
-const TILE_TITLE_BLOCK = `calc(${TILE_EMBEDDED_TEXT_LINES} * ${TILE_FONT_SIZE} * ${TILE_LINE_HEIGHT})`;
-const TILE_HEIGHT = `calc(${TILE_TITLE_BLOCK} + ${TILE_PAD * 2}px)`;
+// Tile view — embedded detail cards fill viewport-sized grid rows.
 // Reclaim section panel padding; top inset matches TILE_VERTICAL_MARGIN below the nav.
 const TILE_SECTION_TOP = `calc(${CONTENT_TOP} - ${PANEL_PADDING} + ${TILE_VERTICAL_MARGIN})`;
 const TILE_HEADING_BLOCK = "clamp(1.65rem, 3.3vw, 2.75rem)";
@@ -104,14 +99,26 @@ type TileGridLayout = {
   colWidth: number;
 };
 
-/** Match TILE_HEIGHT CSS at default 16px root — keep in sync with TILE_* constants. */
-function getTileHeightPx(rootFontSize = 16): number {
-  const fontSize = rootFontSize * 0.875;
-  return TILE_PAD * 2 + TILE_EMBEDDED_TEXT_LINES * fontSize * TILE_LINE_HEIGHT;
+/** Match default tile row height at 16px root — approximate for layout helpers. */
+function getTileHeightPx(rootFontSize = 16, stageHeight = 0): number {
+  if (stageHeight > 0) {
+    const clusterTopPx = rootFontSize * 5;
+    const gapPx = rootFontSize * 1.25;
+    const panelPadPx = rootFontSize * 2.5;
+    const blockPx = stageHeight - clusterTopPx - gapPx - NAV_BOX_HEIGHT - panelPadPx;
+    return Math.max(120, (blockPx - (TILE_VISIBLE_ROWS - 1) * TILE_GRID_GAP) / TILE_VISIBLE_ROWS);
+  }
+  return 120;
 }
 
-function getTileGridBlockHeight(): string {
-  return `calc(${TILE_VISIBLE_ROWS} * (${TILE_HEIGHT}) + ${(TILE_VISIBLE_ROWS - 1) * TILE_GRID_GAP}px)`;
+/** Card grid height — fills viewport so tag bar bottom matches team section inset. */
+function getTileGridBlockHeight(clusterStageTop: string, navToTileAreaGap: string): string {
+  return `calc(100vh - ${clusterStageTop} - ${navToTileAreaGap} - ${NAV_BOX_HEIGHT}px - ${PANEL_PADDING})`;
+}
+
+function getTileRowHeight(clusterStageTop: string, navToTileAreaGap: string): string {
+  const block = getTileGridBlockHeight(clusterStageTop, navToTileAreaGap);
+  return `calc((${block} - ${(TILE_VISIBLE_ROWS - 1) * TILE_GRID_GAP}px) / ${TILE_VISIBLE_ROWS})`;
 }
 
 /** Inner width of the tile stage (between horizontal insets, minus column gaps). */
@@ -138,10 +145,10 @@ function getTileNavColumnWidth(): string {
   return `calc(${getTileGridColumnWidthExpr()})`;
 }
 
-function computeTileGridLayout(width: number, _height?: number): TileGridLayout {
+function computeTileGridLayout(width: number, height = 0): TileGridLayout {
   const gap = TILE_GRID_GAP;
   const columns = TILE_GRID_COLUMNS;
-  const tileHeightPx = getTileHeightPx();
+  const tileHeightPx = getTileHeightPx(16, height);
   const rows = TILE_VISIBLE_ROWS;
   const colWidth = (width - (columns - 1) * gap) / columns;
   const paginationWidth = colWidth;
@@ -590,6 +597,7 @@ function TileProgressDotsColumn({
   return (
     <div
       ref={columnRef}
+      className="select-none"
       style={{
         position: "absolute",
         top,
@@ -772,6 +780,8 @@ type TileProjectGridProps = {
   tileProjects: NetProject[];
   stageWidth: number;
   stageHeight: number;
+  gridBlockHeight: string;
+  tileRowHeight: string;
   activeProject: string | null;
   hoveredProject: string | null;
   onProjectClick: (id: string) => void;
@@ -785,6 +795,8 @@ function TileProjectGrid({
   tileProjects,
   stageWidth,
   stageHeight,
+  gridBlockHeight,
+  tileRowHeight,
   activeProject,
   hoveredProject,
   onProjectClick,
@@ -835,8 +847,6 @@ function TileProjectGrid({
     onTilePageChange?.(safePageIndex);
   }, [safePageIndex, onTilePageChange]);
 
-  const gridBlockHeight = getTileGridBlockHeight();
-
   return (
     <div style={{ position: "absolute", inset: 0, zIndex: 5 }}>
       <div
@@ -858,7 +868,7 @@ function TileProjectGrid({
             style={{
               display: "grid",
               gridTemplateColumns: `repeat(${TILE_GRID_COLUMNS}, minmax(0, 1fr))`,
-              gridTemplateRows: `repeat(${TILE_VISIBLE_ROWS}, ${TILE_HEIGHT})`,
+              gridTemplateRows: `repeat(${TILE_VISIBLE_ROWS}, ${tileRowHeight})`,
               gap: TILE_GRID_GAP,
               alignContent: "start",
               height: "100%",
@@ -1428,17 +1438,19 @@ export default function ProjectCluster({ projects, backgroundColor, heading }: P
 
   const isMobile = stageSize.w > 0 && stageSize.w < 768;
   const clusterStageTop = heading ? TILE_GRID_TOP_WITH_HEADING : TILE_GRID_TOP;
-  const navToTileAreaGap = heading
+  const baseNavToTileGap = heading
     ? `calc(${TILE_VERTICAL_MARGIN} + ${TILE_HEADING_BLOCK} + ${TILE_GRID_GAP_BELOW_HEADING})`
     : TILE_VERTICAL_MARGIN;
-  const tileGridBlockHeight = getTileGridBlockHeight();
-  /** Top edge of the filter bar — gap below the tile grid matches nav-to-tile inset. */
-  const tagBarTop = `calc(${clusterStageTop} + ${tileGridBlockHeight} + ${navToTileAreaGap})`;
+  const cardToTagGap = `calc(${baseNavToTileGap} + ${TILE_GRID_TO_TAG_EXTRA})`;
+  const tileGridBlockHeight = getTileGridBlockHeight(clusterStageTop, cardToTagGap);
+  const tileRowHeight = getTileRowHeight(clusterStageTop, cardToTagGap);
+  /** Top edge of the filter bar — sits below the card grid with cardToTagGap clearance. */
+  const tagBarTop = `calc(${clusterStageTop} + ${tileGridBlockHeight} + ${cardToTagGap})`;
 
   return (
     <section
       ref={containerRef}
-      className="relative h-full w-full overflow-hidden select-none"
+      className="relative h-full w-full overflow-hidden"
       style={{ background: backgroundColor ?? DEFAULT_BG }}
       onClick={(e) => {
         if (e.target === e.currentTarget) setActiveProject(null);
@@ -1484,6 +1496,7 @@ export default function ProjectCluster({ projects, backgroundColor, heading }: P
 
       {/* Bottom bar: 8 domain filters — one row, exact card-row width. */}
       <div
+        className="select-none"
         style={{
           position: "absolute",
           top: tagBarTop,
@@ -1561,6 +1574,8 @@ export default function ProjectCluster({ projects, backgroundColor, heading }: P
         tileProjects={tileProjects}
         stageWidth={stageSize.w}
         stageHeight={stageSize.h}
+        gridBlockHeight={tileGridBlockHeight}
+        tileRowHeight={tileRowHeight}
         activeProject={activeProject}
         hoveredProject={hoveredProject}
         onProjectClick={handleDotClick}
@@ -1779,6 +1794,14 @@ export default function ProjectCluster({ projects, backgroundColor, heading }: P
 
 const EMBEDDED_DETAIL_IMAGE_FRACTION = 0.32;
 const EMBEDDED_SUMMARY_LINE_CLAMP = 9;
+const EMBEDDED_FONT = {
+  title: "clamp(1.0625rem, 1.35vw, 1.25rem)",
+  summary: "clamp(0.875rem, 1.1vw, 1rem)",
+  meta: "clamp(0.8125rem, 1vw, 0.9375rem)",
+  small: "clamp(0.75rem, 0.95vw, 0.875rem)",
+  tag: "clamp(0.75rem, 0.95vw, 0.875rem)",
+  contact: "clamp(0.8125rem, 1vw, 0.9375rem)",
+} as const;
 
 function EmbeddedTileProjectCard({ project }: { project: NetProject }) {
   const [photoIdx, setPhotoIdx] = useState(0);
@@ -1899,8 +1922,8 @@ function EmbeddedTileProjectCard({ project }: { project: NetProject }) {
       <span
         style={{
           display: "inline-block",
-          padding: "2px 8px",
-          fontSize: "0.6rem",
+          padding: "3px 10px",
+          fontSize: EMBEDDED_FONT.tag,
           fontFamily: "var(--font-manrope), system-ui, sans-serif",
           letterSpacing: "0.05em",
           color: BG_CREAM,
@@ -1915,8 +1938,8 @@ function EmbeddedTileProjectCard({ project }: { project: NetProject }) {
           key={cat.id}
           style={{
             display: "inline-block",
-            padding: "2px 8px",
-            fontSize: "0.6rem",
+            padding: "3px 10px",
+            fontSize: EMBEDDED_FONT.tag,
             fontFamily: "var(--font-manrope), system-ui, sans-serif",
             letterSpacing: "0.05em",
             color: BG_CREAM,
@@ -1969,34 +1992,27 @@ function EmbeddedTileProjectCard({ project }: { project: NetProject }) {
             display: "flex",
             flexDirection: "column",
             fontFamily: "var(--font-manrope), system-ui, sans-serif",
-            fontSize: "0.72rem",
+            fontSize: EMBEDDED_FONT.contact,
             lineHeight: 1.25,
             minWidth: 0,
           }}
         >
           {responsible.phone ? (
-            <a
-              href={`tel:${responsible.phone.replace(/\s+/g, "")}`}
-              style={{ color: "rgba(255,255,255,0.85)", textDecoration: "none" }}
-            >
-              {responsible.phone}
-            </a>
+            <span style={{ color: "rgba(255,255,255,0.85)" }}>{responsible.phone}</span>
           ) : (
             <span style={{ color: "rgba(255,255,255,0.55)" }}>{responsible.name}</span>
           )}
           {responsible.email ? (
-            <a
-              href={`mailto:${responsible.email}`}
+            <span
               style={{
                 color: "rgba(255,255,255,0.7)",
-                textDecoration: "none",
                 overflow: "hidden",
                 textOverflow: "ellipsis",
                 whiteSpace: "nowrap",
               }}
             >
               {responsible.email}
-            </a>
+            </span>
           ) : null}
         </div>
       </div>
@@ -2007,6 +2023,7 @@ function EmbeddedTileProjectCard({ project }: { project: NetProject }) {
     <article
       aria-label={project.name}
       data-comte-embedded-card="true"
+      className="select-text"
       style={{
         position: "relative",
         width: "100%",
@@ -2029,7 +2046,7 @@ function EmbeddedTileProjectCard({ project }: { project: NetProject }) {
       </div>
       <div
         style={{
-          padding: "16px 10px 18px",
+          padding: 16,
           flex: 1,
           minHeight: 0,
           display: "flex",
@@ -2040,7 +2057,7 @@ function EmbeddedTileProjectCard({ project }: { project: NetProject }) {
         <h3
           style={{
             margin: 0,
-            fontSize: "1rem",
+            fontSize: EMBEDDED_FONT.title,
             fontWeight: 600,
             color: "#fff",
             fontFamily: "var(--font-manrope), system-ui, sans-serif",
@@ -2053,8 +2070,8 @@ function EmbeddedTileProjectCard({ project }: { project: NetProject }) {
         {customers.length > 0 ? (
           <p
             style={{
-              margin: "3px 0 0",
-              fontSize: "0.68rem",
+              margin: "16px 0 0",
+              fontSize: EMBEDDED_FONT.meta,
               color: "rgba(255,255,255,0.75)",
               fontFamily: "var(--font-manrope), system-ui, sans-serif",
               flexShrink: 0,
@@ -2065,8 +2082,8 @@ function EmbeddedTileProjectCard({ project }: { project: NetProject }) {
         ) : null}
         <p
           style={{
-            margin: "2px 0 0",
-            fontSize: "0.65rem",
+            margin: customers.length > 0 ? "2px 0 0" : "16px 0 0",
+            fontSize: EMBEDDED_FONT.small,
             color: "rgba(255,255,255,0.55)",
             fontFamily: "var(--font-manrope), system-ui, sans-serif",
             flexShrink: 0,
@@ -2077,7 +2094,7 @@ function EmbeddedTileProjectCard({ project }: { project: NetProject }) {
         <p
           style={{
             margin: "16px 0 0",
-            fontSize: "0.7rem",
+            fontSize: EMBEDDED_FONT.summary,
             color: "rgba(255,255,255,0.78)",
             fontFamily: "var(--font-manrope), system-ui, sans-serif",
             lineHeight: 1.45,
@@ -2106,8 +2123,8 @@ function EmbeddedTileProjectCard({ project }: { project: NetProject }) {
               <span
                 key={label}
                 style={{
-                  padding: "2px 8px",
-                  fontSize: "0.58rem",
+                  padding: "3px 10px",
+                  fontSize: EMBEDDED_FONT.tag,
                   fontFamily: "var(--font-manrope), system-ui, sans-serif",
                   letterSpacing: "0.05em",
                   color: "rgba(255,255,255,0.85)",
@@ -2129,7 +2146,7 @@ function EmbeddedTileProjectCard({ project }: { project: NetProject }) {
                   target="_blank"
                   rel="noopener noreferrer"
                   style={{
-                    fontSize: "0.68rem",
+                    fontSize: EMBEDDED_FONT.meta,
                     fontWeight: 500,
                     color: accent,
                     fontFamily: "var(--font-manrope), system-ui, sans-serif",
@@ -2541,28 +2558,21 @@ function ExpandedProjectCard({
           }}
         >
           {responsible.phone ? (
-            <a
-              href={`tel:${responsible.phone.replace(/\s+/g, "")}`}
-              style={{ color: "rgba(255,255,255,0.85)", textDecoration: "none" }}
-            >
-              {responsible.phone}
-            </a>
+            <span style={{ color: "rgba(255,255,255,0.85)" }}>{responsible.phone}</span>
           ) : (
             <span style={{ color: "rgba(255,255,255,0.55)" }}>{responsible.name}</span>
           )}
           {responsible.email ? (
-            <a
-              href={`mailto:${responsible.email}`}
+            <span
               style={{
                 color: "rgba(255,255,255,0.7)",
-                textDecoration: "none",
                 overflow: "hidden",
                 textOverflow: "ellipsis",
                 whiteSpace: "nowrap",
               }}
             >
               {responsible.email}
-            </a>
+            </span>
           ) : null}
         </div>
       </div>
@@ -2578,6 +2588,7 @@ function ExpandedProjectCard({
       <div
         role="dialog"
         aria-label={project.name}
+        className="select-text"
         onClick={(e) => e.stopPropagation()}
         style={{
           position: "absolute",

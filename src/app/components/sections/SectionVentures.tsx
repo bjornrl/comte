@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import SectionShell from "./SectionShell";
+import SectionShell, { CONTENT_TOP, PANEL_PADDING } from "./SectionShell";
 import { urlFor } from "@/sanity/lib/image";
 import type { CardItem } from "./SectionCardGrid";
 
@@ -26,10 +26,6 @@ type Props = {
 const TILE_GAP_PX = 4;
 const MARQUEE_TILE_HEIGHT = "40vh";
 const MARQUEE_DURATION_S = 80;
-
-const NAV_BOX_HEIGHT = 42;
-const NAV_TOP_MARGIN = "clamp(1rem, 2.5vw, 2.5rem)";
-const CONTENT_TOP = `calc(${NAV_TOP_MARGIN} + ${NAV_BOX_HEIGHT}px + 2rem)`;
 
 function MediaFrame({
   videoUrl,
@@ -171,23 +167,15 @@ export default function SectionVentures({
           className="flex min-h-0 min-w-0 flex-1 flex-col justify-start lg:h-full"
           style={{
             paddingTop: CONTENT_TOP,
-            paddingRight: "clamp(1.5rem, 3vw, 2.5rem)",
+            paddingRight: PANEL_PADDING,
             paddingBottom: "2rem",
-            paddingLeft: "clamp(1.5rem, 3vw, 2.5rem)",
+            paddingLeft: PANEL_PADDING,
             maxWidth: "44ch",
           }}
         >
-          {heading && (
-            <h2
-              className="font-[family-name:var(--font-manrope)] font-bold leading-tight"
-              style={{ fontSize: "clamp(1.5rem, 3vw, 2.5rem)" }}
-            >
-              {heading}
-            </h2>
-          )}
           {body && (
             <p
-              className="mt-6 font-[family-name:var(--font-manrope)] font-bold whitespace-pre-line"
+              className="font-[family-name:var(--font-manrope)] font-normal whitespace-pre-line"
               style={{
                 fontSize: "clamp(1.25rem, 1.8vw, 1.6rem)",
                 lineHeight: 1.2,
@@ -195,6 +183,17 @@ export default function SectionVentures({
             >
               {body}
             </p>
+          )}
+          {heading && (
+            <h2
+              className="font-[family-name:var(--font-manrope)] font-bold leading-tight"
+              style={{
+                fontSize: "clamp(1.5rem, 3vw, 2.5rem)",
+                marginTop: body ? "1.5rem" : 0,
+              }}
+            >
+              {heading}
+            </h2>
           )}
         </div>
 

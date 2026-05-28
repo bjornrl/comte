@@ -2,8 +2,8 @@
 
 import Image from "next/image";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ChevronUp, ChevronDown } from "lucide-react";
-import SectionShell from "./SectionShell";
+import { ChevronUp, ChevronDown, ArrowDown } from "lucide-react";
+import SectionShell, { CONTENT_TOP, PANEL_PADDING } from "./SectionShell";
 import TiltedHeading from "../TiltedHeading";
 import { urlFor } from "@/sanity/lib/image";
 import type { CardItem } from "./SectionCardGrid";
@@ -11,8 +11,10 @@ import type { CardItem } from "./SectionCardGrid";
 const PLACEHOLDER_IMAGE =
   "https://images.unsplash.com/photo-1773558058134-9ff1a3212ef0?q=80&w=1572&auto=format&fit=crop";
 
-/** Bisects the team / publications boundary — same pattern as motto + what-we-do. */
-const SECTION_BORDER_LINES = ["Publication", "Publicati/ons"];
+/** Large rotated heading bisecting the team / publications boundary. */
+const SECTION_BORDER_LINES = ["Publicati", "ons"];
+/** Match the what-we-do tilted heading scale. */
+const SECTION_BORDER_SIZE_LINES = ["What do", "we do?"];
 const SECTION_BORDER_TEXT = "#FFD2D2";
 
 function sanityImageUrl(imageField: any, width = 800): string | null {
@@ -41,20 +43,14 @@ const MARQUEE_BODY_SIZE = "clamp(1.125rem, 2.5vw, 2rem)";
 const MARQUEE_DURATION_S = 80;
 const RIGHT_COL_WIDTH = "36%";
 const RIGHT_COL_GRID_COLS = 2;
+/** Overview copy sits left of the carousel — slightly inset from its full width. */
+const TEXT_BLOCK_OFFSET = `calc(${RIGHT_COL_WIDTH} - 12%)`;
 
 const VIEW_TRANSITION_S = 0.72;
 const VIEW_QUICK_TRANSITION_S = 0.24;
 const VIEW_EASE = "cubic-bezier(0.45, 0, 0.55, 1)";
 
 const HOVER_OVERLAY_BG = "rgba(31, 58, 50, 0.88)";
-
-// Nav alignment constants — mirror BlobNav.tsx so the item view content lines
-// up below the nav row.
-const NAV_BOX_HEIGHT = 42;
-const NAV_SIDE_MARGIN = "clamp(2rem, 5vw, 5rem)";
-const NAV_TOP_MARGIN = "clamp(1rem, 2.5vw, 2.5rem)";
-/** Top padding shared by the item view's left content and right carousel. */
-const ITEM_CONTENT_TOP = `calc(${NAV_TOP_MARGIN} + ${NAV_BOX_HEIGHT}px + 2rem)`;
 
 type ColumnDirection = "up" | "down";
 
@@ -436,10 +432,10 @@ function ItemView({
       <div
         className="relative h-full min-h-0 w-full"
         style={{
-          paddingTop: ITEM_CONTENT_TOP,
+          paddingTop: CONTENT_TOP,
           paddingRight: "2rem",
-          paddingBottom: "2rem",
-          paddingLeft: NAV_SIDE_MARGIN,
+          paddingBottom: PANEL_PADDING,
+          paddingLeft: PANEL_PADDING,
         }}
       >
         <div className="flex h-full min-h-0 w-full flex-col gap-6 lg:flex-row">
@@ -468,7 +464,7 @@ function ItemView({
               </h2>
             )}
             {item.description && (
-              <p className="font-[family-name:var(--font-manrope)] text-base font-light leading-relaxed whitespace-pre-line overflow-y-auto min-h-0">
+              <p className="font-[family-name:var(--font-manrope)] text-base font-normal leading-relaxed whitespace-pre-line overflow-y-auto min-h-0">
                 {item.description}
               </p>
             )}
@@ -481,8 +477,8 @@ function ItemView({
       <div
         className="relative h-full w-full"
         style={{
-          paddingTop: ITEM_CONTENT_TOP,
-          paddingBottom: "2rem",
+          paddingTop: CONTENT_TOP,
+          paddingBottom: PANEL_PADDING,
           paddingRight: "0",
           paddingLeft: "0",
         }}
@@ -621,6 +617,13 @@ export default function SectionPublications({
   const inItemView = stack[activeIndex]?.kind === "item";
   const navbarItemViewActive = inItemView || navItemViewPending;
 
+  const viewSlideTransition = transitionEnabled
+    ? `transform ${quickReset ? VIEW_QUICK_TRANSITION_S : VIEW_TRANSITION_S}s ${VIEW_EASE}`
+    : "none";
+  /** Match the overview stack slide so the heading exits upward in item view. */
+  const headingSlideTransform =
+    activeIndex > 0 ? `translateY(calc(-${activeIndex} * 100vh))` : undefined;
+
   // Notify parent (HomePageClient → BlobNav) of state changes so it can
   // attach a "Back to overview" button to the nav row beside the
   // publications nav item. The button label uses the currently viewed
@@ -688,11 +691,30 @@ export default function SectionPublications({
       bgColor={backgroundColor}
       style={{ color: foregroundColor, padding: 0, overflow: "visible" }}
     >
-      <TiltedHeading
-        lines={SECTION_BORDER_LINES}
-        color={SECTION_BORDER_TEXT}
-        parallaxFactor={0.18}
-      />
+      {/* Section-level heading bleeds left over the team boundary when side-
+          scrolling; slides up with the overview layer in item view. */}
+      <div
+        aria-hidden
+        style={{
+          position: "absolute",
+          inset: 0,
+          zIndex: 20,
+          pointerEvents: "none",
+          overflow: "visible",
+          transform: headingSlideTransform,
+          transition: viewSlideTransition,
+          willChange: activeIndex > 0 ? "transform" : undefined,
+        }}
+      >
+        <TiltedHeading
+          lines={SECTION_BORDER_LINES}
+          sizeReferenceLines={SECTION_BORDER_SIZE_LINES}
+          color={SECTION_BORDER_TEXT}
+          parallaxFactor={0.18}
+          leftOffsetEm={0.2}
+          lineHeight={0.82}
+        />
+      </div>
 
       <style>{`
         @keyframes pubMarqueeUp {
@@ -754,11 +776,17 @@ export default function SectionPublications({
                 <OverviewPanel
                   heading={heading}
                   body={body}
+                  foregroundColor={foregroundColor}
                   leftItems={leftItems}
                   rightItems={rightItems}
                   hoveredColumn={hoveredColumn}
                   setHoveredColumn={setHoveredColumn}
                   onSelectItem={handleSelectItem}
+                  onBrowse={() => {
+                    const first = items[0];
+                    if (first) handleSelectItem(first);
+                  }}
+                  hasBrowseTarget={items.length > 0}
                 />
               ) : (
                 (() => {
@@ -790,51 +818,84 @@ export default function SectionPublications({
 function OverviewPanel({
   heading,
   body,
+  foregroundColor,
   leftItems,
   rightItems,
   hoveredColumn,
   setHoveredColumn,
   onSelectItem,
+  onBrowse,
+  hasBrowseTarget,
 }: {
   heading?: string;
   body?: string;
+  foregroundColor: string;
   leftItems: CardItem[];
   rightItems: CardItem[];
   hoveredColumn: ColumnDirection | null;
   setHoveredColumn: (c: ColumnDirection | null) => void;
   onSelectItem: (item: CardItem) => void;
+  onBrowse: () => void;
+  hasBrowseTarget: boolean;
 }) {
   return (
     <div className="relative h-full w-full">
       <div
-        className="relative z-10 flex h-full flex-col gap-6"
+        className="relative z-10 flex h-full flex-col"
         style={{
-          paddingTop: `calc(${NAV_TOP_MARGIN} + ${NAV_BOX_HEIGHT}px + 2rem)`,
+          paddingTop: CONTENT_TOP,
           paddingRight: "2rem",
           paddingBottom: "2rem",
-          paddingLeft: NAV_SIDE_MARGIN,
-          maxWidth: "44ch",
+          paddingLeft: PANEL_PADDING,
         }}
       >
-        {heading && (
-          <h2
-            className="font-[family-name:var(--font-manrope)] font-bold leading-tight"
-            style={{ fontSize: "clamp(1.5rem, 3vw, 2.5rem)" }}
-          >
-            {heading}
-          </h2>
-        )}
-        {body && (
-          <p
-            className="font-[family-name:var(--font-manrope)] font-bold whitespace-pre-line"
+        <div
+          style={{
+            maxWidth: "44ch",
+            marginLeft: TEXT_BLOCK_OFFSET,
+          }}
+        >
+          {body && (
+            <p
+              className="font-[family-name:var(--font-manrope)] font-normal whitespace-pre-line"
+              style={{
+                fontSize: "clamp(1.25rem, 1.8vw, 1.6rem)",
+                lineHeight: 1.2,
+              }}
+            >
+              {body}
+            </p>
+          )}
+          <button
+            type="button"
+            onClick={onBrowse}
+            disabled={!hasBrowseTarget}
+            aria-label="Browse publications"
+            className="inline-flex min-h-11 items-center gap-2 font-[family-name:var(--font-manrope)] text-base font-medium transition-opacity duration-150 ease-out hover:opacity-80 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50"
             style={{
-              fontSize: "clamp(1.25rem, 1.8vw, 1.6rem)",
-              lineHeight: 1.2,
+              marginTop: body ? "2.5rem" : 0,
+              padding: "12px 24px",
+              border: `1px solid ${foregroundColor}`,
+              background: "transparent",
+              color: foregroundColor,
+              cursor: "pointer",
             }}
           >
-            {body}
-          </p>
-        )}
+            Browse
+            <ArrowDown size={16} strokeWidth={2} aria-hidden />
+          </button>
+          {heading && (
+            <h2
+              className="font-[family-name:var(--font-manrope)] font-bold leading-tight"
+              style={{
+                fontSize: "clamp(1.5rem, 3vw, 2.5rem)",
+                marginTop: body ? "1.5rem" : 0,
+              }}
+            >
+              {heading}
+            </h2>
+          )}
+        </div>
       </div>
 
       <div

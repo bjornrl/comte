@@ -41,6 +41,14 @@ type Props = {
   fadeIn?: { delayMs: number; durationMs?: number };
   /** When true, show fully visible without replaying the fade-in. */
   introSettled?: boolean;
+  /**
+   * Optional lines used only for font-size measurement. When set, the
+   * rendered `lines` can differ (e.g. a custom line break) while matching
+   * another heading's scale.
+   */
+  sizeReferenceLines?: string[];
+  /** Line height for multi-line blocks. Defaults to 1. */
+  lineHeight?: number;
 };
 
 // Provisional font-size used for the first paint before the layout effect
@@ -79,6 +87,8 @@ export default function TiltedHeading({
   parallaxResetWhenHiddenSnapId,
   fadeIn,
   introSettled = false,
+  sizeReferenceLines,
+  lineHeight = 1,
 }: Props) {
   // Wrapper handles parallax translateX. Inner handles the rotation + font
   // sizing. Splitting them avoids fighting the composed `translate(-50%, -50%)
@@ -86,14 +96,19 @@ export default function TiltedHeading({
   // the wrapper's own transform.
   const wrapperRef = useRef<HTMLDivElement>(null);
   const innerRef = useRef<HTMLDivElement>(null);
+  const measureRef = useRef<HTMLDivElement>(null);
   const [fontSize, setFontSize] = useState<number>(PROBE_FS_PX);
   /** Extra left shift (px) for block horizontal alignment in the panel. */
   const [blockAlignShiftPx, setBlockAlignShiftPx] = useState(0);
 
   useLayoutEffect(() => {
     const el = innerRef.current;
+    const measureEl = measureRef.current;
     const wrapper = wrapperRef.current;
     if (!el) return;
+
+    const sizingLines = sizeReferenceLines ?? lines;
+    const measureTarget = sizeReferenceLines && measureEl ? measureEl : el;
 
     const recompute = () => {
       // Measure the widest line at the probe size, then scale font-size so
@@ -101,9 +116,9 @@ export default function TiltedHeading({
       // the top + bottom bleed. After rotation, the rendered width becomes
       // the visual height, so this overflows the viewport by the configured
       // bleed amounts.
-      el.style.fontSize = `${PROBE_FS_PX}px`;
+      measureTarget.style.fontSize = `${PROBE_FS_PX}px`;
       let maxWidth = 0;
-      for (const child of Array.from(el.children)) {
+      for (const child of Array.from(measureTarget.children)) {
         if (child instanceof HTMLElement) {
           maxWidth = Math.max(maxWidth, child.scrollWidth);
         }
@@ -131,7 +146,7 @@ export default function TiltedHeading({
     recompute();
     window.addEventListener("resize", recompute);
     return () => window.removeEventListener("resize", recompute);
-  }, [lines, blockAlignPanelXFraction]);
+  }, [lines, sizeReferenceLines, blockAlignPanelXFraction]);
 
   useEffect(() => {
     if (parallaxFactor <= 0) return;
@@ -233,7 +248,7 @@ export default function TiltedHeading({
           fontFamily: "var(--font-manrope), system-ui, sans-serif",
           fontWeight: 800,
           color,
-          lineHeight: 1,
+          lineHeight,
           letterSpacing: "-0.03em",
           whiteSpace: "nowrap",
           textAlign: "left",
@@ -246,6 +261,26 @@ export default function TiltedHeading({
           <div key={i}>{line}</div>
         ))}
       </div>
+      {sizeReferenceLines ? (
+        <div
+          ref={measureRef}
+          aria-hidden
+          style={{
+            position: "absolute",
+            visibility: "hidden",
+            pointerEvents: "none",
+            fontFamily: "var(--font-manrope), system-ui, sans-serif",
+            fontWeight: 800,
+            lineHeight: 1,
+            letterSpacing: "-0.03em",
+            whiteSpace: "nowrap",
+          }}
+        >
+          {sizeReferenceLines.map((line, i) => (
+            <div key={i}>{line}</div>
+          ))}
+        </div>
+      ) : null}
     </div>
     {showFadeIn && (
       <style>{`

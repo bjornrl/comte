@@ -235,10 +235,11 @@ export default function SectionTeam({
             paddingTop: CONTENT_TOP,
             paddingLeft: PANEL_PADDING,
             paddingRight: hasVideoCarousel ? "1rem" : PANEL_PADDING,
+            paddingBottom: PANEL_PADDING,
           }}
         >
           <div
-            className="grid h-full w-full gap-2 pb-6"
+            className="grid h-full w-full gap-2"
             style={{
               gridTemplateRows: "1fr 1fr",
               gridAutoFlow: "column",
@@ -251,7 +252,7 @@ export default function SectionTeam({
               return (
                 <article
                   key={member._id}
-                  className="relative h-full min-h-0 overflow-hidden bg-gray-100"
+                  className="relative h-full min-h-0 overflow-hidden bg-gray-100 select-text"
                   style={{ color: FG }}
                 >
                   <img
@@ -292,22 +293,14 @@ export default function SectionTeam({
                     {(member.email || member.phone) && (
                       <div className="flex flex-col gap-1 font-[family-name:var(--font-work-sans)] text-sm">
                         {member.email && (
-                          <a
-                            href={`mailto:${member.email}`}
-                            className="hover:underline"
-                            style={{ color: "rgba(255,255,255,0.92)" }}
-                          >
+                          <span style={{ color: "rgba(255,255,255,0.92)" }}>
                             {member.email}
-                          </a>
+                          </span>
                         )}
                         {member.phone && (
-                          <a
-                            href={`tel:${member.phone.replace(/\s+/g, "")}`}
-                            className="hover:underline"
-                            style={{ color: "rgba(255,255,255,0.92)" }}
-                          >
+                          <span style={{ color: "rgba(255,255,255,0.92)" }}>
                             {member.phone}
-                          </a>
+                          </span>
                         )}
                       </div>
                     )}
@@ -324,7 +317,6 @@ export default function SectionTeam({
             style={{
               right: VIDEO_CAROUSEL_TRAILING_BLEED,
               width: VIDEO_CAROUSEL_COL_WIDTH,
-              height: "100svh",
             }}
             aria-label="Team video carousel"
           >
