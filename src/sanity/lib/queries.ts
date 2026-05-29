@@ -23,6 +23,13 @@ const INTERSTITIAL_FIELDS = groq`
   }
 `;
 
+export const PROJECT_TAXONOMY_QUERY = groq`
+  *[_type == "projectTaxonomy"][0] {
+    categories[] { value, label { en, no } },
+    methods[] { value, label { en, no } }
+  }
+`;
+
 // All projects
 export const PROJECTS_QUERY = groq`
   *[_type == "project"] | order(order asc, year desc) {

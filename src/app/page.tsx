@@ -12,6 +12,7 @@ import {
   CONTACT_SECTION_QUERY,
   ABOUT_OFFICE_QUERY,
   PROJECTS_QUERY,
+  PROJECT_TAXONOMY_QUERY,
   TEAM_QUERY,
   PUBLICATIONS_QUERY,
   VENTURES_QUERY,
@@ -19,10 +20,14 @@ import {
 import {
   firstTagAsDomain,
   generateConnections,
-  DOMAIN_LABELS,
   DOMAIN_COLORS,
   type Domain,
 } from "@/app/components/projectNetworkData";
+import {
+  applyProjectTaxonomy,
+  getCategoryLabel,
+  type ProjectTaxonomyDoc,
+} from "@/lib/projectLabels";
 import type { Project } from "@/app/components/projectNetworkData";
 import { type HomeData } from "@/app/components/HomePageClient";
 import ResponsiveHome from "@/app/components/ResponsiveHome";
@@ -78,12 +83,27 @@ function mapTeamMember(doc: any) {
   };
 }
 
-function mapSanityProject(doc: any): Project {
+const DOMAIN_VALUES = new Set<string>([
+  "health",
+  "education",
+  "integration",
+  "urban",
+  "climate",
+  "digital",
+  "culture",
+  "policy",
+]);
+
+function isDomain(value: string): value is Domain {
+  return DOMAIN_VALUES.has(value);
+}
+
+function mapSanityProject(doc: any, locale: Locale): Project {
   // Prefer the new `mainCategory` field; fall back to the first legacy tag.
   const mainCategoryRaw: string | undefined = doc.mainCategory;
   const domain: Domain =
-    mainCategoryRaw && mainCategoryRaw in DOMAIN_LABELS
-      ? (mainCategoryRaw as Domain)
+    mainCategoryRaw && isDomain(mainCategoryRaw)
+      ? mainCategoryRaw
       : firstTagAsDomain(doc.tags);
 
   // Sub-categories: prefer `allCategories`, fall back to legacy `tags`. In
@@ -91,9 +111,13 @@ function mapSanityProject(doc: any): Project {
   const sourceCategories: string[] =
     (doc.allCategories?.length ? doc.allCategories : doc.tags) ?? [];
   const subCategories = sourceCategories
-    .filter((t: string): t is Domain => t in DOMAIN_LABELS)
+    .filter((t: string): t is Domain => isDomain(t))
     .filter((t: Domain) => t !== domain)
-    .map((t: Domain) => ({ id: t, label: DOMAIN_LABELS[t], color: DOMAIN_COLORS[t] }));
+    .map((t: Domain) => ({
+      id: t,
+      label: getCategoryLabel(t, locale),
+      color: DOMAIN_COLORS[t],
+    }));
 
   // Customers: prefer the multi-value field; fall back to the legacy single
   // `client` string wrapped in an array.
@@ -158,6 +182,7 @@ export default async function Home() {
   let team: any[] | null = null;
   let publications: any[] | null = null;
   let ventures: any[] | null = null;
+  let projectTaxonomy: ProjectTaxonomyDoc | null = null;
 
   const locale = await getServerLocale();
   const params = { locale };
@@ -175,6 +200,7 @@ export default async function Home() {
       contactSection,
       aboutOffice,
       sanityProjects,
+      projectTaxonomy,
       team,
       publications,
       ventures,
@@ -190,6 +216,7 @@ export default async function Home() {
       client.fetch(CONTACT_SECTION_QUERY, params),
       client.fetch(ABOUT_OFFICE_QUERY, params),
       client.fetch(PROJECTS_QUERY, params),
+      client.fetch(PROJECT_TAXONOMY_QUERY),
       client.fetch(TEAM_QUERY, params),
       client.fetch(PUBLICATIONS_QUERY, params),
       client.fetch(VENTURES_QUERY, params),
@@ -198,8 +225,10 @@ export default async function Home() {
     console.error("[Home] Sanity fetch failed:", error);
   }
 
+  applyProjectTaxonomy(projectTaxonomy);
+
   const projects: Project[] = sanityProjects?.length
-    ? sanityProjects.map(mapSanityProject)
+    ? sanityProjects.map((doc) => mapSanityProject(doc, locale))
     : FALLBACK_PROJECTS;
   const connections = generateConnections(projects);
 

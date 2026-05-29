@@ -63,7 +63,7 @@ export default async function PresentationPage() {
       health: "Helse & omsorg",
       education: "Utdanning",
       integration: "Integrering & migrasjon",
-      urban: "Byutvikling",
+      urban: "Rom og steder",
       climate: "Klima & b\u00e6rekraft",
       digital: "Digital transformasjon",
     };

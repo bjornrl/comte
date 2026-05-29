@@ -37,15 +37,26 @@
  *   - ID: leave empty for new rows. The script fills it with the Sanity _id
  *     after the first push. From then on, edits to that row update that _id.
  *   - photoFilename: exact filename of the photo (e.g. "oslo-care.jpg") in
- *     the Drive folder set by PHOTOS_FOLDER_ID. On push, the script uploads
- *     the file to Sanity and links it as the project's photo. If the
- *     filename hasn't changed since the last push, no re-upload happens.
- *     Leave empty to clear the photo on next push.
+ *     the Drive folder set by PHOTOS_FOLDER_ID. Only when this cell has a
+ *     filename does a push upload or replace the gallery. An empty cell
+ *     leaves existing Sanity photos untouched (safe for the first push that
+ *     only links row IDs). Omit the column entirely to never touch photos.
  *
  * TRIGGERS
  *   - onEdit (simple trigger): edits to a data row push that row immediately.
  *     Edits to Mail or Phone are ignored (they're read-only).
  *   - "Comte Sync" menu: Push current row / Push all / Pull all.
+ *
+ * NORWEGIAN TAB (Projects_norsk)
+ *   Row 1: ID (required) | Title/Tittel | Description/Beskrivelse |
+ *   Main Category/Hovedkategori | All Categories/Alle kategorier | Method/Metode
+ *   Copy IDs from Projects_english after the first English push.
+ *   Menu → "Push all Norwegian rows":
+ *     • Patches `title.no` and `summary.no` on each project (never English or photos).
+ *     • Reads Norwegian category/method labels from the sheet and updates the
+ *       `projectTaxonomy` singleton in Sanity (CMS → Projects → Category & method labels).
+ *   Category/method *values* on projects stay the same (`urban`, `health`, …); only
+ *   display labels are translated.
  */
 
 // ─────────────────────────── Configuration ───────────────────────────
@@ -54,6 +65,8 @@
 // spreadsheet itself is auto-detected via `SpreadsheetApp.getActive()`, so
 // its name (e.g. "Nettsideprosjekter") doesn't matter — only this tab name.
 var SHEET_NAME = "Projects_english";
+/** Norwegian translations — match rows to Sanity projects by ID column. */
+var SHEET_NAME_NO = "Projects_norsk";
 var HEADER_ROW = 1;  // row containing ID | Title | Year | …
 var MULTI_SEP = " / ";
 var API_VERSION = "v2024-01-01";
@@ -85,6 +98,26 @@ function localeText_(value) {
 // Internal field keys that must be present in row HEADER_ROW.
 var REQUIRED_FIELDS = ["title"];
 
+var REQUIRED_FIELDS_NO = ["id"];
+
+/** Norwegian sheet columns (ID required; categories use Norwegian labels). */
+var HEADER_ALIASES_NO = {
+  "ID": "id",
+  "Title": "titleNo",
+  "Tittel": "titleNo",
+  "Description": "descriptionNo",
+  "Beskrivelse": "descriptionNo",
+  "Main Category": "mainCategory",
+  "Hovedkategori": "mainCategory",
+  "All Categories": "allCategories",
+  "Alle kategorier": "allCategories",
+  "Method": "methods",
+  "Metode": "methods",
+  "Metoder": "methods",
+};
+
+var TAXONOMY_DOC_ID = "projectTaxonomy";
+
 // Sheet column label → internal field key (must match row 1 labels exactly).
 var HEADER_ALIASES = {
   "ID": "id",
@@ -104,10 +137,11 @@ var HEADER_ALIASES = {
   "Method": "methods",
 };
 
-// Friendly category label (what users pick in the dropdown) → schema value
+// Friendly category label (English sheet) → schema value
 var CATEGORY_VALUES = {
   "Health & Care": "health",
   "Inclusion & Participation": "integration",
+  "Spaces & Places": "urban",
   "Urban Development": "urban",
   "Climate & Sustainability": "climate",
   "Digital Transformation": "digital",
@@ -116,6 +150,22 @@ var CATEGORY_VALUES = {
   "Policy": "policy",
 };
 var CATEGORY_LABELS = invert_(CATEGORY_VALUES);
+
+// Norwegian sheet labels → schema value (add aliases to match your dropdowns)
+var CATEGORY_VALUES_NO = {
+  "Helse og omsorg": "health",
+  "Helse & omsorg": "health",
+  "Inkludering og deltakelse": "integration",
+  "Rom og steder": "urban",
+  "Rom & steder": "urban",
+  "Byutvikling": "urban",
+  "Klima og bærekraft": "climate",
+  "Digital transformasjon": "digital",
+  "Barndom og utdanning": "education",
+  "Kultur": "culture",
+  "Politikk": "policy",
+};
+var CATEGORY_LABELS_NO = invert_(CATEGORY_VALUES_NO);
 
 var SCALE_VALUES = {
   "Municipal": "municipal",
@@ -134,6 +184,18 @@ var METHOD_VALUES = {
 };
 var METHOD_LABELS = invert_(METHOD_VALUES);
 
+var METHOD_VALUES_NO = {
+  "Forskning": "research",
+  "Samdesign": "codesign",
+  "Medvirkningsdesign": "codesign",
+  "Co-design": "codesign",
+  "Implementering": "implementation",
+  "Strategi": "strategy",
+  "Fremtidsarbeid": "foresight",
+  "Foresight": "foresight",
+};
+var METHOD_LABELS_NO = invert_(METHOD_VALUES_NO);
+
 // ─────────────────────────── Menu / triggers ───────────────────────────
 
 function onOpen() {
@@ -143,6 +205,8 @@ function onOpen() {
     .addSeparator()
     .addItem("Push current row to Sanity", "menuPushCurrentRow")
     .addItem("Push all rows to Sanity",     "menuPushAll")
+    .addSeparator()
+    .addItem("Push all Norwegian rows",   "menuPushAllNorwegian")
     .addSeparator()
     .addItem("Pull all from Sanity",        "menuPullAll")
     .addToUi();
@@ -283,6 +347,67 @@ function menuPullAll() {
   toast_("Pulled from Sanity.");
 }
 
+/**
+ * Push every data row on Projects_norsk. Each row must have a Sanity project ID
+ * (copy from Projects_english after the first English push). Only `title.no` and
+ * `summary.no` are written; English copy and gallery are never sent.
+ */
+function menuPushAllNorwegian() {
+  var sheet = SpreadsheetApp.getActive().getSheetByName(SHEET_NAME_NO);
+  if (!sheet) {
+    SpreadsheetApp.getUi().alert(
+      "Sheet tab not found: \"" + SHEET_NAME_NO + "\"\n\n" +
+      "Add a tab with that exact name for Norwegian project copy."
+    );
+    return;
+  }
+  var headers = getHeaderMapForAliases_(sheet, HEADER_ALIASES_NO);
+  validateHeadersFor_(headers, REQUIRED_FIELDS_NO, HEADER_ALIASES_NO);
+  var lastRow = sheet.getLastRow();
+  var pushed = 0;
+  var skipped = 0;
+  var empty = 0;
+  var fail = 0;
+  var firstError = "";
+  var taxonomyNo = { categories: {}, methods: {} };
+
+  for (var r = HEADER_ROW + 1; r <= lastRow; r++) {
+    try {
+      collectNorwegianTaxonomyFromRow_(sheet, r, headers, taxonomyNo);
+      var result = pushNorwegianRow_(sheet, r, headers);
+      if (result.status === "pushed") pushed++;
+      else if (result.status === "empty") empty++;
+      else skipped++;
+    } catch (err) {
+      var errMsg = "Row " + r + ": " + err;
+      Logger.log(errMsg);
+      if (!firstError) firstError = String(err);
+      fail++;
+    }
+  }
+
+  try {
+    pushTaxonomyLabelsToSanity_(taxonomyNo);
+  } catch (err) {
+    Logger.log("Taxonomy push failed: " + err);
+    if (!firstError) firstError = "Taxonomy: " + err;
+    fail++;
+  }
+
+  var msg = "Norwegian: pushed " + pushed + " project text fields";
+  if (empty) msg += ", " + empty + " empty (no Title/Description)";
+  if (skipped) msg += ", " + skipped + " skipped";
+  if (fail) msg += ", " + fail + " failed (see Executions log)";
+  msg += "; taxonomy labels synced to CMS";
+  toast_(msg + ".");
+  if (pushed === 0 && fail > 0) {
+    var detail = firstError
+      ? "\n\nFirst error:\n" + firstError
+      : "\n\nEach row needs an ID (Sanity _id) and at least Title or Description in Norwegian.";
+    SpreadsheetApp.getUi().alert(msg + "." + detail);
+  }
+}
+
 // Time-driven trigger entrypoint (Triggers → Add Trigger → function: pullAll_)
 function pullAll_() {
   var sheet = SpreadsheetApp.getActive().getSheetByName(SHEET_NAME);
@@ -354,45 +479,196 @@ function pushRow_(sheet, row, headers) {
     year: data.year !== "" && data.year != null ? Number(data.year) : null,
     summary: localeText_(data.description ? String(data.description) : ""),
     customers: parseMulti_(data.customers),
-    mainCategory: CATEGORY_VALUES[String(data.mainCategory || "").trim()] || null,
+    mainCategory: resolveCategoryValue_(data.mainCategory, false) || null,
     allCategories: parseMulti_(data.allCategories)
-      .map(function (v) { return CATEGORY_VALUES[v]; })
+      .map(function (v) { return resolveCategoryValue_(v, false); })
       .filter(Boolean),
     scale: SCALE_VALUES[String(data.scale || "").trim()] || null,
     methods: parseMulti_(data.methods)
-      .map(function (v) { return METHOD_VALUES[v]; })
+      .map(function (v) { return resolveMethodValue_(v, false); })
       .filter(Boolean),
   };
   if (responsibleId) {
     doc.responsible = { _type: "reference", _ref: responsibleId };
   }
 
-  var existingId = data.id && String(data.id).trim();
+  var sheetId = data.id && String(data.id).trim();
+  var existingId = sheetId || findProjectIdBySlug_(titleText);
+  var hadSheetId = !!sheetId;
 
-  // Resolve the project photo. Only touch `gallery` if the sheet has a
-  // photoFilename column at all — otherwise the field is left out of the
-  // doc and createOrReplace will clear it, which would wipe images uploaded
-  // through Sanity Studio.
-  if (headers["photoFilename"]) {
-    doc.gallery = buildGallery_(
-      String(data.photoFilename || "").trim(),
-      existingId || null,
-      titleText
-    );
-  }
+  var photoFilename = headers["photoFilename"]
+    ? String(data.photoFilename || "").trim()
+    : "";
 
   if (existingId) {
-    doc._id = existingId;
-    sanityMutate_([{ createOrReplace: doc }]);
-    return { status: "pushed", id: existingId, mode: "update" };
-  } else {
-    var resp = sanityMutate_([{ create: doc }]);
-    var newId = resp && resp.results && resp.results[0] && resp.results[0].id;
-    if (newId && headers["id"]) {
-      sheet.getRange(row, headers["id"]).setValue(newId);
+    var patch = { id: existingId, set: projectFieldsForPatch_(doc) };
+    if (photoFilename) {
+      var gallery = buildGallery_(photoFilename, existingId, titleText);
+      if (gallery !== undefined) patch.set.gallery = gallery;
     }
-    return { status: "pushed", id: newId, mode: "create" };
+    sanityMutate_([{ patch: patch }]);
+    if (!hadSheetId && headers["id"]) {
+      sheet.getRange(row, headers["id"]).setValue(existingId);
+    }
+    return {
+      status: "pushed",
+      id: existingId,
+      mode: hadSheetId ? "update" : "linked",
+    };
   }
+
+  if (photoFilename) {
+    var newGallery = buildGallery_(photoFilename, null, titleText);
+    if (newGallery !== undefined) doc.gallery = newGallery;
+  }
+
+  var resp = sanityMutate_([{ create: doc }]);
+  var newId = resp && resp.results && resp.results[0] && resp.results[0].id;
+  if (newId && headers["id"]) {
+    sheet.getRange(row, headers["id"]).setValue(newId);
+  }
+  return { status: "pushed", id: newId, mode: "create" };
+}
+
+/** Find an existing Sanity project by slug derived from the sheet title. */
+function findProjectIdBySlug_(titleText) {
+  var slug = slugify_(titleText);
+  if (!slug) return null;
+  var result = sanityQuery_(
+    '*[_type == "project" && slug.current == $slug][0]._id',
+    { slug: slug }
+  );
+  return (result && result.result) || null;
+}
+
+/** Patch payload — omits gallery so empty photoFilename cannot clear images. */
+function projectFieldsForPatch_(doc) {
+  var set = {};
+  Object.keys(doc).forEach(function (key) {
+    if (key === "_type" || key === "_id" || key === "gallery") return;
+    set[key] = doc[key];
+  });
+  return set;
+}
+
+// ─────────────────────────── Push: Norwegian sheet → Sanity (locale only) ───
+
+function resolveCategoryValue_(label, useNorwegian) {
+  var key = String(label || "").trim();
+  if (!key) return null;
+  if (useNorwegian && CATEGORY_VALUES_NO[key]) return CATEGORY_VALUES_NO[key];
+  if (CATEGORY_VALUES[key]) return CATEGORY_VALUES[key];
+  if (useNorwegian && CATEGORY_VALUES[key]) return CATEGORY_VALUES[key];
+  return null;
+}
+
+function resolveMethodValue_(label, useNorwegian) {
+  var key = String(label || "").trim();
+  if (!key) return null;
+  if (useNorwegian && METHOD_VALUES_NO[key]) return METHOD_VALUES_NO[key];
+  if (METHOD_VALUES[key]) return METHOD_VALUES[key];
+  if (useNorwegian && METHOD_VALUES[key]) return METHOD_VALUES[key];
+  return null;
+}
+
+/** Record Norwegian display strings seen in the sheet (for taxonomy sync). */
+function collectNorwegianTaxonomyFromRow_(sheet, row, headers, taxonomyNo) {
+  var data = readRow_(sheet, row, headers);
+  if (headers.mainCategory && data.mainCategory) {
+    var catVal = resolveCategoryValue_(data.mainCategory, true);
+    if (catVal) taxonomyNo.categories[catVal] = String(data.mainCategory).trim();
+  }
+  if (headers.allCategories && data.allCategories) {
+    parseMulti_(data.allCategories).forEach(function (label) {
+      var catVal = resolveCategoryValue_(label, true);
+      if (catVal) taxonomyNo.categories[catVal] = label;
+    });
+  }
+  if (headers.methods && data.methods) {
+    parseMulti_(data.methods).forEach(function (label) {
+      var methodVal = resolveMethodValue_(label, true);
+      if (methodVal) taxonomyNo.methods[methodVal] = label;
+    });
+  }
+}
+
+/**
+ * Upsert `projectTaxonomy` in Sanity: English labels from script defaults,
+ * Norwegian labels from the sheet (plus CATEGORY_LABELS_NO / METHOD_LABELS_NO).
+ */
+function pushTaxonomyLabelsToSanity_(taxonomyNo) {
+  var categories = [];
+  Object.keys(CATEGORY_LABELS).forEach(function (value) {
+    var labelNo =
+      (taxonomyNo.categories && taxonomyNo.categories[value]) ||
+      CATEGORY_LABELS_NO[value] ||
+      "";
+    categories.push({
+      _key: value,
+      value: value,
+      label: {
+        en: CATEGORY_LABELS[value] || value,
+        no: labelNo,
+      },
+    });
+  });
+
+  var methods = [];
+  Object.keys(METHOD_LABELS).forEach(function (value) {
+    var labelNo =
+      (taxonomyNo.methods && taxonomyNo.methods[value]) ||
+      METHOD_LABELS_NO[value] ||
+      "";
+    methods.push({
+      _key: value,
+      value: value,
+      label: {
+        en: METHOD_LABELS[value] || value,
+        no: labelNo,
+      },
+    });
+  });
+
+  sanityMutate_([
+    {
+      createOrReplace: {
+        _id: TAXONOMY_DOC_ID,
+        _type: "projectTaxonomy",
+        categories: categories,
+        methods: methods,
+      },
+    },
+  ]);
+}
+
+/**
+ * Patch `title.no` / `summary.no` on an existing project. Does not create
+ * projects, change English fields, or touch gallery / slug / metadata.
+ */
+function pushNorwegianRow_(sheet, row, headers) {
+  var data = readRow_(sheet, row, headers);
+  var existingId = data.id && String(data.id).trim();
+  if (!existingId) {
+    return { status: "skipped", reason: "missing ID" };
+  }
+
+  var titleNo = data.titleNo != null ? String(data.titleNo).trim() : "";
+  var descriptionNo = data.descriptionNo != null ? String(data.descriptionNo).trim() : "";
+  if (!titleNo && !descriptionNo) {
+    return { status: "empty" };
+  }
+
+  var found = sanityQuery_('*[_id == $id][0]._id', { id: existingId });
+  if (!found || !found.result) {
+    return { status: "skipped", reason: "no project with ID " + existingId };
+  }
+
+  var sets = {};
+  if (titleNo) sets["title.no"] = titleNo;
+  if (descriptionNo) sets["summary.no"] = descriptionNo;
+
+  sanityMutate_([{ patch: { id: existingId, set: sets } }]);
+  return { status: "pushed", id: existingId, fields: Object.keys(sets) };
 }
 
 // ─────────────────────────── Pull: Sanity → sheet ───────────────────────────
@@ -579,13 +855,17 @@ function getProp_(key) {
 }
 
 function getHeaderMap_(sheet) {
+  return getHeaderMapForAliases_(sheet, HEADER_ALIASES);
+}
+
+function getHeaderMapForAliases_(sheet, aliases) {
   var lastCol = sheet.getLastColumn();
   var values = sheet.getRange(HEADER_ROW, 1, 1, lastCol).getValues()[0];
   var map = {};
   for (var i = 0; i < values.length; i++) {
     var name = String(values[i] || "").trim();
     if (!name) continue;
-    var field = HEADER_ALIASES[name];
+    var field = aliases[name];
     if (field) map[field] = i + 1;
   }
   return map;
@@ -622,11 +902,21 @@ function missingHeaders_(headers) {
 }
 
 function validateHeaders_(headers) {
-  var missing = missingHeaders_(headers);
+  validateHeadersFor_(headers, REQUIRED_FIELDS, HEADER_ALIASES);
+}
+
+function validateHeadersFor_(headers, requiredFields, aliases) {
+  var missing = [];
+  for (var i = 0; i < requiredFields.length; i++) {
+    if (!headers[requiredFields[i]]) missing.push(requiredFields[i]);
+  }
   if (!missing.length) return;
+  var labelForField = { id: "ID", title: "Title", titleNo: "Title", descriptionNo: "Description" };
+  var labels = missing.map(function (f) { return labelForField[f] || f; });
   throw new Error(
-    "Missing header row columns: " + missing.join(", ") +
-    ". Found: " + Object.keys(headers).join(", ")
+    "Missing header row columns: " + labels.join(", ") +
+    ". Expected one of: " + Object.keys(aliases).join(", ") +
+    ". Mapped: " + Object.keys(headers).join(", ")
   );
 }
 

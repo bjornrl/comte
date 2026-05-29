@@ -89,7 +89,7 @@ export const DOMAIN_LABELS: Record<Domain, string> = {
   health: "Health & Care",
   education: "Childhood & Education",
   integration: "Inclusion & Participation",
-  urban: "Urban Development",
+  urban: "Spaces & Places",
   climate: "Climate & Sustainability",
   digital: "Digital Transformation",
   culture: "Culture",

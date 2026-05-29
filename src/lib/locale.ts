@@ -6,6 +6,11 @@ export function isLocale(value: string | null | undefined): value is Locale {
   return value === "en" || value === "no";
 }
 
+/** Derive locale from a Next.js pathname (e.g. `/no/...` → Norwegian). */
+export function localeFromPathname(pathname: string): Locale {
+  return pathname === "/no" || pathname.startsWith("/no/") ? "no" : "en";
+}
+
 /**
  * Pull the active locale out of a localeString/localeText object, with
  * silent fallback to English when the active language hasn't been

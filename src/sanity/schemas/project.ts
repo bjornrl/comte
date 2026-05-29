@@ -3,7 +3,7 @@ import { defineType, defineField } from "sanity";
 export const PROJECT_TAGS = [
   { title: "Health & Care", value: "health" },
   { title: "Inclusion & Participation", value: "integration" },
-  { title: "Urban Development", value: "urban" },
+  { title: "Spaces & Places", value: "urban" },
   { title: "Climate & Sustainability", value: "climate" },
   { title: "Digital Transformation", value: "digital" },
   { title: "Childhood & Education", value: "education" },

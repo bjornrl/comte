@@ -43,6 +43,7 @@ export const structure = (S: StructureBuilder) =>
             .title("Projects")
             .items([
               singleton(S, "projectsSection", "Section Settings"),
+              singleton(S, "projectTaxonomy", "Category & method labels"),
               S.divider(),
               S.documentTypeListItem("project").title("All Projects"),
             ]),

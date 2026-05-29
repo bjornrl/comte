@@ -49,6 +49,11 @@ export const teamMember = defineType({
     { title: "Manual Order", name: "order", by: [{ field: "order", direction: "asc" }] },
   ],
   preview: {
-    select: { title: "name", subtitle: "role", media: "photo" },
+    select: { title: "name", roleEn: "role.en", roleNo: "role.no", media: "photo" },
+    prepare: ({ title, roleEn, roleNo, media }) => ({
+      title: title || "Untitled",
+      subtitle: roleEn || roleNo || "",
+      media,
+    }),
   },
 });

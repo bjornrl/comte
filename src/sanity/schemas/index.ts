@@ -12,6 +12,7 @@ import { contactSection } from "./contactSection";
 import { publication } from "./publication";
 import { venture } from "./venture";
 import { siteSettings } from "./siteSettings";
+import { projectTaxonomy } from "./projectTaxonomy";
 import { serviceCategory } from "./serviceCategory";
 import { interstitial } from "./interstitial";
 import { aboutOffice } from "./aboutOffice";
@@ -34,6 +35,7 @@ export const schemaTypes = [
   venturesSection,
   contactSection,
   siteSettings,
+  projectTaxonomy,
 
   aboutOffice,
 

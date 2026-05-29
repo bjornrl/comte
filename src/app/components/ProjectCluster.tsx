@@ -4,7 +4,15 @@ import { useRef, useEffect, useState, useCallback, useMemo, useLayoutEffect, typ
 import Image from "next/image";
 import { ChevronLeft, ChevronRight, ArrowLeft, ArrowRight } from "lucide-react";
 import { AnimatePresence, motion, useReducedMotion, type Variants } from "framer-motion";
-import { METHOD_LABELS, DOMAIN_LABELS, projectsSectionCategoryColor, projectsSectionDomainColor } from "./projectNetworkData";
+import { projectsSectionCategoryColor, projectsSectionDomainColor } from "./projectNetworkData";
+import {
+  DEFAULT_METHOD_LABELS_EN,
+  getCategoryLabel,
+  getCategoryLabelMap,
+  getMethodLabel,
+} from "@/lib/projectLabels";
+import { localeFromPathname } from "@/lib/locale";
+import { usePathname } from "next/navigation";
 import type {
   Project as NetProject,
   Domain,
@@ -951,6 +959,10 @@ type ProjectClusterProps = {
 };
 
 export default function ProjectCluster({ projects, backgroundColor, heading }: ProjectClusterProps) {
+  const pathname = usePathname();
+  const locale = localeFromPathname(pathname ?? "/");
+  const domainLabels = useMemo(() => getCategoryLabelMap(locale), [locale]);
+
   // Only include projects whose domain is visible in this view.
   const incoming = projects?.length ? projects : FALLBACK_NET_PROJECTS;
   const activeProjects = useMemo(
@@ -1484,7 +1496,7 @@ export default function ProjectCluster({ projects, backgroundColor, heading }: P
                 onClick={() => handleFilterClick(domain)}
                 onMouseEnter={() => setHoveredFilter(domain)}
                 onMouseLeave={() => setHoveredFilter(null)}
-                aria-label={`Filter by ${DOMAIN_LABELS[domain]}`}
+                aria-label={`Filter by ${domainLabels[domain]}`}
                 aria-pressed={isActive}
                 style={{
                   width: "100%",
@@ -1519,7 +1531,7 @@ export default function ProjectCluster({ projects, backgroundColor, heading }: P
                     width: "100%",
                   }}
                 >
-                  {DOMAIN_LABELS[domain]}
+                  {domainLabels[domain]}
                 </span>
               </button>
             );
@@ -1815,6 +1827,8 @@ function EmbeddedCardFrameOverlay({ accent }: { accent: string }) {
   );
 }
 
+const KNOWN_METHOD_VALUES = new Set(Object.keys(DEFAULT_METHOD_LABELS_EN));
+
 function EmbeddedTileProjectCard({
   project,
   slideDirection = 1,
@@ -1826,6 +1840,8 @@ function EmbeddedTileProjectCard({
   slideSlot?: number;
   reduceMotion?: boolean;
 }) {
+  const pathname = usePathname();
+  const locale = localeFromPathname(pathname ?? "/");
   const [photoIdx, setPhotoIdx] = useState(0);
   const slideTransition = {
     duration: reduceMotion ? 0.01 : TILE_CARD_SLIDE_S,
@@ -1848,8 +1864,8 @@ function EmbeddedTileProjectCard({
   const subCategories = project.subCategories ?? project.displayTags ?? [];
   const responsible = project.responsible;
   const methodLabels = (project.methods ?? [])
-    .filter((m): m is Method => m in METHOD_LABELS)
-    .map((m) => METHOD_LABELS[m]);
+    .filter((m): m is Method => KNOWN_METHOD_VALUES.has(m))
+    .map((m) => getMethodLabel(m, locale));
   const cardLinks = (project.cardLinks ?? []).filter((l) => l.url);
   const pad = "10px";
 
@@ -1958,7 +1974,7 @@ function EmbeddedTileProjectCard({
           border: `1px solid ${accent}`,
         }}
       >
-        {DOMAIN_LABELS[project.domain]}
+        {getCategoryLabel(project.domain, locale)}
       </span>
       {subCategories.map((cat) => (
         <span
@@ -2294,6 +2310,8 @@ function ExpandedProjectCard({
   onClose,
   isMobile,
 }: ExpandedProjectCardProps) {
+  const pathname = usePathname();
+  const locale = localeFromPathname(pathname ?? "/");
   const scrollerRef = useRef<HTMLDivElement>(null);
   const parallaxRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
@@ -2317,8 +2335,8 @@ function ExpandedProjectCard({
   const subCategories = project.subCategories ?? project.displayTags ?? [];
   const responsible = project.responsible;
   const methodLabels = (project.methods ?? [])
-    .filter((m): m is Method => m in METHOD_LABELS)
-    .map((m) => METHOD_LABELS[m]);
+    .filter((m): m is Method => KNOWN_METHOD_VALUES.has(m))
+    .map((m) => getMethodLabel(m, locale));
 
   useLayoutEffect(() => {
     const scroller = scrollerRef.current;
@@ -2575,7 +2593,7 @@ function ExpandedProjectCard({
           border: `1px solid ${accent}`,
         }}
       >
-        {DOMAIN_LABELS[project.domain]}
+        {getCategoryLabel(project.domain, locale)}
       </span>
       {subCategories.map((cat) => (
         <span
