@@ -10,6 +10,7 @@ import { publicationsSection } from "./publicationsSection";
 import { venturesSection } from "./venturesSection";
 import { contactSection } from "./contactSection";
 import { publication } from "./publication";
+import { purchase } from "./purchase";
 import { venture } from "./venture";
 import { siteSettings } from "./siteSettings";
 import { projectTaxonomy } from "./projectTaxonomy";
@@ -44,6 +45,9 @@ export const schemaTypes = [
   teamMember,
   publication,
   venture,
+
+  // Sales records (read-only, written by the Stripe webhook)
+  purchase,
 
   // Internal
   serviceCategory,

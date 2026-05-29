@@ -15,8 +15,26 @@ export function getStripe(): Stripe {
       "STRIPE_SECRET_KEY is not set. Add it to .env.local (and the Netlify env) to enable paid checkout.",
     );
   }
-  cached = new Stripe(key);
+  cached = new Stripe(key, {
+    appInfo: { name: "comte-bureau-web" },
+  });
   return cached;
+}
+
+/**
+ * The signing secret for the Stripe webhook endpoint (whsec_…). Required to
+ * verify that incoming webhook events genuinely came from Stripe. Find it in
+ * the Stripe dashboard under Developers → Webhooks → your endpoint, or from
+ * `stripe listen` when testing locally.
+ */
+export function getStripeWebhookSecret(): string {
+  const secret = process.env.STRIPE_WEBHOOK_SECRET;
+  if (!secret) {
+    throw new Error(
+      "STRIPE_WEBHOOK_SECRET is not set. Add it to the environment so webhook events can be verified.",
+    );
+  }
+  return secret;
 }
 
 export function getSiteUrl(): string {

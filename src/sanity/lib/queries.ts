@@ -246,6 +246,21 @@ export const PUBLICATION_DETAIL_QUERY = groq`
   }
 `;
 
+// PDF asset for a publication, by slug. Server-only — used by the gated
+// download route to proxy the file after a payment has been verified. Kept
+// separate (and locale-free) from the detail query so the raw asset URL is
+// never bundled into client-facing data.
+export const PUBLICATION_PDF_QUERY = groq`
+  *[_type == "publication" && slug.current == $slug][0] {
+    _id,
+    pricing,
+    price,
+    "title": coalesce(title.en, title.no),
+    "pdfUrl": pdfFile.asset->url,
+    "pdfName": pdfFile.asset->originalFilename
+  }
+`;
+
 // Ventures
 export const VENTURES_QUERY = groq`
   *[_type == "venture"] | order(order asc) {

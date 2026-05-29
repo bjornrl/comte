@@ -75,6 +75,7 @@ export async function POST(request: Request) {
       metadata: {
         publicationId: publication._id,
         publicationSlug: slug,
+        publicationTitle: publication.title ?? "Publication",
       },
       success_url: successUrl,
       cancel_url: cancelUrl,

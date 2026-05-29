@@ -89,7 +89,12 @@ export default async function PublicationSuccessPage({
 
   const heroUrl = sanityImageUrl(publication.image, 1600) ?? PLACEHOLDER_IMAGE;
   const heroAlt = publication.image?.alt ?? publication.title ?? "";
-  const pdfUrl: string | undefined = publication.pdfUrl ?? undefined;
+  // Whether a PDF exists (boolean only — the raw asset URL is never rendered;
+  // downloads go through the gated /download route below).
+  const hasPdf = Boolean(publication.pdfUrl);
+  const downloadHref = session_id
+    ? `/api/publications/${slug}/download?session_id=${encodeURIComponent(session_id)}`
+    : `/api/publications/${slug}/download`;
 
   const verification =
     pricing === "paid"
@@ -143,10 +148,9 @@ export default async function PublicationSuccessPage({
               {" "}Click below to download the PDF — you can come back to this page any time.
             </p>
 
-            {pdfUrl ? (
+            {hasPdf ? (
               <a
-                href={pdfUrl}
-                target="_blank"
+                href={downloadHref}
                 rel="noopener noreferrer"
                 className="inline-flex w-full sm:w-auto items-center justify-center px-8 py-4 font-[family-name:var(--font-manrope)] text-base font-bold tracking-wide"
                 style={{
