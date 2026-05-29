@@ -1,7 +1,11 @@
 "use client";
 
+import type { CSSProperties } from "react";
 import Image from "next/image";
-import SectionShell, { CONTENT_TOP, PANEL_PADDING } from "./SectionShell";
+import { ArrowRight } from "lucide-react";
+import SectionShell, { SECTION_BODY_CONTENT_TOP, PANEL_PADDING } from "./SectionShell";
+import TiltedHeading from "../TiltedHeading";
+import { SectionBodyText, PUBLICATIONS_VENTURES_BODY_MAX_WIDTH } from "./sectionBodyText";
 import { urlFor } from "@/sanity/lib/image";
 import type { CardItem } from "./SectionCardGrid";
 
@@ -26,6 +30,15 @@ type Props = {
 const TILE_GAP_PX = 4;
 const MARQUEE_TILE_HEIGHT = "40vh";
 const MARQUEE_DURATION_S = 80;
+
+/** Large rotated heading bisecting the publications / ventures boundary. */
+const SECTION_BORDER_LINES = ["Ventures"];
+const SECTION_BORDER_SIZE_LINES = ["What do", "we do?"];
+const SECTION_BORDER_TEXT = "#FFD2D2";
+
+function navigateToSection(sectionId: string) {
+  window.dispatchEvent(new CustomEvent("comte:navigate", { detail: { sectionId } }));
+}
 
 function MediaFrame({
   videoUrl,
@@ -142,8 +155,16 @@ export default function SectionVentures({
     <SectionShell
       id="ventures"
       bgColor={backgroundColor}
-      style={{ color: foregroundColor, padding: 0 }}
+      style={{ color: foregroundColor, padding: 0, overflow: "visible" }}
     >
+      <TiltedHeading
+        lines={SECTION_BORDER_LINES}
+        sizeReferenceLines={SECTION_BORDER_SIZE_LINES}
+        color={SECTION_BORDER_TEXT}
+        parallaxFactor={0.18}
+        leftOffsetEm={0.2}
+        lineHeight={0.82}
+      />
       <style>{`
         @keyframes venturesMarqueeUp {
           from { transform: translateY(0%); }
@@ -166,24 +187,39 @@ export default function SectionVentures({
         <div
           className="flex min-h-0 min-w-0 flex-1 flex-col justify-start lg:h-full"
           style={{
-            paddingTop: CONTENT_TOP,
+            paddingTop: SECTION_BODY_CONTENT_TOP,
             paddingRight: PANEL_PADDING,
             paddingBottom: "2rem",
             paddingLeft: PANEL_PADDING,
-            maxWidth: "44ch",
           }}
         >
-          {body && (
-            <p
-              className="font-[family-name:var(--font-manrope)] font-normal whitespace-pre-line"
-              style={{
-                fontSize: "clamp(1.25rem, 1.8vw, 1.6rem)",
-                lineHeight: 1.2,
-              }}
-            >
-              {body}
-            </p>
-          )}
+          <div
+            style={{
+              maxWidth: PUBLICATIONS_VENTURES_BODY_MAX_WIDTH,
+              marginLeft: "clamp(2rem, 6vw, 6rem)",
+            }}
+          >
+          {body && <SectionBodyText text={body} color={foregroundColor} />}
+          <button
+            type="button"
+            onClick={() => navigateToSection("contact")}
+            aria-label="Get in touch — go to contact section"
+            className="inline-flex min-h-11 items-center gap-2 font-[family-name:var(--font-manrope)] text-base font-medium transition-[background-color,color,transform] duration-150 ease-out hover:bg-[var(--section-cta-hover-bg)] hover:text-[var(--section-cta-hover-fg)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 active:scale-[0.98]"
+            style={{
+              marginTop: body ? "2.5rem" : 0,
+              padding: "12px 24px",
+              border: `1px solid ${foregroundColor}`,
+              background: "transparent",
+              color: foregroundColor,
+              cursor: "pointer",
+              ["--section-cta-fg" as string]: foregroundColor,
+              ["--section-cta-hover-bg" as string]: foregroundColor,
+              ["--section-cta-hover-fg" as string]: backgroundColor,
+            } as CSSProperties}
+          >
+            Get in touch
+            <ArrowRight size={16} strokeWidth={2} aria-hidden />
+          </button>
           {heading && (
             <h2
               className="font-[family-name:var(--font-manrope)] font-bold leading-tight"
@@ -195,6 +231,7 @@ export default function SectionVentures({
               {heading}
             </h2>
           )}
+          </div>
         </div>
 
         {/* Right — continuous upward marquee (non-interactive) */}

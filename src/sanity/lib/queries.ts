@@ -175,6 +175,8 @@ export const CONTACT_SECTION_QUERY = groq`
     ${t("block1Body")},
     ${t("block2Title")},
     ${t("block2Body")},
+    ${t("block3Title")},
+    ${t("block3Body")},
     ${INTERSTITIAL_FIELDS}
   }
 `;

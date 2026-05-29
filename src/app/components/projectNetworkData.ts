@@ -78,6 +78,13 @@ export const DOMAIN_COLORS: Record<Domain, string> = {
   policy: "#5A7482",
 };
 
+/** Darker category accents for the projects tile section on the cream canvas. */
+const PROJECTS_SECTION_DARKEN = "#101010";
+
+export function projectsSectionDomainColor(domain: Domain): string {
+  return `color-mix(in srgb, ${DOMAIN_COLORS[domain]} 68%, ${PROJECTS_SECTION_DARKEN})`;
+}
+
 export const DOMAIN_LABELS: Record<Domain, string> = {
   health: "Health & Care",
   education: "Childhood & Education",
@@ -88,6 +95,19 @@ export const DOMAIN_LABELS: Record<Domain, string> = {
   culture: "Culture",
   policy: "Policy",
 };
+
+export function projectsSectionCategoryColor(
+  category: { id: string; color?: string },
+  fallback: string,
+): string {
+  if (category.id in DOMAIN_LABELS) {
+    return projectsSectionDomainColor(category.id as Domain);
+  }
+  if (category.color) {
+    return `color-mix(in srgb, ${category.color} 68%, ${PROJECTS_SECTION_DARKEN})`;
+  }
+  return fallback;
+}
 
 const TAG_VALUES = new Set<Domain>([
   "health",

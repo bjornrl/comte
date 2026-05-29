@@ -577,17 +577,12 @@
   // the site still scrolls while the cursor is over this animation.
   if (window.parent !== window) {
     window.addEventListener('wheel', (e) => {
-      const scroller = window.parent.document.querySelector('[data-horizontal-scroll="true"]');
-      if (!scroller) return;
       e.preventDefault();
-      scroller.dispatchEvent(new WheelEvent('wheel', {
-        deltaX: e.deltaX,
-        deltaY: e.deltaY,
-        deltaZ: e.deltaZ,
-        deltaMode: e.deltaMode,
-        bubbles: true,
-        cancelable: true,
-      }));
+      window.parent.dispatchEvent(
+        new CustomEvent('comte:wheel-scroll', {
+          detail: { deltaX: e.deltaX, deltaY: e.deltaY },
+        }),
+      );
     }, { passive: false });
   }
 })();

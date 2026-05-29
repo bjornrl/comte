@@ -3,14 +3,14 @@
 import { useRef, useEffect, useState, useCallback, useMemo, useLayoutEffect, type CSSProperties, type RefObject } from "react";
 import Image from "next/image";
 import { ChevronLeft, ChevronRight, ArrowLeft, ArrowRight } from "lucide-react";
-import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
-import { METHOD_LABELS, DOMAIN_COLORS, DOMAIN_LABELS } from "./projectNetworkData";
+import { AnimatePresence, motion, useReducedMotion, type Variants } from "framer-motion";
+import { METHOD_LABELS, DOMAIN_LABELS, projectsSectionCategoryColor, projectsSectionDomainColor } from "./projectNetworkData";
 import type {
   Project as NetProject,
   Domain,
   Method,
 } from "./projectNetworkData";
-import { CONTENT_TOP, NAV_HEIGHT_TOTAL, PANEL_PADDING } from "./sections/SectionShell";
+import { CONTENT_TOP, NAV_HEIGHT_TOTAL, PANEL_PADDING, PROJECT_CARD_AREA_TOP, PROJECT_TILE_CARDS_TOP_EXTRA, PROJECT_TILE_SECTION_TOP, PROJECT_TILE_VERTICAL_MARGIN } from "./sections/SectionShell";
 
 const VISIBLE_DOMAINS: Domain[] = [
   "education",
@@ -30,19 +30,16 @@ const NODE_VIEW_ENABLED = false;
 
 const BOTTOM_TAG_ROW_GAP = 4;
 const BOTTOM_OFFSET = "clamp(16px, 3vh, 32px)";
-/** Vertical gap below nav (and above tag bar) — matches tile-area top inset. */
-const TILE_VERTICAL_MARGIN = "clamp(1rem, 2vw, 1.5rem)";
 /** Extra breathing room between the card grid bottom and the tag menu. */
 const TILE_GRID_TO_TAG_EXTRA = "clamp(2rem, 4vh, 3rem)";
-/** Extra space below navbar before cards + category row (dots/pagination stay put). */
-const TILE_CARDS_TOP_EXTRA = "clamp(2rem, 5vh, 3.5rem)";
 
 // Tile view — embedded detail cards fill viewport-sized grid rows.
-// Reclaim section panel padding; top inset matches TILE_VERTICAL_MARGIN below the nav.
-const TILE_SECTION_TOP = `calc(${CONTENT_TOP} - ${PANEL_PADDING} + ${TILE_VERTICAL_MARGIN})`;
+const TILE_VERTICAL_MARGIN = PROJECT_TILE_VERTICAL_MARGIN;
+const TILE_CARDS_TOP_EXTRA = PROJECT_TILE_CARDS_TOP_EXTRA;
+const TILE_SECTION_TOP = PROJECT_TILE_SECTION_TOP;
 const TILE_HEADING_BLOCK = "clamp(1.65rem, 3.3vw, 2.75rem)";
 const TILE_GRID_GAP_BELOW_HEADING = "8px";
-const TILE_GRID_TOP = `calc(${TILE_SECTION_TOP} + ${TILE_CARDS_TOP_EXTRA})`;
+const TILE_GRID_TOP = PROJECT_CARD_AREA_TOP;
 const TILE_GRID_TOP_WITH_HEADING = `calc(${TILE_SECTION_TOP} + ${TILE_HEADING_BLOCK} + ${TILE_GRID_GAP_BELOW_HEADING} + ${TILE_CARDS_TOP_EXTRA})`;
 const TILE_FILTER_TRANSITION_S = 0.38;
 const TILE_FILTER_EASE = [0.25, 1, 0.5, 1] as const;
@@ -65,21 +62,29 @@ const TILE_PAGINATION_HOVER_BG = "#5A7482";
 const TILE_GRID_COLUMNS = 8;
 /** Projects visible per page in tile view. */
 const TILE_GROUP_SIZE = 4;
-/** Card area spans cols 1–7; col 8 reserved for nav/dots. */
-const TILE_CARD_COL_START = 1;
-const TILE_CARD_COL_SPAN = 7;
 /** Match BlobNav BOX_HEIGHT — shared control height for category row. */
 const NAV_BOX_HEIGHT = 42;
+/** Taller than NAV_BOX_HEIGHT so domain labels can wrap to two lines; bottom edge stays fixed via layout math. */
+const CATEGORY_TAG_BOX_HEIGHT = 56;
 const TILE_CONTROL_FONT_SIZE = "1rem";
-const TILE_CATEGORY_FONT_SIZE = "clamp(0.5625rem, 0.65vw, 0.6875rem)";
+/** Matches domain/sub-category chips on embedded project cards. */
+const TILE_TAG_FONT_SIZE = "clamp(0.75rem, 0.95vw, 0.875rem)";
 const TILE_PROGRESS_DOT_SIZE = 14;
 /** Dots per row in the progress grid (left → right, then next row down). */
 const TILE_PROGRESS_DOTS_PER_ROW = 4;
-/** Stagger + duration when the highlighted dot set changes (page turn). */
-const TILE_DOT_STAGGER_S = 0.14;
-const TILE_DOT_FADE_S = 0.32;
+const TILE_CARD_SLIDE_S = 0.45;
+const TILE_CARD_SLIDE_STAGGER_S = 0.065;
+const TILE_CARD_SLIDE_EASE: [number, number, number, number] = [0.25, 1, 0.5, 1];
+/** Dot page-turn timing — stagger + duration matched to card slide (1-2-3-4 sequence preserved). */
+const TILE_DOT_STAGGER_S = TILE_CARD_SLIDE_STAGGER_S;
+const TILE_DOT_FADE_S = TILE_CARD_SLIDE_S;
 const TILE_DOT_FADE_EASE_OUT: [number, number, number, number] = [0.55, 0, 1, 0.45];
-const TILE_DOT_FADE_EASE_IN: [number, number, number, number] = [0.25, 1, 0.5, 1];
+const TILE_DOT_FADE_EASE_IN: [number, number, number, number] = TILE_CARD_SLIDE_EASE;
+/** Minimum travel so content starts fully outside the clipped card frame (+ subpixel margin). */
+const TILE_CARD_SLIDE_OUTSIDE = 1.02;
+/** Image layer travels farther than body for in-card parallax (added on top of SLIDE_OUTSIDE). */
+const TILE_CARD_PARALLAX_IMAGE_EXTRA = 0.12;
+const TILE_CARD_PARALLAX_BODY_EXTRA = 0;
 
 /** Same domain order as the bottom tag menu (left → right), then title A–Z. */
 function sortProjectsForTileGrid(projects: NetProject[]): NetProject[] {
@@ -105,7 +110,7 @@ function getTileHeightPx(rootFontSize = 16, stageHeight = 0): number {
     const clusterTopPx = rootFontSize * 5;
     const gapPx = rootFontSize * 1.25;
     const panelPadPx = rootFontSize * 2.5;
-    const blockPx = stageHeight - clusterTopPx - gapPx - NAV_BOX_HEIGHT - panelPadPx;
+    const blockPx = stageHeight - clusterTopPx - gapPx - CATEGORY_TAG_BOX_HEIGHT - panelPadPx;
     return Math.max(120, (blockPx - (TILE_VISIBLE_ROWS - 1) * TILE_GRID_GAP) / TILE_VISIBLE_ROWS);
   }
   return 120;
@@ -113,7 +118,7 @@ function getTileHeightPx(rootFontSize = 16, stageHeight = 0): number {
 
 /** Card grid height — fills viewport so tag bar bottom matches team section inset. */
 function getTileGridBlockHeight(clusterStageTop: string, navToTileAreaGap: string): string {
-  return `calc(100vh - ${clusterStageTop} - ${navToTileAreaGap} - ${NAV_BOX_HEIGHT}px - ${PANEL_PADDING})`;
+  return `calc(100vh - ${clusterStageTop} - ${navToTileAreaGap} - ${CATEGORY_TAG_BOX_HEIGHT}px - ${PANEL_PADDING})`;
 }
 
 function getTileRowHeight(clusterStageTop: string, navToTileAreaGap: string): string {
@@ -130,10 +135,41 @@ function getTileGridColumnWidthExpr(): string {
   return `${getTileStageWidthExpr()} / ${TILE_GRID_COLUMNS}`;
 }
 
-/** Width of the four-card row (grid cols 1–7). */
-function getTileCardAreaWidth(): string {
-  return `calc(${getTileGridColumnWidthExpr()} * ${TILE_CARD_COL_SPAN} + ${(TILE_CARD_COL_SPAN - 1) * TILE_GRID_GAP}px)`;
+/** Column width inside the cluster stage (`100%` = stage, not section). */
+function getTileStageColumnWidthExpr(): string {
+  return `(100% - ${(TILE_GRID_COLUMNS - 1) * TILE_GRID_GAP}px) / ${TILE_GRID_COLUMNS}`;
 }
+
+/** Flanking prev/next width in grid-column units (narrower = wider cards). */
+const TILE_FLANKING_NAV_COLS = 0.375;
+/** Prev + cards + next row width in grid-column units (extends toward the dots column). */
+const TILE_CONTROL_ROW_COLS = 7.5;
+const TILE_CONTROL_ROW_GAPS = 6;
+
+/** Width of prev, cards, and next — matches tag menu row. */
+function getTileControlRowWidth(): string {
+  return `calc(${getTileGridColumnWidthExpr()} * ${TILE_CONTROL_ROW_COLS} + ${TILE_CONTROL_ROW_GAPS * TILE_GRID_GAP}px)`;
+}
+
+/** Same as control row width, inside the cluster stage (`100%` = stage). */
+function getTileControlRowWidthInStage(): string {
+  return `calc(${getTileStageColumnWidthExpr()} * ${TILE_CONTROL_ROW_COLS} + ${TILE_CONTROL_ROW_GAPS * TILE_GRID_GAP}px)`;
+}
+
+function getTileFlankingNavButtonWidthInStage(): string {
+  return `calc(${getTileStageColumnWidthExpr()} * ${TILE_FLANKING_NAV_COLS})`;
+}
+
+/** Card row: flanking nav | 4 cards | flanking nav — fits control row width exactly. */
+function getTileCardRowGridTemplateColumns(showNavButtons: boolean): string {
+  if (showNavButtons) {
+    const navW = getTileFlankingNavButtonWidthInStage();
+    return `${navW} repeat(4, minmax(0, 1fr)) ${navW}`;
+  }
+  return `repeat(4, minmax(0, 1fr))`;
+}
+
+const TILE_FLANKING_NAV_ICON_SIZE = 24;
 
 /** Section-level `right` offset — start of grid col 8 (after the card row). */
 function getTileCardRowRightOffset(): string {
@@ -250,6 +286,22 @@ function getDotTransitionDelay(
 function getDotTransitionDuration(): number {
   return TILE_DOT_STAGGER_S * (TILE_GROUP_SIZE - 1) + TILE_DOT_FADE_S;
 }
+
+function getTileCardParallaxVariants(extraTravel: number): Variants {
+  const outside = TILE_CARD_SLIDE_OUTSIDE + extraTravel;
+  return {
+    enter: (direction: number) => ({
+      x: direction > 0 ? `${outside * 100}%` : `${-outside * 100}%`,
+    }),
+    center: { x: "0%" },
+    exit: (direction: number) => ({
+      x: direction > 0 ? `${-outside * 100}%` : `${outside * 100}%`,
+    }),
+  };
+}
+
+const TILE_CARD_IMAGE_VARIANTS = getTileCardParallaxVariants(TILE_CARD_PARALLAX_IMAGE_EXTRA);
+const TILE_CARD_BODY_VARIANTS = getTileCardParallaxVariants(TILE_CARD_PARALLAX_BODY_EXTRA);
 
 function TileProgressDots({
   projects,
@@ -382,7 +434,7 @@ function TileProgressDots({
               activeReversed,
             );
             const fadingOut = animateStagger && prevSlot >= 0 && currSlot < 0;
-            const accent = DOMAIN_COLORS[project.domain];
+            const accent = projectsSectionDomainColor(project.domain);
             return (
               <span
                 key={project.id}
@@ -422,66 +474,6 @@ function TileProgressDots({
   );
 }
 
-function RotatedPaginationSlot({
-  slotHeightPx,
-  children,
-}: {
-  slotHeightPx: number;
-  children: React.ReactNode;
-}) {
-  const slotRef = useRef<HTMLDivElement>(null);
-  const [slotWidth, setSlotWidth] = useState(0);
-
-  useLayoutEffect(() => {
-    const el = slotRef.current;
-    if (!el) return;
-    const measure = () => setSlotWidth(el.clientWidth);
-    measure();
-    const observer = new ResizeObserver(measure);
-    observer.observe(el);
-    return () => observer.disconnect();
-  }, []);
-
-  if (slotHeightPx <= 0 || slotWidth <= 0) {
-    return (
-      <div
-        ref={slotRef}
-        style={{
-          width: "100%",
-          height: slotHeightPx > 0 ? slotHeightPx : undefined,
-          flexShrink: 0,
-        }}
-      />
-    );
-  }
-
-  return (
-    <div
-      ref={slotRef}
-      style={{
-        width: "100%",
-        height: slotHeightPx,
-        flexShrink: 0,
-        position: "relative",
-        overflow: "hidden",
-      }}
-    >
-      <div
-        style={{
-          position: "absolute",
-          left: "50%",
-          top: "50%",
-          width: slotHeightPx,
-          height: slotWidth,
-          transform: "translate(-50%, -50%) rotate(90deg)",
-        }}
-      >
-        <div style={{ width: "100%", height: "100%" }}>{children}</div>
-      </div>
-    </div>
-  );
-}
-
 function TileDotGridMeasure({
   measureRef,
 }: {
@@ -517,86 +509,23 @@ function TileDotGridMeasure({
   );
 }
 
+type TilePaginationMode = "next" | "previous";
+
 function TileProgressDotsColumn({
   projects,
-  referenceProjectCount,
   pageIndex,
-  height,
   top,
-  showPagination,
-  onPrev,
-  onNext,
 }: {
   projects: NetProject[];
-  /** Unfiltered project count — locks dot area + button height when filters shrink the grid. */
-  referenceProjectCount: number;
   pageIndex: number;
-  height: string;
   top: string;
-  showPagination: boolean;
-  onPrev: () => void;
-  onNext: () => void;
 }) {
-  const columnRef = useRef<HTMLDivElement>(null);
   const gridMeasureRef = useRef<HTMLDivElement>(null);
-  const [dotGridWidth, setDotGridWidth] = useState(0);
-  const [buttonSlotHeightPx, setButtonSlotHeightPx] = useState(0);
-  const referenceDotsHeightPx = getDotGridHeightPx(
-    getDotGridRowCount(referenceProjectCount),
-  );
-
-  useLayoutEffect(() => {
-    const measureGridWidth = () => {
-      const el = gridMeasureRef.current;
-      if (!el) return;
-      setDotGridWidth(el.getBoundingClientRect().width);
-    };
-
-    measureGridWidth();
-    const gridObserver = new ResizeObserver(measureGridWidth);
-    const gridEl = gridMeasureRef.current;
-    if (gridEl) gridObserver.observe(gridEl);
-    window.addEventListener("resize", measureGridWidth);
-    return () => {
-      gridObserver.disconnect();
-      window.removeEventListener("resize", measureGridWidth);
-    };
-  }, []);
-
-  useLayoutEffect(() => {
-    if (!showPagination) {
-      setButtonSlotHeightPx(0);
-      return;
-    }
-
-    const measureButtonHeights = () => {
-      const column = columnRef.current;
-      if (!column || referenceDotsHeightPx <= 0) return;
-
-      const paginationArea =
-        column.clientHeight - referenceDotsHeightPx - TILE_GRID_GAP;
-      const slotHeight = (paginationArea - TILE_GRID_GAP) / 2;
-      if (slotHeight > 0) {
-        setButtonSlotHeightPx(slotHeight);
-      }
-    };
-
-    measureButtonHeights();
-    const columnObserver = new ResizeObserver(measureButtonHeights);
-    const columnEl = columnRef.current;
-    if (columnEl) columnObserver.observe(columnEl);
-    window.addEventListener("resize", measureButtonHeights);
-    return () => {
-      columnObserver.disconnect();
-      window.removeEventListener("resize", measureButtonHeights);
-    };
-  }, [showPagination, referenceDotsHeightPx]);
 
   if (projects.length === 0) return null;
 
   return (
     <div
-      ref={columnRef}
       className="select-none"
       style={{
         position: "absolute",
@@ -604,22 +533,14 @@ function TileProgressDotsColumn({
         right: CLUSTER_STAGE_INSET,
         zIndex: 20,
         width: getTileNavColumnWidth(),
-        height,
         minHeight: 0,
         pointerEvents: "auto",
         boxSizing: "border-box",
-        display: "grid",
-        gridTemplateRows: showPagination ? "auto 1fr" : "1fr",
-        gap: showPagination ? TILE_GRID_GAP : 0,
       }}
     >
       <div
         style={{
           position: "relative",
-          minHeight:
-            showPagination && referenceDotsHeightPx > 0
-              ? referenceDotsHeightPx
-              : 0,
           width: "100%",
           overflow: "hidden",
         }}
@@ -627,32 +548,9 @@ function TileProgressDotsColumn({
         <TileDotGridMeasure measureRef={gridMeasureRef} />
         <TileProgressDots projects={projects} pageIndex={pageIndex} />
       </div>
-      {showPagination ? (
-        <div
-          data-tile-pagination
-          style={{
-            minHeight: 0,
-            height: "100%",
-            width: dotGridWidth > 0 ? dotGridWidth : undefined,
-            justifySelf: "end",
-            display: "flex",
-            flexDirection: "column",
-            gap: TILE_GRID_GAP,
-          }}
-        >
-          <RotatedPaginationSlot slotHeightPx={buttonSlotHeightPx}>
-            <TilePaginationButton mode="previous" navColumn onClick={onPrev} />
-          </RotatedPaginationSlot>
-          <RotatedPaginationSlot slotHeightPx={buttonSlotHeightPx}>
-            <TilePaginationButton mode="next" navColumn onClick={onNext} />
-          </RotatedPaginationSlot>
-        </div>
-      ) : null}
     </div>
   );
 }
-
-type TilePaginationMode = "next" | "previous";
 
 function TilePaginationButton({
   mode,
@@ -665,6 +563,7 @@ function TilePaginationButton({
   navSlot = false,
   navBar = false,
   navColumn = false,
+  navFlankIconOnly = false,
   disabled = false,
   style,
 }: {
@@ -678,11 +577,12 @@ function TilePaginationButton({
   navSlot?: boolean;
   navBar?: boolean;
   navColumn?: boolean;
+  navFlankIconOnly?: boolean;
   disabled?: boolean;
   style?: CSSProperties;
 }) {
   const [hovered, setHovered] = useState(false);
-  const navChrome = navBar || navColumn;
+  const navChrome = navBar || navColumn || navFlankIconOnly;
   const label =
     mode === "next"
       ? compact || tall || navSlot || navChrome
@@ -707,7 +607,17 @@ function TilePaginationButton({
       ? TILE_CARD_BG
       : TILE_PAGINATION_HOVER_BG
     : TILE_PAGINATION_COLOR;
-  const iconSize = navChrome ? 16 : navSlot ? 16 : tall ? 22 : compact ? 14 : 18;
+  const iconSize = navFlankIconOnly
+    ? TILE_FLANKING_NAV_ICON_SIZE
+    : navChrome
+      ? 16
+      : navSlot
+        ? 16
+        : tall
+          ? 22
+          : compact
+            ? 14
+            : 18;
 
   return (
     <button
@@ -721,8 +631,8 @@ function TilePaginationButton({
         position: inline || tall || navSlot || navChrome ? "relative" : "absolute",
         ...(inline || tall || navSlot || navChrome ? {} : { bottom: 0, right: 0 }),
         flex: inline && compact ? 1 : navBar ? "1 1 0" : undefined,
-        width: navColumn ? "100%" : navBar ? "100%" : navSlot ? undefined : tall ? "100%" : width,
-        height: navColumn ? "100%" : navBar ? NAV_BOX_HEIGHT : navSlot ? undefined : tall ? "100%" : height,
+        width: navColumn || navFlankIconOnly ? "100%" : navBar ? "100%" : navSlot ? undefined : tall ? "100%" : width,
+        height: navColumn || navFlankIconOnly ? "100%" : navBar ? NAV_BOX_HEIGHT : navSlot ? undefined : tall ? "100%" : height,
         boxSizing: "border-box",
         border: `1px solid ${borderColor}`,
         borderRadius: 0,
@@ -734,8 +644,8 @@ function TilePaginationButton({
         flexDirection: navChrome || (!tall && !navSlot) ? "row" : "column",
         alignItems: "center",
         justifyContent: "center",
-        gap: navChrome ? 8 : navSlot ? 6 : tall ? 12 : compact ? 4 : 8,
-        padding: navChrome ? "0 12px" : navSlot ? "8px 4px" : tall ? "16px 8px" : compact ? "0 4px" : "0 12px",
+        gap: navFlankIconOnly ? 0 : navChrome ? 8 : navSlot ? 6 : tall ? 12 : compact ? 4 : 8,
+        padding: navFlankIconOnly ? 0 : navChrome ? "0 12px" : navSlot ? "8px 4px" : tall ? "16px 8px" : compact ? "0 4px" : "0 12px",
         fontFamily: "var(--font-work-sans), system-ui, sans-serif",
         fontSize: navChrome ? TILE_CONTROL_FONT_SIZE : navSlot ? "0.7rem" : tall ? "1rem" : compact ? "0.75rem" : "1rem",
         fontWeight: 400,
@@ -749,7 +659,9 @@ function TilePaginationButton({
         ...style,
       }}
     >
-      {navChrome ? (
+      {navFlankIconOnly ? (
+        <Icon size={iconSize} strokeWidth={2.25} aria-hidden />
+      ) : navChrome ? (
         mode === "previous" ? (
           <>
             <Icon size={iconSize} strokeWidth={2} aria-hidden />
@@ -789,6 +701,9 @@ type TileProjectGridProps = {
   onGridLeave: () => void;
   pageIndex: number;
   onTilePageChange?: (page: number) => void;
+  showNavButtons: boolean;
+  onPrev: () => void;
+  onNext: () => void;
 };
 
 function TileProjectGrid({
@@ -804,6 +719,9 @@ function TileProjectGrid({
   onGridLeave,
   pageIndex,
   onTilePageChange,
+  showNavButtons,
+  onPrev,
+  onNext,
 }: TileProjectGridProps) {
   const gridRef = useRef<HTMLDivElement>(null);
   const onTileHoverRef = useRef(onTileHover);
@@ -842,6 +760,24 @@ function TileProjectGrid({
   const pageCount = getFeaturedPageCount(tileProjects.length);
   const safePageIndex = wrapPageIndex(pageIndex, pageCount);
   const featured = getFeaturedSlice(tileProjects, safePageIndex);
+  const reduceMotion = useReducedMotion();
+  /** Set synchronously in nav handlers so AnimatePresence gets direction on the same render as the new page. */
+  const slideDirectionRef = useRef<1 | -1>(1);
+  const slideDirection = slideDirectionRef.current;
+
+  const handlePrev = useCallback(() => {
+    slideDirectionRef.current = -1;
+    onPrev();
+  }, [onPrev]);
+
+  const handleNext = useCallback(() => {
+    slideDirectionRef.current = 1;
+    onNext();
+  }, [onNext]);
+
+  useEffect(() => {
+    slideDirectionRef.current = 1;
+  }, [tileProjects]);
 
   useEffect(() => {
     onTilePageChange?.(safePageIndex);
@@ -867,40 +803,70 @@ function TileProjectGrid({
             ref={gridRef}
             style={{
               display: "grid",
-              gridTemplateColumns: `repeat(${TILE_GRID_COLUMNS}, minmax(0, 1fr))`,
+              gridTemplateColumns: getTileCardRowGridTemplateColumns(showNavButtons),
               gridTemplateRows: `repeat(${TILE_VISIBLE_ROWS}, ${tileRowHeight})`,
               gap: TILE_GRID_GAP,
               alignContent: "start",
+              width: getTileControlRowWidthInStage(),
+              maxWidth: "100%",
               height: "100%",
+              boxSizing: "border-box",
             }}
           >
-            {/* Four equal cards — cols 1–7; col 8 reserved on the right. */}
-            <div
-              style={{
-                gridColumn: `${TILE_CARD_COL_START} / span ${TILE_CARD_COL_SPAN}`,
-                gridRow: `1 / span ${TILE_VISIBLE_ROWS}`,
-                display: "grid",
-                gridTemplateColumns: `repeat(${TILE_GROUP_SIZE}, minmax(0, 1fr))`,
-                gap: TILE_GRID_GAP,
-                minHeight: 0,
-                height: "100%",
-                overflow: "hidden",
-              }}
-            >
-              {featured.map((project, slot) => (
-                <motion.div
-                  key={`expanded-${safePageIndex}-${slot}-${project.id}`}
-                  layout={false}
-                  style={{
-                    minHeight: 0,
-                    height: "100%",
-                    overflow: "hidden",
-                  }}
-                >
-                  <EmbeddedTileProjectCard project={project} />
-                </motion.div>
-              ))}
-            </div>
+            {showNavButtons ? (
+              <div
+                className="select-none"
+                data-tile-pagination
+                style={{
+                  gridColumn: 1,
+                  gridRow: `1 / span ${TILE_VISIBLE_ROWS}`,
+                  minHeight: 0,
+                  zIndex: 6,
+                }}
+              >
+                <TilePaginationButton mode="previous" navFlankIconOnly onClick={handlePrev} />
+              </div>
+            ) : null}
+
+            {featured.map((project, slot) => (
+              <div
+                key={`tile-slot-${slot}`}
+                data-project-tile
+                data-project-id={project.id}
+                style={{
+                  gridColumn: showNavButtons ? slot + 2 : slot + 1,
+                  gridRow: `1 / span ${TILE_VISIBLE_ROWS}`,
+                  position: "relative",
+                  minHeight: 0,
+                  height: "100%",
+                  overflow: "hidden",
+                  isolation: "isolate",
+                }}
+              >
+                <EmbeddedTileProjectCard
+                  project={project}
+                  slideDirection={slideDirection}
+                  slideSlot={slot}
+                  reduceMotion={reduceMotion ?? false}
+                />
+                <EmbeddedCardFrameOverlay accent={projectsSectionDomainColor(project.domain)} />
+              </div>
+            ))}
+
+            {showNavButtons ? (
+              <div
+                className="select-none"
+                data-tile-pagination
+                style={{
+                  gridColumn: 6,
+                  gridRow: `1 / span ${TILE_VISIBLE_ROWS}`,
+                  minHeight: 0,
+                  zIndex: 6,
+                }}
+              >
+                <TilePaginationButton mode="next" navFlankIconOnly onClick={handleNext} />
+              </div>
+            ) : null}
           </div>
         </div>
       </div>
@@ -1482,41 +1448,36 @@ export default function ProjectCluster({ projects, backgroundColor, heading }: P
         </div>
       )}
 
-      {/* Progress dots + prev/next — col 8, aligned with card grid. */}
+      {/* Progress dots — col 8, aligned with card grid. */}
       <TileProgressDotsColumn
         projects={tileProjects}
-        referenceProjectCount={activeProjects.length}
         pageIndex={safeTilePageIndex}
-        height={tileGridBlockHeight}
         top={clusterStageTop}
-        showPagination={showTileNavButtons}
-        onPrev={() => setTilePageIndex((p) => wrapPageIndex(p - 1, tilePageCount))}
-        onNext={() => setTilePageIndex((p) => wrapPageIndex(p + 1, tilePageCount))}
       />
 
-      {/* Bottom bar: 8 domain filters — one row, exact card-row width. */}
+
+      {/* Bottom bar: 8 domain filters — one row, prev + cards + next width. */}
       <div
         className="select-none"
         style={{
           position: "absolute",
           top: tagBarTop,
           left: CLUSTER_STAGE_INSET,
-          width: getTileCardAreaWidth(),
-          height: NAV_BOX_HEIGHT,
+          width: getTileControlRowWidth(),
+          height: CATEGORY_TAG_BOX_HEIGHT,
           zIndex: 10,
           display: "grid",
           gridTemplateColumns: `repeat(${TILE_GRID_COLUMNS}, minmax(0, 1fr))`,
           gap: TILE_GRID_GAP,
           boxSizing: "border-box",
-          overflow: "hidden",
         }}
       >
           {VISIBLE_DOMAINS.map((domain) => {
             const isActive = activeFilter === domain;
             const isHovered = hoveredFilter === domain;
             const tagBackground =
-              isActive || isHovered ? DOMAIN_COLORS[domain] : "transparent";
-            const tagColor = isActive || isHovered ? BG_CREAM : DOMAIN_COLORS[domain];
+              isActive || isHovered ? projectsSectionDomainColor(domain) : "transparent";
+            const tagColor = isActive || isHovered ? BG_CREAM : projectsSectionDomainColor(domain);
             return (
               <button
                 key={domain}
@@ -1528,13 +1489,13 @@ export default function ProjectCluster({ projects, backgroundColor, heading }: P
                 style={{
                   width: "100%",
                   boxSizing: "border-box",
-                  height: NAV_BOX_HEIGHT,
-                  minHeight: NAV_BOX_HEIGHT,
+                  height: CATEGORY_TAG_BOX_HEIGHT,
+                  minHeight: CATEGORY_TAG_BOX_HEIGHT,
                   padding: "0 8px",
-                  border: `1px solid ${DOMAIN_COLORS[domain]}`,
+                  border: `1px solid ${projectsSectionDomainColor(domain)}`,
                   borderRadius: 0,
                   fontFamily: "var(--font-work-sans), system-ui, sans-serif",
-                  fontSize: TILE_CATEGORY_FONT_SIZE,
+                  fontSize: TILE_TAG_FONT_SIZE,
                   fontWeight: 400,
                   letterSpacing: "0.01em",
                   textTransform: "lowercase",
@@ -1542,16 +1503,24 @@ export default function ProjectCluster({ projects, backgroundColor, heading }: P
                   background: tagBackground,
                   cursor: "pointer",
                   transition: "background 0.2s ease-out, color 0.2s ease-out",
-                  whiteSpace: "nowrap",
-                  overflow: "hidden",
-                  textOverflow: "ellipsis",
-                  lineHeight: 1,
+                  lineHeight: 1.15,
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
                 }}
               >
-                {DOMAIN_LABELS[domain]}
+                <span
+                  style={{
+                    display: "-webkit-box",
+                    WebkitBoxOrient: "vertical",
+                    WebkitLineClamp: 2,
+                    overflow: "hidden",
+                    textAlign: "center",
+                    width: "100%",
+                  }}
+                >
+                  {DOMAIN_LABELS[domain]}
+                </span>
               </button>
             );
           })}
@@ -1582,6 +1551,9 @@ export default function ProjectCluster({ projects, backgroundColor, heading }: P
         onGridLeave={() => setHoveredProject(null)}
         onTileHover={handleTileHover}
         pageIndex={tilePageIndex}
+        showNavButtons={showTileNavButtons}
+        onPrev={() => setTilePageIndex((p) => wrapPageIndex(p - 1, tilePageCount))}
+        onNext={() => setTilePageIndex((p) => wrapPageIndex(p + 1, tilePageCount))}
       />
 
       {/* Constellation lines. Dark-green hairlines on beige; the per-line
@@ -1700,7 +1672,7 @@ export default function ProjectCluster({ projects, backgroundColor, heading }: P
                   width: size,
                   height: size,
                   borderRadius: "50%",
-                  background: DOMAIN_COLORS[project.domain],
+                  background: projectsSectionDomainColor(project.domain),
                   display: "block",
                   pointerEvents: "none",
                   opacity: dotOpacity,
@@ -1792,26 +1764,81 @@ export default function ProjectCluster({ projects, backgroundColor, heading }: P
 // full text, tags, and contact — no internal scroll or wheel states.
 // ---------------------------------------------------------------------------
 
-const EMBEDDED_DETAIL_IMAGE_FRACTION = 0.32;
+const EMBEDDED_DETAIL_IMAGE_FRACTION = 0.38;
 const EMBEDDED_SUMMARY_LINE_CLAMP = 9;
 const EMBEDDED_FONT = {
-  title: "clamp(1.0625rem, 1.35vw, 1.25rem)",
-  summary: "clamp(0.875rem, 1.1vw, 1rem)",
-  meta: "clamp(0.8125rem, 1vw, 0.9375rem)",
-  small: "clamp(0.75rem, 0.95vw, 0.875rem)",
-  tag: "clamp(0.75rem, 0.95vw, 0.875rem)",
-  contact: "clamp(0.8125rem, 1vw, 0.9375rem)",
+  title: "clamp(0.75rem, 0.95vw, 0.875rem)",
+  summary: "clamp(0.625rem, 0.78vw, 0.75rem)",
+  meta: "clamp(0.625rem, 0.75vw, 0.6875rem)",
+  small: "clamp(0.5625rem, 0.7vw, 0.625rem)",
+  tag: "clamp(0.5625rem, 0.68vw, 0.625rem)",
+  contact: "clamp(0.625rem, 0.75vw, 0.6875rem)",
 } as const;
 
-function EmbeddedTileProjectCard({ project }: { project: NetProject }) {
+/** Category accent blended toward a canvas for type hierarchy on outlined cards. */
+function accentTone(accent: string, weight: number, canvas: string = BG_CREAM): string {
+  return `color-mix(in srgb, ${accent} ${weight}%, ${canvas})`;
+}
+
+/** Four explicit 1px fills — uniform weight; pointer-events none keeps text selectable underneath. */
+function EmbeddedCardFrameOverlay({ accent }: { accent: string }) {
+  const edge = {
+    position: "absolute" as const,
+    pointerEvents: "none" as const,
+  };
+  return (
+    <div
+      aria-hidden
+      style={{
+        position: "absolute",
+        inset: 0,
+        zIndex: 10,
+        pointerEvents: "none",
+      }}
+    >
+      <div style={{ ...edge, left: 0, top: 0, bottom: 0, width: 1, background: accent }} />
+      <div style={{ ...edge, right: 0, top: 0, bottom: 0, width: 1, background: accent }} />
+      <div style={{ ...edge, left: 0, right: 0, top: 0, height: 1, background: accent }} />
+      <div style={{ ...edge, left: 0, right: 0, bottom: 0, height: 1, background: accent }} />
+      <div
+        style={{
+          ...edge,
+          left: 0,
+          right: 0,
+          top: `${EMBEDDED_DETAIL_IMAGE_FRACTION * 100}%`,
+          height: 1,
+          background: accentTone(accent, 28),
+          transform: "translateY(-1px)",
+        }}
+      />
+    </div>
+  );
+}
+
+function EmbeddedTileProjectCard({
+  project,
+  slideDirection = 1,
+  slideSlot = 0,
+  reduceMotion = false,
+}: {
+  project: NetProject;
+  slideDirection?: 1 | -1;
+  slideSlot?: number;
+  reduceMotion?: boolean;
+}) {
   const [photoIdx, setPhotoIdx] = useState(0);
+  const slideTransition = {
+    duration: reduceMotion ? 0.01 : TILE_CARD_SLIDE_S,
+    delay: reduceMotion ? 0 : slideSlot * TILE_CARD_SLIDE_STAGGER_S,
+    ease: TILE_CARD_SLIDE_EASE,
+  };
 
   useEffect(() => {
     setPhotoIdx(0);
   }, [project.id]);
 
   const galleryUrls = useMemo(() => getProjectGalleryUrls(project), [project]);
-  const accent = DOMAIN_COLORS[project.domain];
+  const accent = projectsSectionDomainColor(project.domain);
   const customers =
     project.customers && project.customers.length > 0
       ? project.customers
@@ -1833,7 +1860,7 @@ function EmbeddedTileProjectCard({ project }: { project: NetProject }) {
           style={{
             width: "100%",
             height: "100%",
-            background: `linear-gradient(145deg, ${accent}88, ${TILE_CARD_BG})`,
+            background: "transparent",
           }}
         />
       );
@@ -1865,9 +1892,9 @@ function EmbeddedTileProjectCard({ project }: { project: NetProject }) {
                 transform: "translateY(-50%)",
                 width: 28,
                 height: 28,
-                border: "1px solid rgba(255,255,255,0.2)",
-                background: "rgba(0,0,0,0.45)",
-                color: "#fff",
+                border: `1px solid ${accentTone(accent, 55)}`,
+                background: "transparent",
+                color: accent,
                 cursor: "pointer",
                 display: "flex",
                 alignItems: "center",
@@ -1891,9 +1918,9 @@ function EmbeddedTileProjectCard({ project }: { project: NetProject }) {
                 transform: "translateY(-50%)",
                 width: 28,
                 height: 28,
-                border: "1px solid rgba(255,255,255,0.2)",
-                background: "rgba(0,0,0,0.45)",
-                color: "#fff",
+                border: `1px solid ${accentTone(accent, 55)}`,
+                background: "transparent",
+                color: accent,
                 cursor: "pointer",
                 display: "flex",
                 alignItems: "center",
@@ -1922,11 +1949,11 @@ function EmbeddedTileProjectCard({ project }: { project: NetProject }) {
       <span
         style={{
           display: "inline-block",
-          padding: "3px 10px",
+          padding: "2px 8px",
           fontSize: EMBEDDED_FONT.tag,
           fontFamily: "var(--font-manrope), system-ui, sans-serif",
           letterSpacing: "0.05em",
-          color: BG_CREAM,
+          color: accent,
           background: "transparent",
           border: `1px solid ${accent}`,
         }}
@@ -1938,13 +1965,13 @@ function EmbeddedTileProjectCard({ project }: { project: NetProject }) {
           key={cat.id}
           style={{
             display: "inline-block",
-            padding: "3px 10px",
+            padding: "2px 8px",
             fontSize: EMBEDDED_FONT.tag,
             fontFamily: "var(--font-manrope), system-ui, sans-serif",
             letterSpacing: "0.05em",
-            color: BG_CREAM,
+            color: projectsSectionCategoryColor(cat, accent),
             background: "transparent",
-            border: `1px solid ${cat.color ?? "rgba(255,255,255,0.4)"}`,
+            border: `1px solid ${projectsSectionCategoryColor(cat, accentTone(accent, 55))}`,
           }}
         >
           {cat.label}
@@ -1960,21 +1987,21 @@ function EmbeddedTileProjectCard({ project }: { project: NetProject }) {
         style={{
           display: "flex",
           alignItems: "center",
-          gap: 8,
-          marginTop: 8,
-          paddingTop: 8,
-          borderTop: "1px solid rgba(255,255,255,0.08)",
+          gap: 6,
+          marginTop: 6,
+          paddingTop: 6,
+          borderTop: `1px solid ${accentTone(accent, 28)}`,
           minWidth: 0,
         }}
       >
         <div
           style={{
             position: "relative",
-            width: 32,
-            height: 32,
+            width: 24,
+            height: 24,
             flexShrink: 0,
             overflow: "hidden",
-            background: "rgba(255,255,255,0.06)",
+            background: accentTone(accent, 12),
           }}
         >
           {responsible.photoUrl ? (
@@ -1982,7 +2009,7 @@ function EmbeddedTileProjectCard({ project }: { project: NetProject }) {
               src={responsible.photoUrl}
               alt={responsible.name}
               fill
-              sizes="32px"
+              sizes="24px"
               className="object-cover"
             />
           ) : null}
@@ -1998,14 +2025,14 @@ function EmbeddedTileProjectCard({ project }: { project: NetProject }) {
           }}
         >
           {responsible.phone ? (
-            <span style={{ color: "rgba(255,255,255,0.85)" }}>{responsible.phone}</span>
+            <span style={{ color: accent }}>{responsible.phone}</span>
           ) : (
-            <span style={{ color: "rgba(255,255,255,0.55)" }}>{responsible.name}</span>
+            <span style={{ color: accentTone(accent, 72) }}>{responsible.name}</span>
           )}
           {responsible.email ? (
             <span
               style={{
-                color: "rgba(255,255,255,0.7)",
+                color: accentTone(accent, 58),
                 overflow: "hidden",
                 textOverflow: "ellipsis",
                 whiteSpace: "nowrap",
@@ -2019,6 +2046,128 @@ function EmbeddedTileProjectCard({ project }: { project: NetProject }) {
     );
   };
 
+  const renderBody = () => (
+    <div
+      style={{
+        padding: 12,
+        height: "100%",
+        boxSizing: "border-box",
+        display: "flex",
+        flexDirection: "column",
+        overflow: "hidden",
+      }}
+    >
+      <h3
+        style={{
+          margin: 0,
+          fontSize: EMBEDDED_FONT.title,
+          fontWeight: 600,
+          color: accent,
+          fontFamily: "var(--font-manrope), system-ui, sans-serif",
+          lineHeight: 1.25,
+          flexShrink: 0,
+        }}
+      >
+        {project.name}
+      </h3>
+      {customers.length > 0 ? (
+        <p
+          style={{
+            margin: "8px 0 0",
+            fontSize: EMBEDDED_FONT.meta,
+            color: accentTone(accent, 78),
+            fontFamily: "var(--font-manrope), system-ui, sans-serif",
+            flexShrink: 0,
+          }}
+        >
+          {customers.join(" · ")}
+        </p>
+      ) : null}
+      <p
+        style={{
+          margin: customers.length > 0 ? "2px 0 0" : "8px 0 0",
+          fontSize: EMBEDDED_FONT.small,
+          color: accentTone(accent, 58),
+          fontFamily: "var(--font-manrope), system-ui, sans-serif",
+          flexShrink: 0,
+        }}
+      >
+        {project.year}
+      </p>
+      <p
+        style={{
+          margin: "8px 0 0",
+          fontSize: EMBEDDED_FONT.summary,
+          color: accentTone(accent, 82),
+          fontFamily: "var(--font-manrope), system-ui, sans-serif",
+          lineHeight: 1.45,
+          flex: 1,
+          minHeight: 0,
+          overflow: "hidden",
+          display: "-webkit-box",
+          WebkitBoxOrient: "vertical",
+          WebkitLineClamp: EMBEDDED_SUMMARY_LINE_CLAMP,
+          paddingBottom: 8,
+        }}
+      >
+        {project.summary}
+      </p>
+      {methodLabels.length > 0 ? (
+        <div
+          style={{
+            display: "flex",
+            flexWrap: "wrap",
+            gap: 4,
+            marginTop: 6,
+            flexShrink: 0,
+          }}
+        >
+          {methodLabels.map((label) => (
+            <span
+              key={label}
+              style={{
+                padding: "2px 8px",
+                fontSize: EMBEDDED_FONT.tag,
+                fontFamily: "var(--font-manrope), system-ui, sans-serif",
+                letterSpacing: "0.05em",
+                color: accent,
+                background: "transparent",
+                border: `1px solid ${accentTone(accent, 55)}`,
+              }}
+            >
+              {label}
+            </span>
+          ))}
+        </div>
+      ) : null}
+      {cardLinks.length > 0 ? (
+        <div style={{ display: "flex", flexDirection: "column", gap: 4, marginTop: 6, flexShrink: 0 }}>
+          {cardLinks.map((link) =>
+            link.url ? (
+              <a
+                key={link.url}
+                href={link.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{
+                  fontSize: EMBEDDED_FONT.meta,
+                  fontWeight: 500,
+                  color: accent,
+                  fontFamily: "var(--font-manrope), system-ui, sans-serif",
+                  textDecoration: "none",
+                }}
+              >
+                {link.label || link.url}
+              </a>
+            ) : null,
+          )}
+        </div>
+      ) : null}
+      {renderTags()}
+      {renderContact()}
+    </div>
+  );
+
   return (
     <article
       aria-label={project.name}
@@ -2026,9 +2175,10 @@ function EmbeddedTileProjectCard({ project }: { project: NetProject }) {
       className="select-text"
       style={{
         position: "relative",
+        zIndex: 0,
         width: "100%",
         height: "100%",
-        background: TILE_CARD_BG,
+        background: "transparent",
         overflow: "hidden",
         display: "flex",
         flexDirection: "column",
@@ -2040,127 +2190,58 @@ function EmbeddedTileProjectCard({ project }: { project: NetProject }) {
           flex: `0 0 ${EMBEDDED_DETAIL_IMAGE_FRACTION * 100}%`,
           minHeight: 0,
           overflow: "hidden",
+          position: "relative",
+          zIndex: 0,
         }}
       >
-        {renderGallery()}
+        <AnimatePresence initial={false} custom={slideDirection} mode="sync">
+          <motion.div
+            key={`${project.id}-image`}
+            custom={slideDirection}
+            variants={TILE_CARD_IMAGE_VARIANTS}
+            initial="enter"
+            animate="center"
+            exit="exit"
+            transition={{ ...slideTransition, type: "tween" }}
+            style={{
+              position: "absolute",
+              inset: 0,
+              willChange: "transform",
+              backfaceVisibility: "hidden",
+            }}
+          >
+            {renderGallery()}
+          </motion.div>
+        </AnimatePresence>
       </div>
       <div
         style={{
-          padding: 16,
           flex: 1,
           minHeight: 0,
-          display: "flex",
-          flexDirection: "column",
           overflow: "hidden",
+          position: "relative",
+          zIndex: 0,
         }}
       >
-        <h3
-          style={{
-            margin: 0,
-            fontSize: EMBEDDED_FONT.title,
-            fontWeight: 600,
-            color: "#fff",
-            fontFamily: "var(--font-manrope), system-ui, sans-serif",
-            lineHeight: 1.25,
-            flexShrink: 0,
-          }}
-        >
-          {project.name}
-        </h3>
-        {customers.length > 0 ? (
-          <p
+        <AnimatePresence initial={false} custom={slideDirection} mode="sync">
+          <motion.div
+            key={`${project.id}-body`}
+            custom={slideDirection}
+            variants={TILE_CARD_BODY_VARIANTS}
+            initial="enter"
+            animate="center"
+            exit="exit"
+            transition={{ ...slideTransition, type: "tween" }}
             style={{
-              margin: "16px 0 0",
-              fontSize: EMBEDDED_FONT.meta,
-              color: "rgba(255,255,255,0.75)",
-              fontFamily: "var(--font-manrope), system-ui, sans-serif",
-              flexShrink: 0,
+              position: "absolute",
+              inset: 0,
+              willChange: "transform",
+              backfaceVisibility: "hidden",
             }}
           >
-            {customers.join(" · ")}
-          </p>
-        ) : null}
-        <p
-          style={{
-            margin: customers.length > 0 ? "2px 0 0" : "16px 0 0",
-            fontSize: EMBEDDED_FONT.small,
-            color: "rgba(255,255,255,0.55)",
-            fontFamily: "var(--font-manrope), system-ui, sans-serif",
-            flexShrink: 0,
-          }}
-        >
-          {project.year}
-        </p>
-        <p
-          style={{
-            margin: "16px 0 0",
-            fontSize: EMBEDDED_FONT.summary,
-            color: "rgba(255,255,255,0.78)",
-            fontFamily: "var(--font-manrope), system-ui, sans-serif",
-            lineHeight: 1.45,
-            flex: 1,
-            minHeight: 0,
-            overflow: "hidden",
-            display: "-webkit-box",
-            WebkitBoxOrient: "vertical",
-            WebkitLineClamp: EMBEDDED_SUMMARY_LINE_CLAMP,
-            paddingBottom: 12,
-          }}
-        >
-          {project.summary}
-        </p>
-        {methodLabels.length > 0 ? (
-          <div
-            style={{
-              display: "flex",
-              flexWrap: "wrap",
-              gap: 4,
-              marginTop: 6,
-              flexShrink: 0,
-            }}
-          >
-            {methodLabels.map((label) => (
-              <span
-                key={label}
-                style={{
-                  padding: "3px 10px",
-                  fontSize: EMBEDDED_FONT.tag,
-                  fontFamily: "var(--font-manrope), system-ui, sans-serif",
-                  letterSpacing: "0.05em",
-                  color: "rgba(255,255,255,0.85)",
-                  border: "1px solid rgba(255,255,255,0.35)",
-                }}
-              >
-                {label}
-              </span>
-            ))}
-          </div>
-        ) : null}
-        {cardLinks.length > 0 ? (
-          <div style={{ display: "flex", flexDirection: "column", gap: 4, marginTop: 6, flexShrink: 0 }}>
-            {cardLinks.map((link) =>
-              link.url ? (
-                <a
-                  key={link.url}
-                  href={link.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  style={{
-                    fontSize: EMBEDDED_FONT.meta,
-                    fontWeight: 500,
-                    color: accent,
-                    fontFamily: "var(--font-manrope), system-ui, sans-serif",
-                    textDecoration: "none",
-                  }}
-                >
-                  {link.label || link.url}
-                </a>
-              ) : null,
-            )}
-          </div>
-        ) : null}
-        {renderTags()}
-        {renderContact()}
+            {renderBody()}
+          </motion.div>
+        </AnimatePresence>
       </div>
     </article>
   );
@@ -2178,7 +2259,7 @@ function EmbeddedTileProjectCard({ project }: { project: NetProject }) {
 // Layout, top to bottom:
 //   - Backdrop click target + close button (outside the parallax)
 //   - Carousel (image + chevrons), parallax target
-//   - Main category chip (filled) + sub-categories (outlined chips)
+//   - Main category chip (outlined) + sub-categories (outlined chips)
 //   - Title
 //   - Customers (joined with " · ") + year on its own line
 //   - Description
@@ -2226,7 +2307,7 @@ function ExpandedProjectCard({
   const photoIdx = photoIdxProp;
   const setPhotoIdx = setPhotoIdxProp ?? (() => {});
 
-  const accent = DOMAIN_COLORS[project.domain];
+  const accent = projectsSectionDomainColor(project.domain);
   const customers =
     project.customers && project.customers.length > 0
       ? project.customers
@@ -2354,9 +2435,9 @@ function ExpandedProjectCard({
                 transform: "translateY(-50%)",
                 width: 36,
                 height: 36,
-                border: "1px solid rgba(255,255,255,0.2)",
-                background: "rgba(0,0,0,0.45)",
-                color: "#fff",
+                border: `1px solid ${accentTone(accent, 55)}`,
+                background: "transparent",
+                color: accent,
                 cursor: "pointer",
                 display: "flex",
                 alignItems: "center",
@@ -2380,9 +2461,9 @@ function ExpandedProjectCard({
                 transform: "translateY(-50%)",
                 width: 36,
                 height: 36,
-                border: "1px solid rgba(255,255,255,0.2)",
-                background: "rgba(0,0,0,0.45)",
-                color: "#fff",
+                border: `1px solid ${accentTone(accent, 55)}`,
+                background: "transparent",
+                color: accent,
                 cursor: "pointer",
                 display: "flex",
                 alignItems: "center",
@@ -2459,8 +2540,9 @@ function ExpandedProjectCard({
                 fontSize: "0.65rem",
                 fontFamily: "var(--font-manrope), system-ui, sans-serif",
                 letterSpacing: "0.05em",
-                color: "rgba(255,255,255,0.85)",
-                border: "1px solid rgba(255,255,255,0.35)",
+                color: accent,
+                background: "transparent",
+                border: `1px solid ${accentTone(accent, 55, TILE_CARD_BG)}`,
               }}
             >
               {label}
@@ -2488,7 +2570,7 @@ function ExpandedProjectCard({
           fontSize: "0.65rem",
           fontFamily: "var(--font-manrope), system-ui, sans-serif",
           letterSpacing: "0.05em",
-          color: BG_CREAM,
+          color: accent,
           background: "transparent",
           border: `1px solid ${accent}`,
         }}
@@ -2504,9 +2586,9 @@ function ExpandedProjectCard({
             fontSize: "0.65rem",
             fontFamily: "var(--font-manrope), system-ui, sans-serif",
             letterSpacing: "0.05em",
-            color: BG_CREAM,
+            color: projectsSectionCategoryColor(cat, accent),
             background: "transparent",
-            border: `1px solid ${cat.color ?? "rgba(255,255,255,0.4)"}`,
+            border: `1px solid ${projectsSectionCategoryColor(cat, accentTone(accent, 55, TILE_CARD_BG))}`,
           }}
         >
           {cat.label}

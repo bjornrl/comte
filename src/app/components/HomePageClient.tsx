@@ -18,7 +18,7 @@ import SectionContact from "./sections/SectionContact";
 import { type CardItem } from "./sections/SectionCardGrid";
 import Interstitial, { type InterstitialData } from "./sections/Interstitial";
 import { type Project, type Connection, setProjectData } from "./projectNetworkData";
-import { HOME_PANEL_VW, LANDING_HOME_BG, MOTTO_DEFAULT_BG, MOTTO_PANEL_VW } from "./homeLayout";
+import { HOME_PANEL_VW, LANDING_HOME_BG, MOTTO_DEFAULT_BG, MOTTO_PANEL_VW, WHAT_WE_DO_PANEL_VW, CONTACT_PANEL_VW } from "./homeLayout";
 
 type WithInterstitial = { interstitial?: InterstitialData };
 
@@ -64,6 +64,8 @@ export type HomeData = {
     block1Body?: string;
     block2Title?: string;
     block2Body?: string;
+    block3Title?: string;
+    block3Body?: string;
   };
 };
 
@@ -139,9 +141,8 @@ export default function HomePageClient({ data, projects, connections }: Props) {
       id: "what-we-do",
       content: <SectionWhatWeDo {...data.whatWeDo} />,
       interstitial: maybeInterstitial(data.whatWeDo.interstitial),
-      // Narrower than full viewport so ~15vw on the right reveals the start
-      // of the projects panel at this snap.
-      width: "85vw",
+      // Narrower than full viewport so the start of projects peeks in at snap.
+      width: `${WHAT_WE_DO_PANEL_VW}vw`,
     },
     {
       id: "projects",
@@ -197,7 +198,7 @@ export default function HomePageClient({ data, projects, connections }: Props) {
       id: "contact",
       content: <SectionContact {...data.contact} />,
       interstitial: maybeInterstitial(data.contact.interstitial),
-      width: "50vw",
+      width: `${CONTACT_PANEL_VW}vw`,
     },
   ];
 

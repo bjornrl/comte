@@ -20,7 +20,7 @@ export const teamSection = defineType({
       title: "Video Carousel",
       type: "array",
       description:
-        "Clips shown in the rolling column on the right of the team grid. Each video is cropped to a square and loops.",
+        "Clips shown in the rolling column on the right of the team grid. Each frame matches the ventures image carousel size (18vw × 40vh) and loops.",
       of: [
         {
           type: "object",

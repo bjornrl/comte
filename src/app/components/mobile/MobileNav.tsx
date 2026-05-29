@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { NAV_ITEMS } from "../BlobNav";
+import LocaleToggle from "../LocaleToggle";
 
 const BOX_BG = "#F5F5E9";
 const BOX_HOVER_BG = "#FF5252";
@@ -140,7 +141,7 @@ export default function MobileNav({ activeSection }: Props) {
 
         {/* Right cluster — locale toggle + hamburger sit together. */}
         <div className="flex items-center gap-1" style={{ pointerEvents: "auto" }}>
-          <LocaleToggle />
+          <LocaleToggle variant="target" />
 
           <button
             type="button"
@@ -245,48 +246,3 @@ export default function MobileNav({ activeSection }: Props) {
 }
 
 export { BOX_HEIGHT as MOBILE_NAV_BOX_HEIGHT };
-
-/**
- * Square language toggle that sits beside the hamburger. Reads the
- * active locale from the URL (/no/* → Norwegian, anything else →
- * English) and renders a Link to the opposite locale, preserving the
- * rest of the path.
- */
-function LocaleToggle() {
-  const pathname = usePathname() ?? "/";
-  const isNorwegian = pathname === "/no" || pathname.startsWith("/no/");
-  const targetPath = isNorwegian
-    ? pathname.replace(/^\/no(?=\/|$)/, "") || "/"
-    : pathname === "/"
-      ? "/no"
-      : `/no${pathname}`;
-  const label = isNorwegian ? "EN" : "NO";
-  const ariaLabel = isNorwegian
-    ? "Switch to English"
-    : "Bytt til norsk (Switch to Norwegian)";
-
-  return (
-    <Link
-      href={targetPath}
-      prefetch={false}
-      aria-label={ariaLabel}
-      style={{
-        width: BOX_HEIGHT,
-        height: BOX_HEIGHT,
-        display: "inline-flex",
-        alignItems: "center",
-        justifyContent: "center",
-        background: NAV_ITEM_BG,
-        color: NAV_ITEM_FG,
-        fontFamily: "var(--font-work-sans), system-ui, sans-serif",
-        fontWeight: 600,
-        fontSize: "0.875rem",
-        letterSpacing: "0.1em",
-        textDecoration: "none",
-        textTransform: "uppercase",
-      }}
-    >
-      {label}
-    </Link>
-  );
-}

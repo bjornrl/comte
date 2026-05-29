@@ -13,6 +13,32 @@ export const NAV_HEIGHT_TOTAL = "calc(clamp(1rem, 2.5vw, 2.5rem) + 48px)";
  */
 export const CONTENT_TOP = `calc(${NAV_HEIGHT_TOTAL} + ${PANEL_PADDING})`;
 
+/** Drop below nav before section body copy — what-we-do textbox is the reference. */
+export const SECTION_BODY_TOP_OFFSET = "clamp(5rem, 12vh, 8rem)";
+
+/** Body copy start Y when SectionShell uses padding: 0 on the section root. */
+export const SECTION_BODY_CONTENT_TOP = `calc(${CONTENT_TOP} + ${SECTION_BODY_TOP_OFFSET})`;
+
+/** Section title scale — shared by intro, contact, and hero alignment. */
+export const SECTION_TITLE_SIZE = "clamp(1.875rem, 2.5vw, 2.25rem)";
+export const SECTION_TITLE_TO_BODY_GAP = "0.75rem";
+
+/** Body copy Y when a section title sits above it (contact block 1, intro textboxes). */
+export const SECTION_BODY_BELOW_TITLE_TOP = `calc(${SECTION_BODY_CONTENT_TOP} + ${SECTION_TITLE_SIZE} * 1.25 + ${SECTION_TITLE_TO_BODY_GAP})`;
+
+/** Estimated height of intro's two title+body blocks (centred column). */
+export const INTRO_TEXT_CLUSTER_HEIGHT = "clamp(20rem, 45vh, 32rem)";
+
+/** Top edge of intro text cluster — shared with what-we-do body alignment. */
+export const INTRO_TEXT_CLUSTER_TOP = `calc(${PANEL_PADDING} + max(0px, (100vh - 2 * ${PANEL_PADDING} - ${INTRO_TEXT_CLUSTER_HEIGHT}) / 2))`;
+
+/** Project tile view — vertical inset below nav. */
+export const PROJECT_TILE_VERTICAL_MARGIN = "clamp(1rem, 2vw, 1.5rem)";
+export const PROJECT_TILE_CARDS_TOP_EXTRA = "clamp(2rem, 5vh, 3.5rem)";
+export const PROJECT_TILE_SECTION_TOP = `calc(${CONTENT_TOP} - ${PANEL_PADDING} + ${PROJECT_TILE_VERTICAL_MARGIN})`;
+/** Top edge of the project card grid (no section heading). */
+export const PROJECT_CARD_AREA_TOP = `calc(${PROJECT_TILE_SECTION_TOP} + ${PROJECT_TILE_CARDS_TOP_EXTRA})`;
+
 type SectionShellProps = {
   id: string;
   bgColor?: string;

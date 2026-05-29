@@ -26,6 +26,18 @@ export const contactSection = defineType({
       type: "localeText",
     }),
     defineField({
+      name: "block3Title",
+      title: "Third block – Title",
+      type: "localeString",
+      description: 'e.g. "Contact"',
+    }),
+    defineField({
+      name: "block3Body",
+      title: "Third block – Body",
+      type: "localeText",
+      description: "Email address or short contact line",
+    }),
+    defineField({
       name: "interstitial",
       title: "Interstitial (narrow panel to the left)",
       type: "interstitial",

@@ -1,5 +1,9 @@
 import Image from "next/image";
-import SectionShell, { CONTENT_TOP, PANEL_PADDING } from "./SectionShell";
+import SectionShell, { SECTION_TITLE_SIZE, PANEL_PADDING } from "./SectionShell";
+import {
+  SECTION_BODY_MAX_WIDTH,
+  SectionBodyText,
+} from "./sectionBodyText";
 // The logo uses a plain <img> instead of next/image because next/image
 // applies a `max-width: 100%` style that clamps the rendered size to the
 // parent, defeating the rotated-and-oversized layout we want here.
@@ -10,18 +14,17 @@ const BODY = "#1F3A32";
 const PLACEHOLDER_IMAGE =
   "https://images.unsplash.com/photo-1773558058134-9ff1a3212ef0?q=80&w=1572&auto=format&fit=crop";
 
-// Logo SVG viewBox is 247×71. Rotated 90°CCW, its width / height = 71/247.
+// Logo SVG viewBox is 247×71. Rotated 90°CCW, pre-rotation width = vertical span.
 const LOGO_ASPECT = 71 / 247;
 
-// LOGO_SCALE > 1 oversizes the SVG so the artwork (which has whitespace
-// around it inside the SVG's own viewBox) reaches the column's top and
-// bottom edges. ~1.23 puts the "comte" letters flush against the top of
-// the page and the dot flush against the bottom — that's the maximum
-// scale before the artwork starts falling off-screen on both ends and
-// the visible portion becomes the SVG's empty middle. The pink box
-// overshoots both edges and is clipped by overflow-hidden; the section
-// background is the same pink so nothing visible is lost.
-const LOGO_SCALE = 1;
+// Pre-rotation width equals viewport height so the rotated logo spans exactly
+// from the window top to bottom (matches the h-svh snap panel).
+const LOGO_VERTICAL_SPAN = "100svh";
+
+// Text column width = 82% of space to the right of the image column.
+const TEXT_COL_WIDTH = `calc((100% - 100svh * ${LOGO_ASPECT} - 40vw) * 0.92)`;
+/** Space between the two text blocks (Who is Comte / Who are we). */
+const TEXT_BLOCK_GAP = "2rem";
 
 type Props = {
   imageUrl?: string;
@@ -51,7 +54,7 @@ export default function SectionAboutIntro({
       <div
         className="grid h-full w-full"
         style={{
-          gridTemplateColumns: `calc(100svh * ${LOGO_ASPECT}) 40vw 1fr`,
+          gridTemplateColumns: `calc(100svh * ${LOGO_ASPECT}) 40vw ${TEXT_COL_WIDTH} 1fr`,
         }}
       >
         {/* Rotated Comte logo — anchors the snap at its horizontal middle */}
@@ -64,11 +67,9 @@ export default function SectionAboutIntro({
               position: "absolute",
               top: "50%",
               left: "50%",
-              // Pre-rotation: width ≈ panel height × LOGO_SCALE so the rotated
-              // logo can overshoot the panel top/bottom and the visible
-              // artwork inside the SVG reaches the page edges.
-              width: `calc(100svh * ${LOGO_SCALE})`,
-              height: `calc(100svh * ${LOGO_ASPECT} * ${LOGO_SCALE})`,
+              // Pre-rotation width becomes vertical span after -90° rotation.
+              width: LOGO_VERTICAL_SPAN,
+              height: `calc(${LOGO_VERTICAL_SPAN} * ${LOGO_ASPECT})`,
               maxWidth: "none",
               maxHeight: "none",
               transformOrigin: "center center",
@@ -94,39 +95,24 @@ export default function SectionAboutIntro({
           />
         </div>
 
-        {/* Image — 40vw wide. The image is bottom-anchored to the column
-            (flex items-end) instead of using `fill + object-cover`, so the
-            asset's BOTTOM edge always lands at the page bottom regardless
-            of the image's intrinsic aspect. If the asset is taller than the
-            column it crops at the top; shorter, you'll see a strip of the
-            section's pink bg above. */}
-        <div className="relative h-full overflow-hidden flex items-end">
+        {/* Image — fills the column, centred and cropped. */}
+        <div className="relative h-full overflow-hidden">
           <Image
             src={imageUrl ?? PLACEHOLDER_IMAGE}
             alt={imageAlt ?? ""}
-            width={500}
-            height={750}
-            className="w-full h-auto block"
+            fill
+            className="object-cover object-center"
             sizes="40vw"
             priority
-            // 1.19× scale from the bottom-centre pivot — the asset visually
-            // grows 19% (cropped at the top + sides via overflow-hidden)
-            // while its bottom edge stays anchored to the column bottom.
-            style={{ transform: "scale(1.19)", transformOrigin: "bottom center" }}
           />
         </div>
 
-        {/* Two text blocks.
-            Padding + gap-6 + flex-1 items mirror the office locations stack
-            so the top of "Who is Comte" lines up with the top of office's
-            first map, and "Who are we" lines up with the second map. */}
+        {/* Two text blocks — vertically centred in the column. */}
         <div
-          className="flex h-full min-w-0 flex-col gap-6"
+          className="flex h-full min-w-0 flex-col justify-center"
           style={{
-            // Trim 1.5rem off CONTENT_TOP so the text rides a little higher.
-            // Office's locations column uses the same offset so map tops
-            // continue to align with text-block tops.
-            paddingTop: `calc(${CONTENT_TOP} - 1.5rem)`,
+            gap: TEXT_BLOCK_GAP,
+            paddingTop: PANEL_PADDING,
             paddingRight: "clamp(1.5rem, 4vw, 4rem)",
             paddingBottom: PANEL_PADDING,
             // Wider left pad → more gap between text and the image column.
@@ -134,40 +120,26 @@ export default function SectionAboutIntro({
           }}
         >
           {(whoIsComteTitle || whoIsComte) && (
-            <div className="max-w-[33ch] flex-1">
+            <div className="w-full" style={{ maxWidth: SECTION_BODY_MAX_WIDTH }}>
               <h2
-                className="mb-3 font-[family-name:var(--font-manrope)] text-4xl font-medium"
-                style={{ color: TITLE }}
+                className="mb-3 font-[family-name:var(--font-manrope)] font-medium leading-tight"
+                style={{ color: TITLE, fontSize: SECTION_TITLE_SIZE }}
               >
                 {whoIsComteTitle ?? "Who is Comte"}
               </h2>
-              {whoIsComte && (
-                <p
-                  className="font-[family-name:var(--font-manrope)] text-base font-medium leading-tight whitespace-pre-line"
-                  style={{ color: BODY }}
-                >
-                  {whoIsComte}
-                </p>
-              )}
+              {whoIsComte && <SectionBodyText text={whoIsComte} color={BODY} />}
             </div>
           )}
 
           {(whoAreWeTitle || whoAreWe) && (
-            <div className="max-w-[33ch] flex-1">
+            <div className="w-full" style={{ maxWidth: SECTION_BODY_MAX_WIDTH }}>
               <h2
-                className="mb-3 font-[family-name:var(--font-manrope)] text-4xl font-medium"
-                style={{ color: TITLE }}
+                className="mb-3 font-[family-name:var(--font-manrope)] font-medium leading-tight"
+                style={{ color: TITLE, fontSize: SECTION_TITLE_SIZE }}
               >
                 {whoAreWeTitle ?? "Who are we"}
               </h2>
-              {whoAreWe && (
-                <p
-                  className="font-[family-name:var(--font-manrope)] text-base font-medium leading-tight whitespace-pre-line"
-                  style={{ color: BODY }}
-                >
-                  {whoAreWe}
-                </p>
-              )}
+              {whoAreWe && <SectionBodyText text={whoAreWe} color={BODY} />}
             </div>
           )}
         </div>

@@ -52,6 +52,11 @@ const SCROLL_IDLE_MS = 150;
 // panels.
 const MAX_WHEEL_DELTA_FRACTION = 1.1;
 
+/** Loop seam teleports only when scroll/visual alignment is tight — not at the
+ *  wider SNAP_THRESHOLD used for snap attraction (early teleport caused the
+ *  fixed landing layer to jump when wrapping contact → home). */
+const LOOP_SEAM_ALIGN_PX = 4;
+
 /** Minimum index gap before nav reorders sections for a short hop. */
 const NAV_JUMP_MIN_GAP = 2;
 
@@ -489,22 +494,30 @@ export default function HorizontalScroll({
       const n = numReal();
       if (panels.length < n + 2) return false;
 
-      const panelWidth = el.clientWidth;
-      const threshold = panelWidth * SNAP_THRESHOLD;
-      const { index: nearestIdx, distance: nearestDist } = findNearestSnapIndex();
+      const { index: nearestIdx } = findNearestSnapIndex();
       const cloneFirst = panels[n + 1];
       const cloneLast = panels[0];
       const firstReal = panels[1];
       const lastReal = panels[n];
       if (!cloneFirst || !cloneLast || !firstReal || !lastReal) return false;
 
+      const containerLeft = el.getBoundingClientRect().left;
+
+      const isLoopSeamAligned = (
+        panel: HTMLElement,
+        snapTarget: number,
+      ): boolean => {
+        const panelLeft = panel.getBoundingClientRect().left - containerLeft;
+        return (
+          Math.abs(el.scrollLeft - snapTarget) <= LOOP_SEAM_ALIGN_PX ||
+          Math.abs(panelLeft) <= LOOP_SEAM_ALIGN_PX
+        );
+      };
+
       // Forward wrap: clone-first is dominant AND aligned with its snap target.
       if (nearestIdx === n + 1) {
         const cloneFirstTarget = getSnapTarget(cloneFirst);
-        const aligned =
-          nearestDist <= threshold ||
-          Math.abs(el.scrollLeft - cloneFirstTarget) <= threshold;
-        if (!aligned) return false;
+        if (!isLoopSeamAligned(cloneFirst, cloneFirstTarget)) return false;
 
         jumpToScrollLeft(getSnapTarget(firstReal));
         lastSnappedIndexRef.current = 1;
@@ -516,10 +529,7 @@ export default function HorizontalScroll({
       // Backward wrap: clone-last is dominant AND aligned.
       if (nearestIdx === 0) {
         const cloneLastTarget = getSnapTarget(cloneLast);
-        const aligned =
-          nearestDist <= threshold ||
-          Math.abs(el.scrollLeft - cloneLastTarget) <= threshold;
-        if (!aligned) return false;
+        if (!isLoopSeamAligned(cloneLast, cloneLastTarget)) return false;
 
         jumpToScrollLeft(getSnapTarget(lastReal));
         lastSnappedIndexRef.current = n;
@@ -669,57 +679,79 @@ export default function HorizontalScroll({
     };
   }, [getSnapPanels, getSnapTarget, jumpToScrollLeft, stopAnimation]);
 
-  // ---- wheel: 1:1 vertical-to-horizontal translation ------------------------
+  const applyWheelDelta = useCallback((deltaX: number, deltaY: number) => {
+    const el = containerRef.current;
+    if (!el) return;
+
+    stopAnimation();
+    isAdjusting.current = false;
+
+    const absX = Math.abs(deltaX);
+    const absY = Math.abs(deltaY);
+    if (absX === 0 && absY === 0) return;
+
+    let delta: number;
+    if (absX > absY) delta = deltaX;
+    else if (absY > absX) delta = deltaY;
+    else delta = deltaX + deltaY;
+
+    const maxDelta = el.clientWidth * MAX_WHEEL_DELTA_FRACTION;
+    el.scrollLeft += Math.max(-maxDelta, Math.min(maxDelta, delta));
+  }, [stopAnimation]);
+
+  const shouldIgnoreWheelTarget = useCallback((target: EventTarget | null): boolean => {
+    const el = containerRef.current;
+    if (!el || !(target instanceof Element)) return true;
+
+    let node: Element | null = target;
+    while (node && node !== el) {
+      if (node instanceof HTMLElement) {
+        if (node.getAttribute("role") === "dialog") return true;
+        if (node.dataset.comteModalScroll === "true") return true;
+
+        const style = getComputedStyle(node);
+        const overflowX = style.overflowX;
+        if (overflowX === "auto" || overflowX === "scroll") {
+          const hasOverflow = node.scrollWidth > node.clientWidth + 1;
+          if (hasOverflow) return true;
+        }
+
+        const overflowY = style.overflowY;
+        if (overflowY === "auto" || overflowY === "scroll" || overflowY === "overlay") {
+          const hasOverflow = node.scrollHeight > node.clientHeight + 1;
+          if (hasOverflow) return true;
+        }
+      }
+      node = node.parentElement;
+    }
+    return false;
+  }, []);
+
+  // ---- wheel: 1:1 vertical + horizontal trackpad → scrollLeft ---------------
 
   useEffect(() => {
     const el = containerRef.current;
     if (!el) return;
 
     const handleWheel = (e: WheelEvent) => {
-      // Trackpad horizontal gestures → let native scroll handle them.
-      if (Math.abs(e.deltaX) > Math.abs(e.deltaY)) return;
-      if (e.deltaY === 0) return;
-
-      // If the event originated inside a modal dialog or vertical scroller,
-      // let that handle the wheel (project detail card parallax scroll, etc.).
-      let node: Element | null = e.target as Element;
-      while (node && node !== el) {
-        if (node instanceof HTMLElement) {
-          if (node.getAttribute("role") === "dialog") return;
-          if (node.dataset.comteModalScroll === "true") return;
-
-          const style = getComputedStyle(node);
-          const overflowX = style.overflowX;
-          if (overflowX === "auto" || overflowX === "scroll") {
-            const hasOverflow = node.scrollWidth > node.clientWidth + 1;
-            if (hasOverflow) return;
-          }
-
-          const overflowY = style.overflowY;
-          if (overflowY === "auto" || overflowY === "scroll" || overflowY === "overlay") {
-            const hasOverflow = node.scrollHeight > node.clientHeight + 1;
-            if (hasOverflow) return;
-          }
-        }
-        node = node.parentElement;
-      }
-
+      if (shouldIgnoreWheelTarget(e.target)) return;
       e.preventDefault();
+      applyWheelDelta(e.deltaX, e.deltaY);
+    };
 
-      // Cancel any running snap so user input takes precedence immediately.
-      stopAnimation();
-      isAdjusting.current = false;
-
-      // Cap per-tick delta so one outsized mouse wheel click can't blast past
-      // multiple panels.
-      const maxDelta = el.clientWidth * MAX_WHEEL_DELTA_FRACTION;
-      const delta = Math.max(-maxDelta, Math.min(maxDelta, e.deltaY));
-      el.scrollLeft += delta;
+    const handleIframeWheel = (e: Event) => {
+      const detail = (e as CustomEvent<{ deltaX: number; deltaY: number }>).detail;
+      if (!detail) return;
+      applyWheelDelta(detail.deltaX, detail.deltaY);
     };
 
     el.addEventListener("wheel", handleWheel, { passive: false });
-    return () => el.removeEventListener("wheel", handleWheel);
-  }, [stopAnimation]);
+    window.addEventListener("comte:wheel-scroll", handleIframeWheel);
+    return () => {
+      el.removeEventListener("wheel", handleWheel);
+      window.removeEventListener("comte:wheel-scroll", handleIframeWheel);
+    };
+  }, [applyWheelDelta, shouldIgnoreWheelTarget]);
 
   // ---- BlobNav fallback nav events ------------------------------------------
 

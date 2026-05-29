@@ -2,9 +2,19 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { ChevronUp, ChevronDown, ArrowDown } from "lucide-react";
-import SectionShell, { CONTENT_TOP, PANEL_PADDING } from "./SectionShell";
+import SectionShell, {
+  CONTENT_TOP,
+  PANEL_PADDING,
+  SECTION_BODY_CONTENT_TOP,
+  SECTION_TITLE_SIZE,
+} from "./SectionShell";
+import {
+  SectionBodyText,
+  PUBLICATIONS_VENTURES_BODY_MAX_WIDTH,
+  SECTION_BODY_MAX_WIDTH,
+} from "./sectionBodyText";
 import TiltedHeading from "../TiltedHeading";
 import { urlFor } from "@/sanity/lib/image";
 import type { CardItem } from "./SectionCardGrid";
@@ -20,7 +30,10 @@ const PLACEHOLDER_IMAGE =
 const SECTION_BORDER_LINES = ["Publicati", "ons"];
 /** Match the what-we-do tilted heading scale. */
 const SECTION_BORDER_SIZE_LINES = ["What do", "we do?"];
-const SECTION_BORDER_TEXT = "#FFD2D2";
+const SECTION_BORDER_TEXT = "#1F3A32";
+/** Match about-intro text block title and body colors. */
+const ITEM_TITLE_COLOR = "#FF5252";
+const ITEM_BODY_COLOR = "#1F3A32";
 
 function sanityImageUrl(imageField: any, width = 800): string | null {
   if (!imageField?.asset) return null;
@@ -48,8 +61,8 @@ const MARQUEE_BODY_SIZE = "clamp(1.125rem, 2.5vw, 2rem)";
 const MARQUEE_DURATION_S = 80;
 const RIGHT_COL_WIDTH = "36%";
 const RIGHT_COL_GRID_COLS = 2;
-/** Overview copy sits left of the carousel — slightly inset from its full width. */
-const TEXT_BLOCK_OFFSET = `calc(${RIGHT_COL_WIDTH} - 12%)`;
+/** Overview copy sits left of the carousel — inset from the marquee column edge. */
+const TEXT_BLOCK_OFFSET = `calc(${RIGHT_COL_WIDTH} - 16%)`;
 
 const VIEW_TRANSITION_S = 0.72;
 const VIEW_QUICK_TRANSITION_S = 0.24;
@@ -244,8 +257,61 @@ function MarqueeColumn({
 }
 
 // ---------------------------------------------------------------------------
-// Carousel column (item view) — 3 fixed slots: 2 image tiles + 1 chevron tile
+// Carousel column (item view) — image tiles with flanking up/down nav
 // ---------------------------------------------------------------------------
+
+const CAROUSEL_NAV_HOVER_BG = "#5A7482";
+const CAROUSEL_NAV_ACTIVE_BG = "#2a2a2a";
+const CAROUSEL_NAV_FG = "#F5F5E9";
+/** Match ProjectCluster NAV_BOX_HEIGHT / flank pagination chrome. */
+const CAROUSEL_NAV_HEIGHT_PX = 42;
+const CAROUSEL_NAV_ICON_SIZE = 24;
+
+function CarouselNavButton({
+  direction,
+  disabled,
+  onClick,
+}: {
+  direction: "up" | "down";
+  disabled: boolean;
+  onClick: () => void;
+}) {
+  const [hovered, setHovered] = useState(false);
+  const Icon = direction === "up" ? ChevronUp : ChevronDown;
+  const active = !disabled && hovered;
+  const label = direction === "up" ? "Scroll publications up" : "Scroll publications down";
+
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      aria-label={label}
+      className="w-full flex-shrink-0"
+      style={{
+        flex: `0 0 ${CAROUSEL_NAV_HEIGHT_PX}px`,
+        height: CAROUSEL_NAV_HEIGHT_PX,
+        boxSizing: "border-box",
+        border: `1px solid ${active ? CAROUSEL_NAV_ACTIVE_BG : CAROUSEL_NAV_HOVER_BG}`,
+        borderRadius: 0,
+        background: active ? CAROUSEL_NAV_ACTIVE_BG : CAROUSEL_NAV_HOVER_BG,
+        color: CAROUSEL_NAV_FG,
+        cursor: disabled ? "not-allowed" : "pointer",
+        opacity: disabled ? 0.35 : 1,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        padding: 0,
+        transition:
+          "background 0.2s ease-out, color 0.2s ease-out, border-color 0.2s ease-out, opacity 0.2s ease-out",
+      }}
+    >
+      <Icon size={CAROUSEL_NAV_ICON_SIZE} strokeWidth={2.25} aria-hidden />
+    </button>
+  );
+}
 
 function CarouselSlot({
   item,
@@ -256,14 +322,23 @@ function CarouselSlot({
   onClick: () => void;
   flexBasis: string;
 }) {
+  const [hovered, setHovered] = useState(false);
+
   if (!item) return <div style={{ flex: `0 0 ${flexBasis}`, background: "transparent" }} />;
+
   const imageUrl = sanityImageUrl(item.image, 800) ?? PLACEHOLDER_IMAGE;
+  const showHover = hovered;
+
   return (
     <button
       type="button"
       onClick={onClick}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      onFocus={() => setHovered(true)}
+      onBlur={() => setHovered(false)}
       aria-label={`View ${item.title ?? "publication"}`}
-      className="relative w-full overflow-hidden bg-gray-100 text-left"
+      className="relative w-full overflow-hidden bg-gray-100 text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1F3A32]"
       style={{ flex: `0 0 ${flexBasis}`, cursor: "pointer", border: "none", padding: 0 }}
     >
       <Image
@@ -275,14 +350,18 @@ function CarouselSlot({
       />
       <div
         aria-hidden
-        className="pointer-events-none absolute inset-x-0 bottom-0 h-1/2"
+        className="pointer-events-none absolute inset-x-0 bottom-0 z-10 h-1/2 transition-opacity duration-300 ease-out"
         style={{
+          opacity: showHover ? 0 : 1,
           backgroundImage:
             "linear-gradient(to top, rgba(0,0,0,0.65), rgba(0,0,0,0))",
         }}
       />
       {item.title && (
-        <div className="pointer-events-none absolute inset-x-0 bottom-0 z-10 flex flex-col gap-1 p-3">
+        <div
+          className="pointer-events-none absolute inset-x-0 bottom-0 z-10 flex flex-col gap-1 p-3 transition-opacity duration-300 ease-out"
+          style={{ opacity: showHover ? 0 : 1 }}
+        >
           <h3
             className="font-[family-name:var(--font-manrope)] text-sm font-bold leading-tight"
             style={{ color: "rgba(255,255,255,0.98)" }}
@@ -291,82 +370,18 @@ function CarouselSlot({
           </h3>
         </div>
       )}
-    </button>
-  );
-}
-
-function ChevronSlot({
-  item,
-  flexBasis,
-  canUp,
-  canDown,
-  onUp,
-  onDown,
-}: {
-  item: CardItem | undefined;
-  flexBasis: string;
-  canUp: boolean;
-  canDown: boolean;
-  onUp: () => void;
-  onDown: () => void;
-}) {
-  const imageUrl = item
-    ? sanityImageUrl(item.image, 800) ?? PLACEHOLDER_IMAGE
-    : null;
-  return (
-    <div
-      className="relative w-full overflow-hidden bg-gray-100"
-      style={{ flex: `0 0 ${flexBasis}` }}
-    >
-      {imageUrl && (
-        <Image
-          src={imageUrl}
-          alt=""
-          fill
-          className="object-cover"
-          sizes="(max-width: 1024px) 30vw, 12vw"
-        />
-      )}
       <div
-        aria-hidden
-        className="pointer-events-none absolute inset-0"
-        style={{ background: "rgba(31, 58, 50, 0.55)" }}
-      />
-      <button
-        type="button"
-        onClick={onUp}
-        disabled={!canUp}
-        aria-label="Scroll publications up"
-        className="absolute inset-x-0 top-0 z-20 flex items-center justify-center"
-        style={{
-          height: "50%",
-          background: "transparent",
-          border: "none",
-          cursor: canUp ? "pointer" : "default",
-          opacity: canUp ? 1 : 0.35,
-          color: "rgba(255,255,255,0.95)",
-        }}
+        className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center transition-opacity duration-300 ease-out"
+        style={{ background: HOVER_OVERLAY_BG, opacity: showHover ? 1 : 0 }}
       >
-        <ChevronUp size={36} strokeWidth={1.8} aria-hidden />
-      </button>
-      <button
-        type="button"
-        onClick={onDown}
-        disabled={!canDown}
-        aria-label="Scroll publications down"
-        className="absolute inset-x-0 bottom-0 z-20 flex items-center justify-center"
-        style={{
-          height: "50%",
-          background: "transparent",
-          border: "none",
-          cursor: canDown ? "pointer" : "default",
-          opacity: canDown ? 1 : 0.35,
-          color: "rgba(255,255,255,0.95)",
-        }}
-      >
-        <ChevronDown size={36} strokeWidth={1.8} aria-hidden />
-      </button>
-    </div>
+        <span
+          className="font-[family-name:var(--font-manrope)] text-sm font-bold tracking-wide sm:text-base"
+          style={{ color: "rgba(255,255,255,0.98)", textAlign: "center", padding: "0 12px" }}
+        >
+          Read more and order
+        </span>
+      </div>
+    </button>
   );
 }
 
@@ -390,41 +405,40 @@ function CarouselColumn({
   const visibleSlots = Math.min(3, Math.max(total, 1));
   const slotBasis = `calc((100% - ${(visibleSlots - 1) * TILE_GAP_PX}px) / ${visibleSlots})`;
 
-  const topItem = items[topIndex];
-  const middleItem = items[topIndex + 1];
-  const bottomItem = items[topIndex + 2];
+  const visibleItems = Array.from({ length: visibleSlots }, (_, i) =>
+    total > 0 ? items[(topIndex + i) % total] : undefined,
+  );
 
-  const canUp = topIndex > 0;
-  // Scroll down so long as there's at least one more item after what's
-  // currently in the bottom (chevron) slot.
-  const canDown = topIndex + 2 < total - 1;
+  const canScroll = total > 0;
 
   return (
-    <div className="flex h-full w-full flex-col" style={{ gap: TILE_GAP_PX }}>
-      {visibleSlots >= 1 && (
-        <CarouselSlot
-          item={topItem}
-          onClick={() => topItem && onItemClick(topItem)}
-          flexBasis={slotBasis}
-        />
-      )}
-      {visibleSlots >= 2 && (
-        <CarouselSlot
-          item={middleItem}
-          onClick={() => middleItem && onItemClick(middleItem)}
-          flexBasis={slotBasis}
-        />
-      )}
-      {visibleSlots >= 3 && (
-        <ChevronSlot
-          item={bottomItem}
-          flexBasis={slotBasis}
-          canUp={canUp}
-          canDown={canDown}
-          onUp={() => setTopIndex((i) => Math.max(0, i - 1))}
-          onDown={() => setTopIndex((i) => Math.min(total - 3, i + 1))}
-        />
-      )}
+    <div className="flex h-full w-full min-h-0 flex-col" style={{ gap: TILE_GAP_PX }}>
+      <CarouselNavButton
+        direction="up"
+        disabled={!canScroll}
+        onClick={() =>
+          setTopIndex((i) => (total > 0 ? (i - 1 + total) % total : 0))
+        }
+      />
+
+      <div className="flex min-h-0 flex-1 flex-col" style={{ gap: TILE_GAP_PX }}>
+        {visibleItems.map((item, i) => (
+          <CarouselSlot
+            key={`${topIndex}-${item?._id ?? i}`}
+            item={item}
+            onClick={() => item && onItemClick(item)}
+            flexBasis={slotBasis}
+          />
+        ))}
+      </div>
+
+      <CarouselNavButton
+        direction="down"
+        disabled={!canScroll}
+        onClick={() =>
+          setTopIndex((i) => (total > 0 ? (i + 1) % total : 0))
+        }
+      />
     </div>
   );
 }
@@ -436,12 +450,10 @@ function CarouselColumn({
 function ItemView({
   item,
   otherItems,
-  foregroundColor,
   onItemClick,
 }: {
   item: CardItem;
   otherItems: CardItem[];
-  foregroundColor: string;
   onItemClick: (item: CardItem) => void;
 }) {
   const imageUrl = sanityImageUrl(item.image, 1600) ?? PLACEHOLDER_IMAGE;
@@ -476,23 +488,23 @@ function ItemView({
             />
           </div>
 
-          {/* Description */}
+          {/* Description — typography matches about-intro text blocks. */}
           <div
-            className="flex h-full min-h-0 w-full flex-shrink-0 flex-col gap-4 lg:w-[40ch]"
-            style={{ color: foregroundColor }}
+            className="flex h-full min-h-0 w-full min-w-0 flex-shrink-0 flex-col lg:w-[40ch]"
+            style={{ maxWidth: SECTION_BODY_MAX_WIDTH }}
           >
             {item.title && (
               <h2
-                className="font-[family-name:var(--font-manrope)] font-bold leading-tight"
-                style={{ fontSize: "clamp(1.5rem, 3vw, 2.5rem)" }}
+                className="mb-3 font-[family-name:var(--font-manrope)] font-medium leading-tight"
+                style={{ color: ITEM_TITLE_COLOR, fontSize: SECTION_TITLE_SIZE }}
               >
                 {item.title}
               </h2>
             )}
             {item.description && (
-              <p className="font-[family-name:var(--font-manrope)] text-base font-normal leading-relaxed whitespace-pre-line overflow-y-auto min-h-0">
-                {item.description}
-              </p>
+              <div className="min-h-0 overflow-y-auto">
+                <SectionBodyText text={item.description} color={ITEM_BODY_COLOR} />
+              </div>
             )}
           </div>
         </div>
@@ -664,11 +676,12 @@ export default function SectionPublications({
     return itemById.get(entry.itemId)?.title ?? "";
   }, [inItemView, navItemViewPending, stack, activeIndex, itemById]);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     // Announce item view as soon as a card is clicked (including while the
     // page is still sliding) so the navbar can enter phase 1 immediately.
     // Going back clears this right away so the title button retreats in
-    // sync with the page scroll.
+    // sync with the page scroll. useLayoutEffect keeps the title in sync
+    // with item swaps before paint so BlobNav can remeasure width.
     onItemViewChange?.(
       navbarItemViewActive ? currentItemTitle || "back to overview" : null,
     );
@@ -802,6 +815,7 @@ export default function SectionPublications({
                 <OverviewPanel
                   heading={heading}
                   body={body}
+                  backgroundColor={backgroundColor}
                   foregroundColor={foregroundColor}
                   leftItems={leftItems}
                   rightItems={rightItems}
@@ -823,7 +837,6 @@ export default function SectionPublications({
                     <ItemView
                       item={item}
                       otherItems={others}
-                      foregroundColor={foregroundColor}
                       onItemClick={handleSelectItem}
                     />
                   );
@@ -844,6 +857,7 @@ export default function SectionPublications({
 function OverviewPanel({
   heading,
   body,
+  backgroundColor,
   foregroundColor,
   leftItems,
   rightItems,
@@ -855,6 +869,7 @@ function OverviewPanel({
 }: {
   heading?: string;
   body?: string;
+  backgroundColor: string;
   foregroundColor: string;
   leftItems: CardItem[];
   rightItems: CardItem[];
@@ -869,7 +884,7 @@ function OverviewPanel({
       <div
         className="relative z-10 flex h-full flex-col"
         style={{
-          paddingTop: CONTENT_TOP,
+          paddingTop: SECTION_BODY_CONTENT_TOP,
           paddingRight: "2rem",
           paddingBottom: "2rem",
           paddingLeft: PANEL_PADDING,
@@ -877,27 +892,17 @@ function OverviewPanel({
       >
         <div
           style={{
-            maxWidth: "44ch",
+            maxWidth: PUBLICATIONS_VENTURES_BODY_MAX_WIDTH,
             marginLeft: TEXT_BLOCK_OFFSET,
           }}
         >
-          {body && (
-            <p
-              className="font-[family-name:var(--font-manrope)] font-normal whitespace-pre-line"
-              style={{
-                fontSize: "clamp(1.25rem, 1.8vw, 1.6rem)",
-                lineHeight: 1.2,
-              }}
-            >
-              {body}
-            </p>
-          )}
+          {body && <SectionBodyText text={body} color={foregroundColor} />}
           <button
             type="button"
             onClick={onBrowse}
             disabled={!hasBrowseTarget}
             aria-label="Browse publications"
-            className="inline-flex min-h-11 items-center gap-2 font-[family-name:var(--font-manrope)] text-base font-medium transition-opacity duration-150 ease-out hover:opacity-80 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50"
+            className="inline-flex min-h-11 items-center gap-2 font-[family-name:var(--font-manrope)] text-base font-medium transition-[background-color,color,transform] duration-150 ease-out hover:bg-[var(--section-cta-hover-bg)] hover:text-[var(--section-cta-hover-fg)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-transparent disabled:hover:text-[var(--section-cta-fg)]"
             style={{
               marginTop: body ? "2.5rem" : 0,
               padding: "12px 24px",
@@ -905,6 +910,9 @@ function OverviewPanel({
               background: "transparent",
               color: foregroundColor,
               cursor: "pointer",
+              ["--section-cta-fg" as string]: foregroundColor,
+              ["--section-cta-hover-bg" as string]: foregroundColor,
+              ["--section-cta-hover-fg" as string]: backgroundColor,
             }}
           >
             Browse

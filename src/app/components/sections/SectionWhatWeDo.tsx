@@ -1,5 +1,6 @@
-import SectionShell from "./SectionShell";
+import SectionShell, { PROJECT_CARD_AREA_TOP, PANEL_PADDING } from "./SectionShell";
 import TiltedHeading from "../TiltedHeading";
+import { WHAT_WE_DO_BODY_MAX_WIDTH, SectionBodyText } from "./sectionBodyText";
 
 const BG = "#F5F5E9";
 const FG = "#FF5252";
@@ -8,12 +9,20 @@ const FG = "#FF5252";
 const DARK_GREEN = "#1F3A32";
 // Off-white "beige" used for text on the filled red circle.
 const BEIGE = "#F5F5E9";
-const LARGE_DATAPOINT_FILL = "#FBFF00";
 
 // Two-line tilted heading at the section's left edge. First line gets
 // bisected by the office/what-we-do boundary, second line lives entirely on
 // the what-we-do side — same pattern as motto's "Design to / evolve".
 const TILT_LINES = ["What do", "we do?"];
+
+/** Scale factor for both datapoint blobs — keeps overlap + offset ratios intact. */
+const BLOB_LAYOUT_SCALE = 0.75;
+const SMALL_BLOB_DIAMETER = "clamp(7.5rem, 10.5vw, 10.5rem)";
+const LARGE_BLOB_DIAMETER = "clamp(12rem, 18vw, 18rem)";
+/** Small blob sits above the large one — scaled with BLOB_LAYOUT_SCALE. */
+const SMALL_BLOB_LIFT = "clamp(-7.5rem, -10.5vw, -5.25rem)";
+const SMALL_BLOB_SHIFT = "clamp(4rem, 8vw, 6.5rem)";
+const LARGE_BLOB_SHIFT = "clamp(-0.75rem, -1.5vw, -1rem)";
 
 type Datapoint = { value?: string; label?: string } | null | undefined;
 
@@ -33,9 +42,9 @@ function DatapointCircle({
   const isSmall = variant === "small-filled";
   // Diameter scales with viewport but stays within the row band of the
   // section. Bigger circle is ~50% larger by diameter.
-  const diameter = isSmall ? "clamp(9rem, 13vw, 13rem)" : "clamp(13rem, 19vw, 19rem)";
-  const fill = isSmall ? FG : LARGE_DATAPOINT_FILL;
-  const stroke = isSmall ? "transparent" : LARGE_DATAPOINT_FILL;
+  const diameter = isSmall ? SMALL_BLOB_DIAMETER : LARGE_BLOB_DIAMETER;
+  const fill = isSmall ? FG : "transparent";
+  const stroke = isSmall ? "transparent" : DARK_GREEN;
   const textColor = isSmall ? BEIGE : DARK_GREEN;
   return (
     <div
@@ -55,7 +64,9 @@ function DatapointCircle({
         className="font-bold leading-none"
         style={{
           fontFamily: "var(--font-roboto), system-ui, sans-serif",
-          fontSize: isSmall ? "clamp(2.5rem, 4vw, 3.25rem)" : "clamp(3.5rem, 5vw, 4.5rem)",
+          fontSize: isSmall
+            ? `clamp(${2.75 * BLOB_LAYOUT_SCALE}rem, ${4.5 * BLOB_LAYOUT_SCALE}vw, ${3.5 * BLOB_LAYOUT_SCALE}rem)`
+            : `clamp(${4.25 * BLOB_LAYOUT_SCALE}rem, ${6 * BLOB_LAYOUT_SCALE}vw, ${5.5 * BLOB_LAYOUT_SCALE}rem)`,
         }}
       >
         {data.value}
@@ -65,7 +76,7 @@ function DatapointCircle({
           className="mt-2 px-4 font-medium leading-tight"
           style={{
             fontFamily: "var(--font-roboto), system-ui, sans-serif",
-            fontSize: isSmall ? "0.95rem" : "1.1rem",
+            fontSize: isSmall ? "0.9375rem" : "1.0625rem",
             maxWidth: "90%",
           }}
         >
@@ -94,7 +105,7 @@ export default function SectionWhatWeDo({
       bgColor={BG}
       // overflow: visible so the tilted heading can bleed LEFT into the
       // office panel (where it gets bisected by the section boundary).
-      style={{ color: FG, overflow: "visible" }}
+      style={{ color: FG, overflow: "visible", padding: 0 }}
     >
       {/* The 0.2em offset (vs the default 0.5em) shifts the heading's visual
           centre toward the parent's left edge, so the office snap shows the
@@ -112,27 +123,38 @@ export default function SectionWhatWeDo({
           content sits in the right portion of the panel with the tilted
           heading anchoring the left. */}
       <div
-        className="flex h-full flex-col"
+        className="relative h-full"
         style={{ paddingLeft: "30vw" }}
       >
         {textbox && (
-          <p
-            className="max-w-[28ch] font-[family-name:var(--font-manrope)] font-normal whitespace-pre-line"
+          <div
+            className="w-full min-w-0"
             style={{
-              fontSize: "clamp(1.25rem, 1.8vw, 1.6rem)",
-              lineHeight: 1.2,
-              color: FG,
+              maxWidth: WHAT_WE_DO_BODY_MAX_WIDTH,
+              paddingTop: PROJECT_CARD_AREA_TOP,
             }}
           >
-            {textbox}
-          </p>
+            <SectionBodyText text={textbox} color={FG} />
+          </div>
         )}
-        {/* Two circles side-by-side under the textbox. Left = small filled
-            red with beige text; right = larger dark-green outline only with
-            dark-green text. */}
-        <div className="mt-auto flex items-end gap-6">
-          <DatapointCircle data={datapoint1} variant="small-filled" />
-          <DatapointCircle data={datapoint2} variant="large-outlined" />
+        {/* Blob row — large circle bottom sits on the project section bottom margin. */}
+        <div
+          className="absolute flex w-full min-w-0 items-end justify-between"
+          style={{
+            bottom: PANEL_PADDING,
+            maxWidth: WHAT_WE_DO_BODY_MAX_WIDTH,
+          }}
+        >
+          <div
+            style={{
+              transform: `translate(${SMALL_BLOB_SHIFT}, ${SMALL_BLOB_LIFT})`,
+            }}
+          >
+            <DatapointCircle data={datapoint1} variant="small-filled" />
+          </div>
+          <div style={{ transform: `translateX(${LARGE_BLOB_SHIFT})` }}>
+            <DatapointCircle data={datapoint2} variant="large-outlined" />
+          </div>
         </div>
       </div>
     </SectionShell>

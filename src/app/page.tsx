@@ -272,6 +272,8 @@ export default async function Home() {
       block1Body: resolveLocaleText(contactSection?.block1Body),
       block2Title: resolveLocaleString(contactSection?.block2Title),
       block2Body: resolveLocaleText(contactSection?.block2Body),
+      block3Title: resolveLocaleString(contactSection?.block3Title),
+      block3Body: resolveLocaleText(contactSection?.block3Body),
       interstitial: mapInterstitial(contactSection?.interstitial),
     },
   };

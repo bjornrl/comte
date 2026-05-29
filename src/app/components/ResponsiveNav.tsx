@@ -18,5 +18,9 @@ type Props = {
 export default function ResponsiveNav({ activeSection }: Props) {
   const isMobile = useIsMobile();
   if (isMobile === null) return null;
-  return isMobile ? <MobileNav activeSection={activeSection} /> : <BlobNav />;
+  return isMobile ? (
+    <MobileNav activeSection={activeSection} />
+  ) : (
+    <BlobNav activeSection={activeSection} />
+  );
 }

@@ -2,6 +2,7 @@
 
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import SectionShell, { CONTENT_TOP, PANEL_PADDING } from "./SectionShell";
+import TiltedHeading from "../TiltedHeading";
 import { urlFor } from "@/sanity/lib/image";
 
 const BG = "#5F7C8B";
@@ -9,11 +10,18 @@ const FG = "#F5F5E9";
 const PLACEHOLDER_IMAGE =
   "https://images.unsplash.com/photo-1773558058134-9ff1a3212ef0?q=80&w=1572&auto=format&fit=crop";
 
-const TEAM_CARD_VW_DIVISOR = 6;
-/** Fixed-width rolling video column on the right of the team grid. */
-export const VIDEO_CAROUSEL_COL_WIDTH = "clamp(140px, 16vw, 240px)";
+const TEAM_CARD_VW_DIVISOR = 6.5;
+/** Left band reserved for the tilted section heading. */
+export const TEAM_HEADING_RESERVE = "clamp(14rem, 22vw, 18rem)";
+const TEAM_HEADING_TEXT = "Our team";
+/** Gap between the team grid and the video carousel column. */
+const GRID_TO_CAROUSEL_GAP = "clamp(2rem, 4vw, 3rem)";
+/** Fixed-width rolling video column — matches ventures marquee column (18%). */
+export const VIDEO_CAROUSEL_COL_WIDTH = "18vw";
+/** Tile height — matches ventures/publications marquee frames. */
+const VIDEO_MARQUEE_TILE_HEIGHT = "40vh";
 /** Extra section width + carousel inset — background continues past the video column. */
-const VIDEO_CAROUSEL_TRAILING_BLEED = "clamp(5rem, 10vw, 8rem)";
+const VIDEO_CAROUSEL_TRAILING_BLEED = "clamp(6rem, 12vw, 10rem)";
 const VIDEO_TILE_GAP_PX = 4;
 /** Minimum time each tile is on screen during one full loop. */
 const VIDEO_SECONDS_PER_TILE = 4.5;
@@ -50,11 +58,11 @@ type Props = {
 
 export function getTeamSectionWidth(memberCount: number, videoCount = 0): string {
   const cols = Math.max(1, Math.ceil(Math.max(memberCount, 1) / 2));
-  const teamPart = `calc(${cols} * (100vw / ${TEAM_CARD_VW_DIVISOR}) + ${Math.max(0, cols - 1)} * 0.5rem + 2 * ${PANEL_PADDING})`;
+  const teamPart = `calc(${TEAM_HEADING_RESERVE} + ${cols} * (100vw / ${TEAM_CARD_VW_DIVISOR}) + ${Math.max(0, cols - 1)} * 0.5rem + ${PANEL_PADDING})`;
   if (videoCount <= 0) {
     return `max(100vw, ${teamPart})`;
   }
-  return `max(100vw, calc(${teamPart} + ${VIDEO_CAROUSEL_COL_WIDTH} + ${VIDEO_TILE_GAP_PX}px + ${VIDEO_CAROUSEL_TRAILING_BLEED}))`;
+  return `max(100vw, calc(${teamPart} + ${GRID_TO_CAROUSEL_GAP} + ${VIDEO_CAROUSEL_COL_WIDTH} + ${VIDEO_TILE_GAP_PX}px + ${VIDEO_CAROUSEL_TRAILING_BLEED}))`;
 }
 
 function VideoMarqueeTile({
@@ -91,7 +99,7 @@ function VideoMarqueeTile({
     <div
       ref={tileRef}
       className="relative w-full overflow-hidden bg-black"
-      style={{ aspectRatio: "1 / 1", flexShrink: 0 }}
+      style={{ height: VIDEO_MARQUEE_TILE_HEIGHT, flexShrink: 0 }}
     >
       <video
         ref={videoRef}
@@ -219,33 +227,48 @@ function VideoMarqueeColumn({ videos }: { videos: TeamCarouselVideo[] }) {
 }
 
 export default function SectionTeam({
-  heading: _heading,
+  heading,
   teamMembers,
   carouselVideos = [],
 }: Props) {
   const hasVideoCarousel = carouselVideos.length > 0;
+  const headingLines = [heading?.trim() || TEAM_HEADING_TEXT];
 
   return (
-    <SectionShell id="team" bgColor={BG} style={{ padding: 0, color: FG }}>
+    <SectionShell
+      id="team"
+      bgColor={BG}
+      style={{ padding: 0, color: FG, overflow: "visible" }}
+    >
+      <TiltedHeading
+        lines={headingLines}
+        color={FG}
+        parallaxFactor={0.18}
+        leftOffsetEm={0.2}
+      />
 
       <div className="relative flex h-full w-full">
         <div
           className="flex h-full min-w-0 flex-1 flex-col"
           style={{
             paddingTop: CONTENT_TOP,
-            paddingLeft: PANEL_PADDING,
-            paddingRight: hasVideoCarousel ? "1rem" : PANEL_PADDING,
+            paddingLeft: TEAM_HEADING_RESERVE,
+            paddingRight: hasVideoCarousel
+              ? `calc(${VIDEO_CAROUSEL_TRAILING_BLEED} + ${VIDEO_CAROUSEL_COL_WIDTH} + ${GRID_TO_CAROUSEL_GAP})`
+              : PANEL_PADDING,
             paddingBottom: PANEL_PADDING,
           }}
         >
-          <div
-            className="grid h-full w-full gap-2"
-            style={{
-              gridTemplateRows: "1fr 1fr",
-              gridAutoFlow: "column",
-              gridAutoColumns: `calc(100vw / ${TEAM_CARD_VW_DIVISOR})`,
-            }}
-          >
+          <div className="flex h-full min-w-0 flex-1 justify-end">
+            <div
+              className="grid h-full gap-2"
+              style={{
+                gridTemplateRows: "1fr 1fr",
+                gridAutoFlow: "column",
+                gridAutoColumns: `calc(100vw / ${TEAM_CARD_VW_DIVISOR})`,
+                width: "max-content",
+              }}
+            >
             {teamMembers.map((member) => {
               const photoUrl = sanityImageUrl(member.photo, 800) ?? PLACEHOLDER_IMAGE;
 
@@ -271,12 +294,21 @@ export default function SectionTeam({
                     }}
                   />
 
-                  <div className="absolute inset-x-0 bottom-0 z-10 flex flex-col gap-3 p-6">
+                  <div
+                    className="absolute inset-x-0 bottom-0 z-10 flex flex-col gap-1"
+                    style={{
+                      paddingTop: "1rem",
+                      paddingRight: "1rem",
+                      paddingBottom: "clamp(0.5rem, 1vw, 0.75rem)",
+                      paddingLeft: "clamp(0.75rem, 1.25vw, 1rem)",
+                    }}
+                  >
                     <div>
                       <p
-                        className="font-[family-name:var(--font-work-sans)] text-xs font-medium tracking-wider"
+                        className="font-[family-name:var(--font-work-sans)] font-medium tracking-wider"
                         style={{
                           color: "rgba(255,255,255,0.78)",
+                          fontSize: "clamp(0.625rem, 0.78vw, 0.75rem)",
                           textTransform: "lowercase",
                           fontVariant: "small-caps",
                         }}
@@ -284,14 +316,20 @@ export default function SectionTeam({
                         {member.role}
                       </p>
                       <h3
-                        className="font-[family-name:var(--font-manrope)] text-lg font-medium leading-tight md:text-xl"
-                        style={{ color: "rgba(255,255,255,0.98)" }}
+                        className="font-[family-name:var(--font-manrope)] font-medium leading-tight"
+                        style={{
+                          color: "rgba(255,255,255,0.98)",
+                          fontSize: "clamp(0.875rem, 1.25vw, 1.125rem)",
+                        }}
                       >
                         {member.name}
                       </h3>
                     </div>
                     {(member.email || member.phone) && (
-                      <div className="flex flex-col gap-1 font-[family-name:var(--font-work-sans)] text-sm">
+                      <div
+                        className="flex flex-col gap-1 font-[family-name:var(--font-work-sans)]"
+                        style={{ fontSize: "clamp(0.625rem, 0.78vw, 0.75rem)" }}
+                      >
                         {member.email && (
                           <span style={{ color: "rgba(255,255,255,0.92)" }}>
                             {member.email}
@@ -308,6 +346,7 @@ export default function SectionTeam({
                 </article>
               );
             })}
+            </div>
           </div>
         </div>
 
