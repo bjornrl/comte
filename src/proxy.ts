@@ -8,8 +8,13 @@ const NO_PREFIX = /^\/no(?=\/|$)/;
  * stamp x-locale=no on the request so server components can fetch the
  * Norwegian variant of each field. English ("/") is the default and goes
  * through untouched with x-locale=en.
+ *
+ * Must live in `src/` (next to `app/`) so Next picks it up — a root-level
+ * file is silently ignored when the app uses a `src/` directory. Named
+ * `proxy` per the Next 16 file convention (the former `middleware` name is
+ * deprecated).
  */
-export function middleware(request: NextRequest) {
+export function proxy(request: NextRequest) {
   const { pathname, search } = request.nextUrl;
   if (NO_PREFIX.test(pathname)) {
     const stripped = pathname.replace(NO_PREFIX, "") || "/";
