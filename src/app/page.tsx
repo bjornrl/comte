@@ -58,9 +58,14 @@ function mapInterstitial(raw: any) {
 function mapCardItem(doc: any): CardItem {
   return {
     _id: doc._id,
+    slug: doc.slug,
     title: resolveLocaleString(doc.title),
     description: resolveLocaleText(doc.description),
     image: doc.image,
+    // Mobile cards consume imageUrl directly; desktop also resolves from
+    // `image` via its own helper but having both means we never silently
+    // drop a photo if a consumer reads one but not the other.
+    imageUrl: sanityImageUrl(doc.image, 800),
   };
 }
 

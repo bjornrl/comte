@@ -6,7 +6,12 @@ import { useEffect, useRef, useState } from "react";
 import { type HomeData } from "../HomePageClient";
 import { type CardItem } from "../sections/SectionCardGrid";
 import { type Connection, type Domain, type Project } from "../projectNetworkData";
-import { LANDING_HERO_ACCENT } from "../homeLayout";
+import {
+  LANDING_HERO_ACCENT,
+  LANDING_HERO_TEXT,
+  LANDING_HOME_BG,
+  MOTTO_DEFAULT_BG,
+} from "../homeLayout";
 import { comteColors } from "@/lib/comte-colors";
 import MobileNav, { MOBILE_NAV_BOX_HEIGHT } from "./MobileNav";
 import { Map, MapMarker, MarkerContent } from "@/components/ui/map";
@@ -191,9 +196,9 @@ const PROJECT_VISIBLE_DOMAINS: Domain[] = [
 /* Mobile landing palette. Pulled from the brand palette in
  * src/lib/comte-colors.ts; independent of the desktop landing tokens
  * so the desktop home doesn't change. */
-const MOBILE_LANDING_BG = comteColors.darkGreen;
-const MOBILE_LANDING_TEXT = comteColors.lightBase;
-const MOBILE_LANDING_COMTE = comteColors.yellow;
+const MOBILE_LANDING_BG = LANDING_HOME_BG;
+const MOBILE_LANDING_TEXT = LANDING_HERO_TEXT;
+const MOBILE_LANDING_COMTE = LANDING_HERO_ACCENT;
 
 function SectionHomeMobile() {
   return (
@@ -263,7 +268,7 @@ function SectionMottoMobile() {
       // overflow visible so the heading can lift up out of the section and
       // sit on top of the lights iframe above. Sibling order in the DOM
       // (motto comes after lights) handles stacking — no z-index needed.
-      style={{ background: "#FFD2D2", color: "#1F3A32", overflow: "visible" }}
+      style={{ background: MOTTO_DEFAULT_BG, color: "#F5F5E9", overflow: "visible" }}
     >
       {/* Heading + paragraphs run edge-to-edge — no horizontal padding here.
           The heading is pulled up by a negative margin so its top half
@@ -281,16 +286,9 @@ function SectionMottoMobile() {
         Design to evolve
         <span style={{ color: LANDING_HERO_ACCENT }}>.</span>
       </h2>
-      <p
-        className="mt-10 text-[clamp(1rem,4.2vw,1.25rem)] leading-relaxed"
-      >
-        Placeholder sentence one — replace me with the real motto copy when
-        it&apos;s ready. This block runs all the way to both edges of the
-        viewport on purpose.
-      </p>
-      <p className="mt-6 text-[clamp(1rem,4.2vw,1.25rem)] leading-relaxed">
-        Placeholder sentence two — same treatment, second paragraph in the
-        rhythm. We&apos;ll swap these out once the final wording lands.
+      <p className="mt-10 text-[clamp(1rem,4.2vw,1.25rem)] leading-relaxed">
+        We help organizations adapt early, sharpen ideas, and turn them into action that creates
+        value for people, organizations, and society.
       </p>
     </section>
   );
@@ -305,7 +303,7 @@ function SectionAboutIntroMobile({
   whoAreWe,
 }: HomeData["aboutIntro"]) {
   return (
-    <section id="about-intro" className="relative flex w-full flex-col px-6 pb-16 sm:px-8" style={{ background: "#1F3A32", color: "#F9F9ED" }}>
+    <section id="about-intro" className="relative flex w-full flex-col px-6 pb-16 sm:px-8" style={{ background: "#FFD2D2", color: "#1F3A32" }}>
       {imageUrl ? (
         // Negative horizontal margins cancel out SECTION_BASE's px-6 / sm:px-8
         // so the image bleeds to both screen edges while the text below
@@ -458,7 +456,7 @@ function SectionWhatWeDoMobile({ textbox, datapoint1, datapoint2 }: HomeData["wh
     <section
       id="what-we-do"
       className={SECTION_BASE}
-      style={{ background: "#F4F4E8", color: "#1F3A32" }}
+      style={{ background: "#F5F5E9", color: "#1F3A32" }}
     >
       <h2
         className="mb-6 font-[var(--font-abhaya-libre)] leading-[0.95] tracking-tight"
@@ -531,6 +529,14 @@ function SectionProjectsMobile({
   projects: Project[];
 }) {
   const [activeFilter, setActiveFilter] = useState<Domain | null>(null);
+  // Filter chips are hidden behind a "filter" toggle by default — keeps
+  // the sticky header compact and matches the mobile-nav hamburger.
+  const [filterOpen, setFilterOpen] = useState(false);
+  // Page size for the "show more" pagination — six tiles (three rows of
+  // two) fits comfortably in the viewport before the user needs to ask
+  // for the next page.
+  const PAGE_SIZE = 6;
+  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
 
   const visibleProjects = projects.filter((p) =>
     PROJECT_VISIBLE_DOMAINS.includes(p.domain),
@@ -538,6 +544,24 @@ function SectionProjectsMobile({
   const filtered = activeFilter
     ? visibleProjects.filter((p) => p.domain === activeFilter)
     : visibleProjects;
+  const shown = filtered.slice(0, visibleCount);
+  const hasMore = filtered.length > shown.length;
+
+  const setFilter = (next: Domain | null) => {
+    setActiveFilter(next);
+    setVisibleCount(PAGE_SIZE);
+    // Close the chip menu after a pick so the tile grid takes back
+    // the screen — same UX as the mobile nav hamburger collapsing
+    // after a section jump.
+    setFilterOpen(false);
+  };
+
+  const activeLabel = activeFilter
+    ? PROJECT_DOMAIN_LABELS[activeFilter]
+    : null;
+  const activeColor = activeFilter
+    ? PROJECT_DOMAIN_COLORS[activeFilter]
+    : PROJECT_FG;
 
   return (
     <section
@@ -553,16 +577,12 @@ function SectionProjectsMobile({
         <span style={{ color: LANDING_HERO_ACCENT }}>.</span>
       </h2>
 
-      {/* Filter bar — same lowercase Work Sans + domain-colored outline
-          treatment as the desktop tag menu. Two columns on phones, three
-          once the viewport widens (tablet mobile). An "all" pill at the
-          top clears the filter.
-
-          The sticky wrapper keeps the filter row pinned just below the
-          fixed top nav while the projects section is in view, then
-          scrolls away with the section. Negative horizontal margins
-          extend the cream background to both screen edges so tiles
-          underneath are fully covered while pinned. */}
+      {/* Filter bar — single "filter" toggle pinned below the top nav
+          while the projects section is in view. Tapping reveals the
+          category chips with a staggered slide-in (mirrors the mobile
+          hamburger nav). Negative horizontal margins extend the section
+          background to both screen edges so tiles underneath stay
+          covered while the bar is sticky. */}
       <div
         className="sticky -mx-6 mb-6 sm:-mx-8"
         style={{
@@ -575,47 +595,151 @@ function SectionProjectsMobile({
           paddingRight: "1.5rem",
         }}
       >
-      <div className="grid grid-cols-2 gap-1 sm:grid-cols-3">
-        {PROJECT_VISIBLE_DOMAINS.map((domain) => {
-          const color = PROJECT_DOMAIN_COLORS[domain];
-          const isActive = activeFilter === domain;
-          return (
-            <button
-              key={domain}
-              type="button"
-              onClick={() =>
-                setActiveFilter((prev) => (prev === domain ? null : domain))
-              }
-              aria-pressed={isActive}
-              aria-label={`Filter by ${PROJECT_DOMAIN_LABELS[domain]}`}
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setFilterOpen((v) => !v)}
+            aria-expanded={filterOpen}
+            aria-controls="mobile-projects-filter-list"
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: 8,
+              padding: "8px 14px",
+              border: `1px solid ${activeColor}`,
+              background: filterOpen ? activeColor : "transparent",
+              color: filterOpen ? PROJECT_BG : activeColor,
+              fontFamily: "var(--font-work-sans), system-ui, sans-serif",
+              fontSize: "0.8125rem",
+              letterSpacing: "0.04em",
+              textTransform: "lowercase",
+              cursor: "pointer",
+              minHeight: 36,
+              lineHeight: 1.1,
+              transition:
+                "background 0.2s ease, color 0.2s ease, border-color 0.2s ease",
+            }}
+          >
+            <span>filter{activeLabel ? `: ${activeLabel.toLowerCase()}` : ""}</span>
+            {/* Chevron flips when the menu is open. */}
+            <span
+              aria-hidden
               style={{
-                padding: "8px 10px",
-                border: `1px solid ${color}`,
-                background: isActive ? color : "transparent",
-                color: isActive ? PROJECT_BG : color,
-                fontFamily: "var(--font-work-sans), system-ui, sans-serif",
-                fontSize: "0.85rem",
-                letterSpacing: "0.01em",
-                textTransform: "lowercase",
-                cursor: "pointer",
-                minHeight: 44,
-                lineHeight: 1.15,
-                textAlign: "left",
-                transition: "background 0.2s ease, color 0.2s ease",
+                display: "inline-block",
+                transform: filterOpen ? "rotate(180deg)" : "rotate(0deg)",
+                transition: "transform 0.2s ease",
+                fontSize: "0.625rem",
+                lineHeight: 1,
               }}
             >
-              {PROJECT_DOMAIN_LABELS[domain]}
+              ▾
+            </span>
+          </button>
+          {activeFilter ? (
+            <button
+              type="button"
+              onClick={() => setFilter(null)}
+              aria-label="Clear filter"
+              style={{
+                padding: "4px 8px",
+                border: "none",
+                background: "transparent",
+                color: PROJECT_FG,
+                fontFamily: "var(--font-work-sans), system-ui, sans-serif",
+                fontSize: "0.6875rem",
+                letterSpacing: "0.04em",
+                textTransform: "lowercase",
+                cursor: "pointer",
+                opacity: 0.7,
+              }}
+            >
+              clear
             </button>
-          );
-        })}
+          ) : null}
+        </div>
       </div>
+
+      {/* Chip list — collapses to zero height when closed, then expands
+          with a staggered slide-in per chip (matches the mobile nav
+          hamburger reveal). Not sticky; scrolls with the section. */}
+      <div
+        id="mobile-projects-filter-list"
+        aria-hidden={!filterOpen}
+        style={{
+          overflow: "hidden",
+          // 3 rows of ~52px chips + gaps + breathing room.
+          maxHeight: filterOpen ? 320 : 0,
+          marginBottom: filterOpen ? 24 : 0,
+          transition:
+            "max-height 380ms cubic-bezier(0.25, 1, 0.5, 1), margin-bottom 380ms cubic-bezier(0.25, 1, 0.5, 1)",
+        }}
+      >
+        {/* 3 × 3 grid — eight categories fill the first eight cells, the
+            last cell stays empty. Wider chips mean labels wrap on word
+            boundaries instead of mid-glyph, so no hyphenation needed. */}
+        <div className="grid grid-cols-3 gap-1">
+          {PROJECT_VISIBLE_DOMAINS.map((domain, i) => {
+            const color = PROJECT_DOMAIN_COLORS[domain];
+            const isActive = activeFilter === domain;
+            // Staggered slide-in mirroring MobileNav: items reveal left
+            // → right when opening, reverse when closing.
+            const STEP_MS = 35;
+            const BASE_MS = 380;
+            const reverseI = PROJECT_VISIBLE_DOMAINS.length - 1 - i;
+            const delay = filterOpen ? i * STEP_MS : reverseI * STEP_MS;
+            return (
+              <button
+                key={domain}
+                type="button"
+                onClick={() => setFilter(isActive ? null : domain)}
+                aria-pressed={isActive}
+                aria-label={`Filter by ${PROJECT_DOMAIN_LABELS[domain]}`}
+                tabIndex={filterOpen ? 0 : -1}
+                style={{
+                  // Flex with both-axis centering so the wrapped lines of
+                  // long labels (e.g. "Inclusion & Participation") sit
+                  // visually centered inside the chip.
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  padding: "10px 10px",
+                  border: `1px solid ${color}`,
+                  background: isActive ? color : "transparent",
+                  color: isActive ? PROJECT_BG : color,
+                  fontFamily: "var(--font-work-sans), system-ui, sans-serif",
+                  fontSize: "0.8125rem",
+                  letterSpacing: "0.01em",
+                  textTransform: "lowercase",
+                  cursor: "pointer",
+                  minHeight: 52,
+                  lineHeight: 1.15,
+                  textAlign: "center",
+                  // Wrap on word boundaries only — no mid-word breaks.
+                  overflowWrap: "normal",
+                  wordBreak: "normal",
+                  hyphens: "none",
+                  opacity: filterOpen ? 1 : 0,
+                  transform: filterOpen
+                    ? "translateY(0)"
+                    : "translateY(-8px)",
+                  pointerEvents: filterOpen ? "auto" : "none",
+                  transition: `background 0.2s ease, color 0.2s ease, opacity ${BASE_MS}ms cubic-bezier(0.25, 1, 0.5, 1) ${delay}ms, transform ${BASE_MS}ms cubic-bezier(0.25, 1, 0.5, 1) ${delay}ms`,
+                }}
+              >
+                {PROJECT_DOMAIN_LABELS[domain]}
+              </button>
+            );
+          })}
+        </div>
       </div>
 
       {/* Tile grid — domain-bordered cards matching the desktop tile view,
           stacked 2 columns wide on mobile. Title block holds up to 5
-          lines like the desktop tile. */}
+          lines like the desktop tile. Renders the first `visibleCount`
+          tiles; the rest sit behind the "Show more" button below. */}
       <div className="grid grid-cols-2 gap-1">
-        {filtered.map((p) => {
+        {shown.map((p) => {
           const color = PROJECT_DOMAIN_COLORS[p.domain];
           // PROJECTS_QUERY maps gallery[0].asset->url to heroImageUrl;
           // fall back to the explicit gallery list if the projection
@@ -685,6 +809,29 @@ function SectionProjectsMobile({
         })}
       </div>
 
+      {hasMore ? (
+        <button
+          type="button"
+          onClick={() => setVisibleCount((c) => c + PAGE_SIZE)}
+          className="mt-6 inline-flex items-center justify-center self-center"
+          style={{
+            minHeight: 44,
+            padding: "10px 20px",
+            border: `1px solid ${PROJECT_FG}`,
+            background: "transparent",
+            color: PROJECT_FG,
+            fontFamily: "var(--font-work-sans), system-ui, sans-serif",
+            fontSize: "0.8125rem",
+            letterSpacing: "0.04em",
+            textTransform: "lowercase",
+            cursor: "pointer",
+            transition: "background 0.2s ease, color 0.2s ease",
+          }}
+        >
+          Show more ({filtered.length - shown.length} left)
+        </button>
+      ) : null}
+
       {filtered.length === 0 ? (
         <p
           className="mt-8 text-sm"
@@ -709,8 +856,8 @@ function SectionTeamMobile({
       id="team"
       className="relative flex w-full flex-col px-6 pb-16 sm:px-8"
       style={{
-        background: comteColors.yellow,
-        color: "#1F3A32",
+        background: "#5F7C8B",
+        color: "#F5F5E9",
         // visible so the heading can lift up out of the section onto
         // whatever sits above it.
         overflow: "visible",
@@ -721,6 +868,7 @@ function SectionTeamMobile({
         style={{
           fontSize: "clamp(4.5rem, 22vw, 10rem)",
           marginTop: "clamp(-3rem, -6vw, -1.25rem)",
+          color: comteColors.darkGreen,
         }}
       >
         {heading ?? "Team"}
@@ -781,13 +929,14 @@ function SectionPublicationsMobile({
     <section
       id="publications"
       className="relative flex w-full flex-col px-6 pb-16 sm:px-8"
-      style={{ background: "#FFD2D2", color: "#1F3A32", overflow: "visible" }}
+      style={{ background: "#F5F5E9", color: "#5A7482", overflow: "visible" }}
     >
       <h2
         className="relative mb-4 -mx-6 font-[var(--font-abhaya-libre)] leading-[0.9] tracking-tight sm:-mx-8"
         style={{
-          fontSize: "clamp(4.5rem, 22vw, 10rem)",
+          fontSize: "clamp(5rem, 26vw, 12rem)",
           marginTop: "clamp(-3rem, -6vw, -1.25rem)",
+          color: "#FFD2D2",
           // Allow this single long word to break mid-glyph when it
           // exceeds the viewport width.
           overflowWrap: "anywhere",
@@ -1003,8 +1152,8 @@ function SectionContactMobile({
       id="contact"
       className="relative flex w-full flex-col px-6 sm:px-8"
       style={{
-        background: comteColors.darkGreen,
-        color: comteColors.lightBase,
+        background: comteColors.mutedGreen,
+        color: "#F5F5E9",
         overflow: "visible",
       }}
     >
