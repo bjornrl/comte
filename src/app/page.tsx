@@ -38,6 +38,7 @@ import {
   resolveLocaleText,
 } from "@/sanity/lib/locale";
 import { FALLBACK_PROJECTS } from "@/lib/fallbacks";
+import type { Locale } from "@/lib/locale";
 import { getServerLocale } from "@/lib/locale-server";
 import type { CardItem } from "@/app/components/sections/SectionCardGrid";
 
