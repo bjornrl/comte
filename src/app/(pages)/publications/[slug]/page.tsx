@@ -1,13 +1,16 @@
-export const revalidate = 60;
+import { redirect } from "next/navigation";
 
-import { notFound } from "next/navigation";
-import ResponsiveNav from "@/app/components/ResponsiveNav";
-import Footer from "@/app/components/Footer";
-import PublicationDetailContent from "@/app/components/PublicationDetailContent";
-import { client } from "@/sanity/lib/client";
-import { PUBLICATION_DETAIL_QUERY } from "@/sanity/lib/queries";
-import { getServerLocale } from "@/lib/locale-server";
-
+/**
+ * Standalone publication route — redirects to the homepage so the
+ * `(.)publications/[slug]` intercept can take over and render the
+ * bottom-sheet modal. Used by:
+ *   - shared / bookmarked links to /publications/<slug>
+ *   - browser-back from Stripe checkout
+ *   - Stripe's cancel_url
+ *
+ * The `openpub` query is read by `useReopenPublicationModal` in
+ * `ResponsiveHome` to fire the soft-nav that triggers the intercept.
+ */
 export default async function PublicationPage({
   params,
   searchParams,
@@ -17,24 +20,7 @@ export default async function PublicationPage({
 }) {
   const { slug } = await params;
   const { canceled } = await searchParams;
-  const locale = await getServerLocale();
-
-  let publication: any = null;
-  try {
-    publication = await client.fetch(PUBLICATION_DETAIL_QUERY, { slug, locale });
-  } catch {}
-
-  if (!publication) return notFound();
-
-  return (
-    <div className="min-h-svh">
-      <ResponsiveNav activeSection="publications" />
-      <PublicationDetailContent
-        publication={publication}
-        canceled={Boolean(canceled)}
-        variant="page"
-      />
-      <Footer />
-    </div>
-  );
+  const qs = new URLSearchParams({ openpub: slug });
+  if (canceled) qs.set("canceled", "1");
+  redirect(`/?${qs.toString()}`);
 }

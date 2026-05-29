@@ -640,9 +640,10 @@ export default function BlobNav({
             {publicationsItemView.itemTitle || "back to overview"}
           </button>
         )}
-        {/* Logo */}
+        {/* Logo — always links to `/`; on the homepage we intercept and
+            smooth-scroll to the home section instead of reloading. */}
         <a
-          href="#home"
+          href="/"
           onClick={(e) => {
             e.preventDefault();
             navigate("home");

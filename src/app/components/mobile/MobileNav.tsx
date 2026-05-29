@@ -72,16 +72,8 @@ type Props = {
  */
 export default function MobileNav({ activeSection }: Props) {
   const [open, setOpen] = useState(false);
-
-  // Body scroll lock while the drawer is open.
-  useEffect(() => {
-    if (!open) return;
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    return () => {
-      document.body.style.overflow = prev;
-    };
-  }, [open]);
+  const pathname = usePathname() ?? "/";
+  const isHome = pathname === "/" || pathname === "/no";
 
   // Close on Escape for keyboard users.
   useEffect(() => {
@@ -111,10 +103,12 @@ export default function MobileNav({ activeSection }: Props) {
         className="fixed left-0 right-0 top-0 z-[100] flex items-center justify-between px-4 py-3"
         style={{ pointerEvents: "none" }}
       >
-        {/* Logo */}
+        {/* Logo — always links to the locale's homepage; if we're already
+            on it we intercept and smooth-scroll to the home section. */}
         <a
-          href="#home"
+          href={pathname.startsWith("/no") ? "/no" : "/"}
           onClick={(e) => {
+            if (!isHome) return;
             e.preventDefault();
             navigate("home");
           }}
@@ -162,19 +156,15 @@ export default function MobileNav({ activeSection }: Props) {
         </div>
       </div>
 
-      {/* Drawer */}
+      {/* Drawer — buttons float over the page; the wrapper never
+          captures pointer events so the user can scroll the content
+          underneath while the nav is open. */}
       <div
         id="comte-mobile-nav-items"
-        role="dialog"
-        aria-modal="true"
         aria-hidden={!open}
-        className="fixed inset-0 z-[99]"
+        className="fixed inset-x-0 top-0 z-[99]"
         style={{
-          // Wrapper itself never animates — the per-button slide-in below
-          // is what reads as the drawer "opening". Pointer events flip
-          // synchronously so the back-half of the closing animation
-          // doesn't keep capturing taps.
-          pointerEvents: open ? "auto" : "none",
+          pointerEvents: "none",
           background: "transparent",
         }}
       >
@@ -206,6 +196,7 @@ export default function MobileNav({ activeSection }: Props) {
                   opacity: open ? 1 : 0,
                   transition: `transform ${BASE_MS}ms cubic-bezier(0.25, 1, 0.5, 1) ${delay}ms, opacity ${BASE_MS}ms cubic-bezier(0.25, 1, 0.5, 1) ${delay}ms`,
                   willChange: "transform",
+                  pointerEvents: open ? "auto" : "none",
                 }}
               >
                 <button

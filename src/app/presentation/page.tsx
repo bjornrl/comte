@@ -4,6 +4,7 @@ import {
   SERVICE_CATEGORIES_QUERY,
 } from "@/sanity/lib/queries";
 import { urlFor } from "@/sanity/lib/image";
+import { getServerLocale } from "@/lib/locale-server";
 import PresentationBuilder from "@/components/presentation/PresentationBuilder";
 
 export const revalidate = 60;
@@ -13,8 +14,9 @@ export default async function PresentationPage() {
   let categories: any[] = [];
 
   try {
+    const locale = await getServerLocale();
     [projects, categories] = await Promise.all([
-      client.fetch(PRESENTATION_PROJECTS_QUERY),
+      client.fetch(PRESENTATION_PROJECTS_QUERY, { locale }),
       client.fetch(SERVICE_CATEGORIES_QUERY),
     ]);
   } catch (error) {

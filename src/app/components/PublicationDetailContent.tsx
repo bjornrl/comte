@@ -107,33 +107,31 @@ export default function PublicationDetailContent({
         className="w-full px-4 py-10 sm:px-6 md:px-12 lg:px-24 md:py-16 flex flex-col items-start gap-6"
         style={{ background: "#FFD2D2", color: "#1F3A32" }}
       >
-        <div className="flex flex-col gap-2">
-          <span className="text-xs font-medium uppercase tracking-[0.15em] opacity-70 sm:text-sm">
-            {isFree ? "Download" : "Order"}
-          </span>
-          <h2
-            className="font-[family-name:var(--font-manrope)] font-bold leading-tight"
-            style={{ fontSize: "clamp(1.5rem, 6vw, 3rem)" }}
-          >
-            {isFree
-              ? "This publication is free to download."
-              : `Get your copy for ${formatPriceNOK(price)}.`}
-          </h2>
-          {!isFree && (
-            <p className="font-[family-name:var(--font-manrope)] text-base font-light max-w-prose">
-              Pay securely with Stripe. You&apos;ll get an immediate download
-              link after checkout and a receipt by email.
-            </p>
-          )}
-          {canceled && (
-            <p
-              className="font-[family-name:var(--font-manrope)] text-sm font-medium"
-              style={{ color: "#FF5252" }}
-            >
-              Checkout was canceled — no payment was taken.
-            </p>
-          )}
-        </div>
+        {(isFree || canceled) && (
+          <div className="flex flex-col gap-2">
+            {isFree && (
+              <>
+                <span className="text-xs font-medium uppercase tracking-[0.15em] opacity-70 sm:text-sm">
+                  Download
+                </span>
+                <h2
+                  className="font-[family-name:var(--font-manrope)] font-bold leading-tight"
+                  style={{ fontSize: "clamp(1.5rem, 6vw, 3rem)" }}
+                >
+                  This publication is free to download.
+                </h2>
+              </>
+            )}
+            {canceled && (
+              <p
+                className="font-[family-name:var(--font-manrope)] text-sm font-medium"
+                style={{ color: "#FF5252" }}
+              >
+                Checkout was canceled — no payment was taken.
+              </p>
+            )}
+          </div>
+        )}
 
         {isFree ? (
           pdfUrl ? (
@@ -165,7 +163,10 @@ export default function PublicationDetailContent({
             </div>
           )
         ) : (
-          <BuyButton slug={publication.slug} priceLabel={formatPriceNOK(price)} />
+          <BuyButton
+            slug={publication.slug}
+            priceLabel={formatPriceNOK(price)}
+          />
         )}
       </div>
 

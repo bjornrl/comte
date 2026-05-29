@@ -286,7 +286,7 @@ function SectionMottoMobile() {
         Design to evolve
         <span style={{ color: LANDING_HERO_ACCENT }}>.</span>
       </h2>
-      <p className="mt-10 text-[clamp(1rem,4.2vw,1.25rem)] leading-relaxed">
+      <p className="mt-10 px-6 sm:px-8 text-[clamp(1rem,4.2vw,1.25rem)] leading-relaxed">
         We help organizations adapt early, sharpen ideas, and turn them into action that creates
         value for people, organizations, and society.
       </p>
@@ -481,8 +481,8 @@ function SectionWhatWeDoMobile({ textbox, datapoint1, datapoint2 }: HomeData["wh
           {datapoints.map((d, i) => {
             const p = circlePlacements[i] ?? circlePlacements[0];
             const isProjects = i === 1;
-            const background = isProjects ? comteColors.yellow : LANDING_HERO_ACCENT;
-            const fg = isProjects ? comteColors.darkGreen : "#F4F4E8";
+            const background = isProjects ? "#FBFF00" : LANDING_HERO_ACCENT;
+            const fg = isProjects ? comteColors.darkGreen : "#F5F5E9";
             return (
               <div
                 key={i}
@@ -617,8 +617,7 @@ function SectionProjectsMobile({
               cursor: "pointer",
               minHeight: 36,
               lineHeight: 1.1,
-              transition:
-                "background 0.2s ease, color 0.2s ease, border-color 0.2s ease",
+              transition: "background 0.2s ease, color 0.2s ease, border-color 0.2s ease",
             }}
           >
             <span>filter{activeLabel ? `: ${activeLabel.toLowerCase()}` : ""}</span>
@@ -678,7 +677,7 @@ function SectionProjectsMobile({
         {/* 3 × 3 grid — eight categories fill the first eight cells, the
             last cell stays empty. Wider chips mean labels wrap on word
             boundaries instead of mid-glyph, so no hyphenation needed. */}
-        <div className="grid grid-cols-3 gap-1">
+        <div className="grid grid-cols-2 gap-1">
           {PROJECT_VISIBLE_DOMAINS.map((domain, i) => {
             const color = PROJECT_DOMAIN_COLORS[domain];
             const isActive = activeFilter === domain;
@@ -720,9 +719,7 @@ function SectionProjectsMobile({
                   wordBreak: "normal",
                   hyphens: "none",
                   opacity: filterOpen ? 1 : 0,
-                  transform: filterOpen
-                    ? "translateY(0)"
-                    : "translateY(-8px)",
+                  transform: filterOpen ? "translateY(0)" : "translateY(-8px)",
                   pointerEvents: filterOpen ? "auto" : "none",
                   transition: `background 0.2s ease, color 0.2s ease, opacity ${BASE_MS}ms cubic-bezier(0.25, 1, 0.5, 1) ${delay}ms, transform ${BASE_MS}ms cubic-bezier(0.25, 1, 0.5, 1) ${delay}ms`,
                 }}
@@ -738,7 +735,7 @@ function SectionProjectsMobile({
           stacked 2 columns wide on mobile. Title block holds up to 5
           lines like the desktop tile. Renders the first `visibleCount`
           tiles; the rest sit behind the "Show more" button below. */}
-      <div className="grid grid-cols-2 gap-1">
+      <div className="grid grid-cols-1 gap-1">
         {shown.map((p) => {
           const color = PROJECT_DOMAIN_COLORS[p.domain];
           // PROJECTS_QUERY maps gallery[0].asset->url to heroImageUrl;
@@ -833,10 +830,7 @@ function SectionProjectsMobile({
       ) : null}
 
       {filtered.length === 0 ? (
-        <p
-          className="mt-8 text-sm"
-          style={{ color: PROJECT_FG, opacity: 0.65 }}
-        >
+        <p className="mt-8 text-sm" style={{ color: PROJECT_FG, opacity: 0.65 }}>
           No projects in this category yet.
         </p>
       ) : null}

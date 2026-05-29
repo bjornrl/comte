@@ -1,6 +1,8 @@
 "use client";
 
 import dynamic from "next/dynamic";
+import { useEffect } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import HomePageClient, { type HomeData } from "./HomePageClient";
 import { useIsMobile } from "../hooks/useIsMobile";
 import { type Connection, type Project } from "./projectNetworkData";
@@ -34,6 +36,7 @@ type Props = {
  */
 export default function ResponsiveHome(props: Props) {
   const isMobile = useIsMobile();
+  useReopenPublicationModal();
 
   if (isMobile === null) return null;
   if (isMobile) {
@@ -55,4 +58,27 @@ export default function ResponsiveHome(props: Props) {
       connections={props.connections}
     />
   );
+}
+
+/**
+ * Reopens the publication bottom-sheet modal when the homepage is hit
+ * with `?openpub=<slug>`. Used by the standalone publication page when
+ * the user returns from Stripe so the experience snaps back to the
+ * intercepting modal route rather than leaving them on the full page.
+ *
+ * `router.replace` (not `push`) so the `?openpub` history entry is
+ * overwritten — otherwise the browser back button would loop the user
+ * straight back into this hook.
+ */
+function useReopenPublicationModal() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const openPub = searchParams?.get("openpub") ?? null;
+  const canceled = searchParams?.get("canceled") ?? null;
+
+  useEffect(() => {
+    if (!openPub) return;
+    const target = `/publications/${openPub}${canceled ? "?canceled=1" : ""}`;
+    router.replace(target);
+  }, [openPub, canceled, router]);
 }

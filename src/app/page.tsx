@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import { client } from "@/sanity/lib/client";
 import {
   HOME_SECTION_QUERY,
@@ -299,12 +300,14 @@ export default async function Home() {
     : [];
 
   return (
-    <ResponsiveHome
-      data={data}
-      projects={projects}
-      connections={connections}
-      mobileContactLocations={mobileContactLocations}
-    />
+    <Suspense fallback={null}>
+      <ResponsiveHome
+        data={data}
+        projects={projects}
+        connections={connections}
+        mobileContactLocations={mobileContactLocations}
+      />
+    </Suspense>
   );
 }
 
