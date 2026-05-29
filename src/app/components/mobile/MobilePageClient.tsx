@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { type HomeData } from "../HomePageClient";
 import { type CardItem } from "../sections/SectionCardGrid";
 import { type Connection, type Domain, type Project } from "../projectNetworkData";
@@ -200,7 +200,39 @@ const MOBILE_LANDING_BG = LANDING_HOME_BG;
 const MOBILE_LANDING_TEXT = LANDING_HERO_TEXT;
 const MOBILE_LANDING_COMTE = LANDING_HERO_ACCENT;
 
+/** Matches the hamburger control in MobileNav (right edge of the nav bar). */
+const MOBILE_NAV_HAMBURGER_SELECTOR =
+  'button[aria-controls="comte-mobile-nav-items"]';
+
 function SectionHomeMobile() {
+  const headingRef = useRef<HTMLHeadingElement>(null);
+  const dotRef = useRef<HTMLSpanElement>(null);
+  const [dotLeftPx, setDotLeftPx] = useState<number | null>(null);
+
+  useLayoutEffect(() => {
+    const measureDotLeft = () => {
+      const dot = dotRef.current;
+      const heading = headingRef.current;
+      const hamburger = document.querySelector<HTMLElement>(
+        MOBILE_NAV_HAMBURGER_SELECTOR,
+      );
+      if (!dot || !heading || !hamburger) return;
+
+      const hamburgerRect = hamburger.getBoundingClientRect();
+      const headingLeft = heading.getBoundingClientRect().left;
+      const dotWidth = dot.getBoundingClientRect().width;
+      setDotLeftPx(hamburgerRect.right - headingLeft - dotWidth);
+    };
+
+    measureDotLeft();
+    requestAnimationFrame(() => {
+      requestAnimationFrame(measureDotLeft);
+    });
+
+    window.addEventListener("resize", measureDotLeft);
+    return () => window.removeEventListener("resize", measureDotLeft);
+  }, []);
+
   return (
     <section
       id="home"
@@ -214,22 +246,34 @@ function SectionHomeMobile() {
     >
       <div className="mt-auto">
         <h1
-          className="font-[var(--font-abhaya-libre)] leading-[0.95] tracking-tight"
+          ref={headingRef}
+          className="relative font-[var(--font-abhaya-libre)] leading-[0.95] tracking-tight"
           style={{
             fontSize: "clamp(3.5rem, 18vw, 7rem)",
             color: MOBILE_LANDING_TEXT,
           }}
         >
+          <span
+            ref={dotRef}
+            aria-hidden="true"
+            data-hero-anchor=""
+            style={{
+              position: "absolute",
+              top: "-0.15em",
+              left: dotLeftPx ?? 0,
+              width: "0.28em",
+              height: "0.28em",
+              borderRadius: "9999px",
+              background: LANDING_HERO_ACCENT,
+            }}
+          />
           <span className="block" style={{ color: MOBILE_LANDING_COMTE }}>
             comte
           </span>
           <span className="block">creates</span>
           <span className="block">change</span>
           <span className="block">that</span>
-          <span className="block">
-            matters
-            <span style={{ color: LANDING_HERO_ACCENT }}>.</span>
-          </span>
+          <span className="block">matters</span>
         </h1>
       </div>
     </section>
@@ -284,7 +328,6 @@ function SectionMottoMobile() {
         }}
       >
         Design to evolve
-        <span style={{ color: LANDING_HERO_ACCENT }}>.</span>
       </h2>
       <p className="mt-10 px-6 sm:px-8 text-[clamp(1rem,4.2vw,1.25rem)] leading-relaxed">
         We help organizations adapt early, sharpen ideas, and turn them into action that creates
@@ -463,7 +506,6 @@ function SectionWhatWeDoMobile({ textbox, datapoint1, datapoint2 }: HomeData["wh
         style={{ fontSize: "clamp(3rem, 12vw, 5rem)" }}
       >
         What we do
-        <span style={{ color: LANDING_HERO_ACCENT }}>.</span>
       </h2>
       {textbox ? (
         <p className="mb-12 max-w-prose text-[clamp(1rem,4vw,1.125rem)] leading-relaxed">
@@ -574,7 +616,6 @@ function SectionProjectsMobile({
         style={{ fontSize: "clamp(3rem, 12vw, 5rem)" }}
       >
         {heading ?? "Projects"}
-        <span style={{ color: LANDING_HERO_ACCENT }}>.</span>
       </h2>
 
       {/* Filter bar — single "filter" toggle pinned below the top nav
@@ -866,7 +907,6 @@ function SectionTeamMobile({
         }}
       >
         {heading ?? "Team"}
-        <span style={{ color: LANDING_HERO_ACCENT }}>.</span>
       </h2>
       {/*
         Horizontal scroller: 2 rows × N auto-columns. grid-auto-flow:column
@@ -938,7 +978,6 @@ function SectionPublicationsMobile({
         }}
       >
         {heading ?? "Publications"}
-        <span style={{ color: LANDING_HERO_ACCENT }}>.</span>
       </h2>
       {body ? (
         <p className="mb-8 max-w-prose text-[clamp(1rem,4vw,1.125rem)] leading-relaxed">
@@ -1160,7 +1199,6 @@ function SectionContactMobile({
         }}
       >
         Contact
-        <span style={{ color: LANDING_HERO_ACCENT }}>.</span>
       </h2>
       <div className="mb-14">
         <h3
