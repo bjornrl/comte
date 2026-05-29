@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { Locale } from "@/lib/locale";
 import { localizedPath } from "@/lib/locale";
@@ -53,10 +52,15 @@ export default function LocaleToggle({
     ? "Switch to English"
     : "Bytt til norsk (Switch to Norwegian)";
 
+  // A plain <a> (full document navigation) rather than next/link: the locale
+  // lives in the x-locale header that proxy.ts sets from the /no URL prefix,
+  // but /no rewrites to the same "/" route tree. A soft client navigation
+  // changes the URL without re-running the server render, so the content never
+  // switches language. A hard navigation re-renders server-side with the new
+  // locale. (Switching language is rare, so the full reload is acceptable.)
   return (
-    <Link
+    <a
       href={href}
-      prefetch={false}
       aria-label={ariaLabel}
       className="focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#F5F5E9]"
       style={{
@@ -93,6 +97,6 @@ export default function LocaleToggle({
       }}
     >
       {label}
-    </Link>
+    </a>
   );
 }
