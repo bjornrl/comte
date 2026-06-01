@@ -26,8 +26,6 @@ export const NAV_ITEMS: NavItem[] = [
 
 const BOX_BG = "#F5F5E9";
 const BOX_FG = "#5A7482";
-const BOX_HOVER_BG = "#FF5252";
-const NAV_ITEM_BG = "#5A7482";
 const NAV_ITEM_FG = "#F4F4E8";
 const BOX_HEIGHT = 42; // every nav box (logo, hamburger, nav items, contact) shares this height
 
@@ -374,8 +372,9 @@ export default function BlobNav({
 
   const backButtonMounted =
     backButtonState !== "closed" && !!slotBackButton;
-  const measuredTitleWidth =
-    backButtonContentWidthRef.current || backButtonContentWidth;
+  // Use the state value (not the ref) during render — the ref mirrors this
+  // state and reading a ref's `.current` during render is unsafe.
+  const measuredTitleWidth = backButtonContentWidth;
   const backButtonWrapperWidth =
     backButtonState === "open"
       ? measuredTitleWidth
@@ -561,7 +560,7 @@ export default function BlobNav({
   // Use max(computed, measured) so shrink animations never clip mid-flight.
   const backButtonLayoutWidth = (() => {
     if (!backButtonMounted) return 0;
-    return backButtonContentWidthRef.current || backButtonContentWidth;
+    return backButtonContentWidth;
   })();
 
   const computedRowWidth =

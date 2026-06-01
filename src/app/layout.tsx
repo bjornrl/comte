@@ -30,21 +30,49 @@ const roboto = Roboto({
   weight: ["400", "500", "700"],
 });
 
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://comte.no";
+
 export async function generateMetadata(): Promise<Metadata> {
   const locale = await getServerLocale();
   let settings = null;
   try {
     settings = await client.fetch(SITE_SETTINGS_QUERY, { locale });
   } catch {}
+  const title = settings?.siteName ?? FALLBACK_SITE_SETTINGS.siteName;
+  const description =
+    settings?.siteDescription ?? FALLBACK_SITE_SETTINGS.siteDescription;
   return {
-    title: settings?.siteName ?? FALLBACK_SITE_SETTINGS.siteName,
-    description: settings?.siteDescription ?? FALLBACK_SITE_SETTINGS.siteDescription,
+    metadataBase: new URL(SITE_URL),
+    title,
+    description,
+    openGraph: {
+      type: "website",
+      siteName: title,
+      title,
+      description,
+      url: SITE_URL,
+      locale: locale === "no" ? "nb_NO" : "en_US",
+      images: [
+        {
+          url: "/social-images/comte-social-1.jpg",
+          width: 1200,
+          height: 630,
+          alt: title,
+        },
+      ],
+    },
+    twitter: {
+      card: "summary_large_image",
+      title,
+      description,
+      images: ["/social-images/comte-social-1.jpg"],
+    },
   };
 }
 
 export const revalidate = 60;
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
   modal,
 }: Readonly<{
@@ -54,11 +82,15 @@ export default function RootLayout({
    *  satisfiable even before Next regenerates after adding @modal. */
   modal?: React.ReactNode;
 }>) {
+  const locale = await getServerLocale();
   return (
-    <html lang="en">
+    <html lang={locale}>
       <body
         className={`${manrope.variable} ${abhayaLibre.variable} ${workSans.variable} ${roboto.variable} antialiased`}
       >
+        <a href="#main-content" className="skip-to-content">
+          {locale === "no" ? "Hopp til innhold" : "Skip to content"}
+        </a>
         {children}
         {modal}
       </body>

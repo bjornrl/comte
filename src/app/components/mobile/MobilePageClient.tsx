@@ -2,8 +2,10 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { type HomeData } from "../HomePageClient";
+import { type InterstitialData } from "../sections/Interstitial";
+import { urlFor } from "@/sanity/lib/image";
 import { type CardItem } from "../sections/SectionCardGrid";
 import { type Connection, type Domain, type Project } from "../projectNetworkData";
 import {
@@ -124,10 +126,11 @@ export default function MobilePageClient({
         <SectionFlowMobile />
         <SectionMottoMobile />
         <SectionAboutIntroMobile {...data.aboutIntro} />
-        <SectionImagePlaceholderMobile
-          imageUrl={data.aboutIntro.imageUrl}
-          imageAlt={data.aboutIntro.imageAlt}
-        />
+        {/*
+          Desktop: the video lives on what-we-do's interstitial (narrow panel
+          immediately before the what-we-do snap), not on aboutIntro.
+        */}
+        <SectionImagePlaceholderMobile interstitial={data.whatWeDo.interstitial} />
         <SectionWhatWeDoMobile {...data.whatWeDo} />
         <SectionProjectsMobile
           heading={data.projects.heading}
@@ -175,7 +178,7 @@ const PROJECT_DOMAIN_LABELS: Record<Domain, string> = {
   health: "Health & Care",
   education: "Childhood & Education",
   integration: "Inclusion & Participation",
-  urban: "Spaces & Places",
+  urban: "Urban Development",
   climate: "Climate & Sustainability",
   digital: "Digital Transformation",
   culture: "Culture",
@@ -200,39 +203,7 @@ const MOBILE_LANDING_BG = LANDING_HOME_BG;
 const MOBILE_LANDING_TEXT = LANDING_HERO_TEXT;
 const MOBILE_LANDING_COMTE = LANDING_HERO_ACCENT;
 
-/** Matches the hamburger control in MobileNav (right edge of the nav bar). */
-const MOBILE_NAV_HAMBURGER_SELECTOR =
-  'button[aria-controls="comte-mobile-nav-items"]';
-
 function SectionHomeMobile() {
-  const headingRef = useRef<HTMLHeadingElement>(null);
-  const dotRef = useRef<HTMLSpanElement>(null);
-  const [dotLeftPx, setDotLeftPx] = useState<number | null>(null);
-
-  useLayoutEffect(() => {
-    const measureDotLeft = () => {
-      const dot = dotRef.current;
-      const heading = headingRef.current;
-      const hamburger = document.querySelector<HTMLElement>(
-        MOBILE_NAV_HAMBURGER_SELECTOR,
-      );
-      if (!dot || !heading || !hamburger) return;
-
-      const hamburgerRect = hamburger.getBoundingClientRect();
-      const headingLeft = heading.getBoundingClientRect().left;
-      const dotWidth = dot.getBoundingClientRect().width;
-      setDotLeftPx(hamburgerRect.right - headingLeft - dotWidth);
-    };
-
-    measureDotLeft();
-    requestAnimationFrame(() => {
-      requestAnimationFrame(measureDotLeft);
-    });
-
-    window.addEventListener("resize", measureDotLeft);
-    return () => window.removeEventListener("resize", measureDotLeft);
-  }, []);
-
   return (
     <section
       id="home"
@@ -246,34 +217,22 @@ function SectionHomeMobile() {
     >
       <div className="mt-auto">
         <h1
-          ref={headingRef}
-          className="relative font-[var(--font-abhaya-libre)] leading-[0.95] tracking-tight"
+          className="font-[var(--font-abhaya-libre)] leading-[0.95] tracking-tight"
           style={{
             fontSize: "clamp(3.5rem, 18vw, 7rem)",
             color: MOBILE_LANDING_TEXT,
           }}
         >
-          <span
-            ref={dotRef}
-            aria-hidden="true"
-            data-hero-anchor=""
-            style={{
-              position: "absolute",
-              top: "-0.15em",
-              left: dotLeftPx ?? 0,
-              width: "0.28em",
-              height: "0.28em",
-              borderRadius: "9999px",
-              background: LANDING_HERO_ACCENT,
-            }}
-          />
           <span className="block" style={{ color: MOBILE_LANDING_COMTE }}>
             comte
           </span>
           <span className="block">creates</span>
           <span className="block">change</span>
           <span className="block">that</span>
-          <span className="block">matters</span>
+          <span className="block">
+            matters
+            <span style={{ color: LANDING_HERO_ACCENT }}>.</span>
+          </span>
         </h1>
       </div>
     </section>
@@ -328,6 +287,7 @@ function SectionMottoMobile() {
         }}
       >
         Design to evolve
+        <span style={{ color: LANDING_HERO_ACCENT }}>.</span>
       </h2>
       <p className="mt-10 px-6 sm:px-8 text-[clamp(1rem,4.2vw,1.25rem)] leading-relaxed">
         We help organizations adapt early, sharpen ideas, and turn them into action that creates
@@ -389,22 +349,30 @@ function SectionAboutIntroMobile({
   );
 }
 
+function interstitialImageUrl(imageField: InterstitialData["image"]): string | undefined {
+  if (!imageField?.asset) return undefined;
+  return urlFor(imageField).width(1600).auto("format").quality(80).url();
+}
+
 /**
- * Full-bleed placeholder image slot between the about-intro and
- * what-we-do sections. Will be swapped for a real CMS image later.
+ * Full-bleed media between about-intro and what-we-do — mirrors the desktop
+ * what-we-do interstitial (video preferred, image fallback) — same CMS
+ * field as the narrow panel before the what-we-do section on desktop.
  *
  * Adds a light scroll-parallax: the inner stripe layer is taller than
- * the visible frame and translates Y at a fraction of the page scroll,
- * so the pattern drifts as the section passes through the viewport.
+ * the visible frame and translates Y at a fraction of the page scroll.
  * Respects prefers-reduced-motion.
  */
 function SectionImagePlaceholderMobile({
-  imageUrl,
-  imageAlt,
+  interstitial,
 }: {
-  imageUrl?: string;
-  imageAlt?: string;
+  interstitial?: InterstitialData;
 }) {
+  const videoUrl = interstitial?.videoUrl;
+  const imageUrl = interstitialImageUrl(interstitial?.image);
+  const imageAlt = interstitial?.image?.alt ?? "";
+  const hasMedia = Boolean(videoUrl || imageUrl);
+
   const sectionRef = useRef<HTMLElement>(null);
   const innerRef = useRef<HTMLDivElement>(null);
   // Total vertical travel of the inner layer relative to the frame.
@@ -449,6 +417,8 @@ function SectionImagePlaceholderMobile({
     };
   }, []);
 
+  if (!hasMedia) return null;
+
   return (
     <section
       ref={sectionRef}
@@ -465,10 +435,20 @@ function SectionImagePlaceholderMobile({
             willChange: "transform",
           }}
         >
-          {imageUrl ? (
+          {videoUrl ? (
+            <video
+              src={videoUrl}
+              autoPlay
+              loop
+              muted
+              playsInline
+              aria-hidden
+              className="absolute inset-0 h-full w-full object-cover"
+            />
+          ) : imageUrl ? (
             <Image
               src={imageUrl}
-              alt={imageAlt ?? ""}
+              alt={imageAlt}
               fill
               sizes="100vw"
               className="object-cover"
@@ -484,7 +464,7 @@ function SectionWhatWeDoMobile({ textbox, datapoint1, datapoint2 }: HomeData["wh
   const datapoints = [datapoint1, datapoint2].filter(
     (d): d is NonNullable<typeof d> => !!d && !!(d.value || d.label),
   );
-  // Deterministic but scattered placement for the stat circles. Each entry
+  // Deterministic but scattered placemddt for the stat circles. Each entry
   // gives a circle a unique size and position within the field.
   const circlePlacements: Array<{
     size: string;
@@ -506,6 +486,7 @@ function SectionWhatWeDoMobile({ textbox, datapoint1, datapoint2 }: HomeData["wh
         style={{ fontSize: "clamp(3rem, 12vw, 5rem)" }}
       >
         What we do
+        <span style={{ color: LANDING_HERO_ACCENT }}>.</span>
       </h2>
       {textbox ? (
         <p className="mb-12 max-w-prose text-[clamp(1rem,4vw,1.125rem)] leading-relaxed">
@@ -616,6 +597,7 @@ function SectionProjectsMobile({
         style={{ fontSize: "clamp(3rem, 12vw, 5rem)" }}
       >
         {heading ?? "Projects"}
+        <span style={{ color: LANDING_HERO_ACCENT }}>.</span>
       </h2>
 
       {/* Filter bar — single "filter" toggle pinned below the top nav
@@ -907,6 +889,7 @@ function SectionTeamMobile({
         }}
       >
         {heading ?? "Team"}
+        <span style={{ color: LANDING_HERO_ACCENT }}>.</span>
       </h2>
       {/*
         Horizontal scroller: 2 rows × N auto-columns. grid-auto-flow:column
@@ -932,18 +915,24 @@ function SectionTeamMobile({
           }}
         >
           {members.map((m, i) => (
-          <li key={m?._id ?? i} style={{ scrollSnapAlign: "start" }}>
-            {m?.photoUrl ? (
-              <div className="relative mb-3 aspect-[3/4] w-full overflow-hidden bg-black/5">
-                <Image src={m.photoUrl} alt={m?.name ?? ""} fill sizes="60vw" className="object-cover" />
-              </div>
-            ) : (
-              <div className="mb-3 aspect-[3/4] w-full bg-black/5" />
-            )}
-            <div className="text-[clamp(1rem,4vw,1.125rem)] font-medium">{m?.name}</div>
-            {m?.role ? <div className="text-sm opacity-70">{m.role}</div> : null}
-          </li>
-        ))}
+            <li key={m?._id ?? i} style={{ scrollSnapAlign: "start" }}>
+              {m?.photoUrl ? (
+                <div className="relative mb-3 aspect-[3/4] w-full overflow-hidden bg-black/5">
+                  <Image
+                    src={m.photoUrl}
+                    alt={m?.name ?? ""}
+                    fill
+                    sizes="60vw"
+                    className="object-cover"
+                  />
+                </div>
+              ) : (
+                <div className="mb-3 aspect-[3/4] w-full bg-black/5" />
+              )}
+              <div className="text-[clamp(1rem,4vw,1.125rem)] font-medium">{m?.name}</div>
+              {m?.role ? <div className="text-sm opacity-70">{m.role}</div> : null}
+            </li>
+          ))}
         </ul>
       </div>
     </section>
@@ -978,11 +967,10 @@ function SectionPublicationsMobile({
         }}
       >
         {heading ?? "Publications"}
+        <span style={{ color: LANDING_HERO_ACCENT }}>.</span>
       </h2>
       {body ? (
-        <p className="mb-8 max-w-prose text-[clamp(1rem,4vw,1.125rem)] leading-relaxed">
-          {body}
-        </p>
+        <p className="mb-8 max-w-prose text-[clamp(1rem,4vw,1.125rem)] leading-relaxed">{body}</p>
       ) : null}
       {/*
         Horizontal scroller — one card per snap target, ~85vw wide. Strip
@@ -1199,6 +1187,7 @@ function SectionContactMobile({
         }}
       >
         Contact
+        <span style={{ color: LANDING_HERO_ACCENT }}>.</span>
       </h2>
       <div className="mb-14">
         <h3
@@ -1209,9 +1198,7 @@ function SectionContactMobile({
         </h3>
         <div className="flex flex-col gap-6 text-[clamp(1rem,4vw,1.125rem)] leading-relaxed">
           <div className="flex flex-col gap-1">
-            <span className="text-sm uppercase tracking-[0.15em] opacity-70">
-              General
-            </span>
+            <span className="text-sm uppercase tracking-[0.15em] opacity-70">General</span>
             <a
               href="mailto:kontakt@comte.no"
               className="underline-offset-4 hover:underline"
@@ -1228,9 +1215,7 @@ function SectionContactMobile({
             </a>
           </div>
           <div className="flex flex-col gap-1">
-            <span className="text-sm uppercase tracking-[0.15em] opacity-70">
-              Projects
-            </span>
+            <span className="text-sm uppercase tracking-[0.15em] opacity-70">Projects</span>
             <a
               href="mailto:adrian@comte.no"
               className="underline-offset-4 hover:underline"

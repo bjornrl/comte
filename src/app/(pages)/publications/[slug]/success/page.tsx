@@ -163,8 +163,9 @@ export default async function PublicationSuccessPage({
               </a>
             ) : (
               <p className="font-[family-name:var(--font-manrope)] text-sm font-light italic max-w-prose">
-                The PDF hasn't been uploaded yet — we'll email it as soon as it's
-                available. If you need it sooner, reply to your Stripe receipt.
+                The PDF hasn&rsquo;t been uploaded yet — we&rsquo;ll email it as
+                soon as it&rsquo;s available. If you need it sooner, reply to
+                your Stripe receipt.
               </p>
             )}
           </>
@@ -174,11 +175,11 @@ export default async function PublicationSuccessPage({
               className="font-[family-name:var(--font-manrope)] font-bold leading-tight"
               style={{ fontSize: "clamp(1.5rem, 6vw, 3rem)" }}
             >
-              We couldn't verify the payment.
+              We couldn&rsquo;t verify the payment.
             </h2>
             <p className="font-[family-name:var(--font-manrope)] text-base font-light max-w-prose">
-              {verification.reason} If you were charged, contact us and we'll sort
-              it out.
+              {verification.reason} If you were charged, contact us and
+              we&rsquo;ll sort it out.
             </p>
             {pricing === "paid" && price > 0 && (
               <Link

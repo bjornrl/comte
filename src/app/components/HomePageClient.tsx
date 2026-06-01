@@ -203,7 +203,7 @@ export default function HomePageClient({ data, projects, connections }: Props) {
   ];
 
   return (
-    <div className="h-svh overflow-hidden">
+    <div id="main-content" tabIndex={-1} className="h-svh overflow-hidden">
       <LandingStage
         landingEpoch={landingEpoch}
         onLandingReturn={bumpLandingEpoch}

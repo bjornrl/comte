@@ -44,7 +44,7 @@ export default function Step2Projects({
       />
       <div className="mb-4 flex items-center gap-3">
         <input
-          className="w-full md:max-w-sm rounded-xl border border-[#E5E5E0] px-3 py-2 bg-white text-[#1F3A32] placeholder:text-[#676160]/60 focus:outline-none focus:border-[#1F3A32]/30"
+          className="w-full md:max-w-sm rounded-xl border border-[#E5E5E0] px-3 py-2 bg-white text-[#1F3A32] placeholder:text-[#676160]/60 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#1F3A32]/40 focus:border-[#1F3A32]/30"
           placeholder="S&oslash;k i prosjekter..."
           value={query}
           onChange={(e) => setQuery(e.target.value)}
