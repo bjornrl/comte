@@ -202,7 +202,8 @@ export const TEAM_QUERY = groq`
     },
     "photoUrl": photo.asset->url,
     email,
-    phone
+    phone,
+    linkedin
   }
 `;
 

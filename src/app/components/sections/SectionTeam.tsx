@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { Linkedin } from "lucide-react";
 import SectionShell, { CONTENT_TOP, PANEL_PADDING } from "./SectionShell";
 import TiltedHeading from "../TiltedHeading";
 import { urlFor } from "@/sanity/lib/image";
@@ -47,6 +48,7 @@ type TeamMember = {
   role: string;
   email?: string;
   phone?: string;
+  linkedin?: string;
   photo?: any;
 };
 
@@ -295,10 +297,10 @@ export default function SectionTeam({
                   />
 
                   <div
-                    className="absolute inset-x-0 bottom-0 z-10 flex flex-col gap-1"
+                    className="absolute inset-x-0 bottom-0 z-10 flex flex-col gap-0.5"
                     style={{
                       paddingTop: "1rem",
-                      paddingRight: "1rem",
+                      paddingRight: "2.75rem",
                       paddingBottom: "clamp(0.5rem, 1vw, 0.75rem)",
                       paddingLeft: "clamp(0.75rem, 1.25vw, 1rem)",
                     }}
@@ -308,7 +310,7 @@ export default function SectionTeam({
                         className="font-[family-name:var(--font-work-sans)] font-medium tracking-wider"
                         style={{
                           color: "rgba(255,255,255,0.78)",
-                          fontSize: "clamp(0.625rem, 0.78vw, 0.75rem)",
+                          fontSize: "clamp(0.75rem, 0.95vw, 0.875rem)",
                           textTransform: "lowercase",
                           fontVariant: "small-caps",
                         }}
@@ -319,7 +321,7 @@ export default function SectionTeam({
                         className="font-[family-name:var(--font-manrope)] font-medium leading-tight"
                         style={{
                           color: "rgba(255,255,255,0.98)",
-                          fontSize: "clamp(0.875rem, 1.25vw, 1.125rem)",
+                          fontSize: "clamp(1.0625rem, 1.5vw, 1.375rem)",
                         }}
                       >
                         {member.name}
@@ -327,8 +329,8 @@ export default function SectionTeam({
                     </div>
                     {(member.email || member.phone) && (
                       <div
-                        className="flex flex-col gap-1 font-[family-name:var(--font-work-sans)]"
-                        style={{ fontSize: "clamp(0.625rem, 0.78vw, 0.75rem)" }}
+                        className="flex flex-col gap-0 font-[family-name:var(--font-work-sans)] leading-tight"
+                        style={{ fontSize: "clamp(0.75rem, 0.9vw, 0.875rem)" }}
                       >
                         {member.email && (
                           <span style={{ color: "rgba(255,255,255,0.92)" }}>
@@ -343,6 +345,25 @@ export default function SectionTeam({
                       </div>
                     )}
                   </div>
+
+                  {member.linkedin && (
+                    <a
+                      href={member.linkedin}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      aria-label={`${member.name} on LinkedIn`}
+                      className="absolute z-20 flex items-center justify-center rounded-sm transition-opacity hover:opacity-80 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
+                      style={{
+                        right: "clamp(0.4rem, 0.8vw, 0.6rem)",
+                        bottom: "clamp(0.4rem, 0.8vw, 0.6rem)",
+                        width: 44,
+                        height: 44,
+                        color: "#fff",
+                      }}
+                    >
+                      <Linkedin size={22} strokeWidth={2} aria-hidden />
+                    </a>
+                  )}
                 </article>
               );
             })}

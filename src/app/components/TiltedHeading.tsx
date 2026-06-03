@@ -64,6 +64,8 @@ const PROBE_FS_PX = 100;
 // makes the visible glyphs land closer to the viewport bottom edge.
 const TOP_BLEED_PX = 16;
 const BOTTOM_BLEED_PX = 28;
+/** Keep the post-rotation horizontal footprint inside the parent. */
+const HORIZONTAL_MARGIN_PX = 16;
 
 /**
  * Oversized text rotated 90° counter-clockwise. The widest line is sized so
@@ -111,21 +113,36 @@ export default function TiltedHeading({
     const measureTarget = sizeReferenceLines && measureEl ? measureEl : el;
 
     const recompute = () => {
-      // Measure the widest line at the probe size, then scale font-size so
-      // that the widest line's rendered width equals viewport height plus
-      // the top + bottom bleed. After rotation, the rendered width becomes
-      // the visual height, so this overflows the viewport by the configured
-      // bleed amounts.
+      // Measure at probe size. Pre-rotation width becomes vertical span
+      // after -90°; pre-rotation height becomes horizontal span — cap both.
       measureTarget.style.fontSize = `${PROBE_FS_PX}px`;
       let maxWidth = 0;
+      let blockHeight = 0;
       for (const child of Array.from(measureTarget.children)) {
         if (child instanceof HTMLElement) {
           maxWidth = Math.max(maxWidth, child.scrollWidth);
+          blockHeight += child.offsetHeight;
         }
       }
       if (maxWidth <= 0) return;
-      const target = window.innerHeight + TOP_BLEED_PX + BOTTOM_BLEED_PX;
-      const fs = PROBE_FS_PX * (target / maxWidth);
+
+      const targetVertical = window.innerHeight + TOP_BLEED_PX + BOTTOM_BLEED_PX;
+      const containerWidth =
+        wrapper?.parentElement?.getBoundingClientRect().width ??
+        wrapper?.getBoundingClientRect().width ??
+        window.innerWidth;
+      const targetHorizontal = Math.max(
+        0,
+        containerWidth - HORIZONTAL_MARGIN_PX,
+      );
+
+      const fsFromVertical = PROBE_FS_PX * (targetVertical / maxWidth);
+      const fsFromHorizontal =
+        blockHeight > 0
+          ? PROBE_FS_PX * (targetHorizontal / blockHeight)
+          : fsFromVertical;
+      const fs = Math.min(fsFromVertical, fsFromHorizontal);
+
       el.style.fontSize = `${fs}px`;
       setFontSize(fs);
 

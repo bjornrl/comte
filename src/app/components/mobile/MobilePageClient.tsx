@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
+import { Linkedin } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { type HomeData } from "../HomePageClient";
 import { type InterstitialData } from "../sections/Interstitial";
@@ -24,6 +25,7 @@ type TeamMember = {
   name?: string;
   role?: string;
   photoUrl?: string;
+  linkedin?: string;
 };
 
 export type ContactLocation = {
@@ -125,7 +127,7 @@ export default function MobilePageClient({
       >
         <SectionHomeMobile />
         <SectionFlowMobile />
-        <SectionMottoMobile />
+        <SectionMottoMobile heroText={data.motto.heroText} />
         <SectionAboutIntroMobile {...data.aboutIntro} />
         {/*
           Desktop: the video lives on what-we-do's interstitial (narrow panel
@@ -264,33 +266,39 @@ function SectionFlowMobile() {
   );
 }
 
-function SectionMottoMobile() {
+const MOTTO_DEFAULT_LINES = ["Design to", "evolve"];
+const PROJECT_CARD_BORDER_RADIUS = 8;
+
+/** Split Sanity heroText into display lines; fall back to the default motto. */
+function mottoLines(heroText?: string): string[] {
+  const lines = (heroText ?? "")
+    .split(/\r?\n/)
+    .map((l) => l.trim())
+    .filter(Boolean);
+  return lines.length ? lines : MOTTO_DEFAULT_LINES;
+}
+
+function SectionMottoMobile({ heroText }: { heroText?: string }) {
+  const lines = mottoLines(heroText);
   return (
     <section
       id="motto"
-      className="relative w-full flex flex-col justify-center py-16"
-      // overflow visible so the heading can lift up out of the section and
-      // sit on top of the lights iframe above. Sibling order in the DOM
-      // (motto comes after lights) handles stacking — no z-index needed.
-      style={{ background: MOTTO_DEFAULT_BG, color: "#F5F5E9", overflow: "visible" }}
+      className="relative w-full overflow-x-clip pt-14"
+      style={{ background: MOTTO_DEFAULT_BG, color: "#F5F5E9" }}
     >
-      {/* Heading + paragraphs run edge-to-edge — no horizontal padding here.
-          The heading is pulled up by a negative margin so its top half
-          overlaps the drifting-lights animation in the section above. */}
+      {/* Horizontal, readable heading on mobile (desktop keeps the 90° rotated
+          TiltedHeading treatment, which suits the tall landing panel). */}
       <h2
-        className="relative font-[var(--font-abhaya-libre)] leading-[0.9] tracking-tight"
-        style={{
-          fontSize: "clamp(4.5rem, 22vw, 10rem)",
-          marginTop: "clamp(-9rem, -22vw, -5rem)",
-          paddingLeft: 0,
-          paddingRight: 0,
-          color: comteColors.lightBase,
-        }}
+        className="px-6 sm:px-8 font-bold tracking-tight leading-[1.02] text-[clamp(2.75rem,15vw,4.5rem)]"
+        style={{ fontFamily: "var(--font-manrope), system-ui, sans-serif" }}
       >
-        Design to evolve
-        <span style={{ color: LANDING_HERO_ACCENT }}>.</span>
+        {lines.map((line, i) => (
+          <span key={i} className="block">
+            {line}
+          </span>
+        ))}
       </h2>
-      <p className="mt-10 px-6 sm:px-8 text-[clamp(1rem,4.2vw,1.25rem)] leading-relaxed">
+      <p className="relative z-10 mt-6 px-6 pb-16 sm:px-8 text-[clamp(1rem,4.2vw,1.25rem)] leading-relaxed">
         We help organizations adapt early, sharpen ideas, and turn them into action that creates
         value for people, organizations, and society.
       </p>
@@ -772,7 +780,10 @@ function SectionProjectsMobile({
               {thumb ? (
                 <div
                   className="relative mb-3 aspect-[4/3] w-full overflow-hidden"
-                  style={{ background: `${color}1A` }}
+                  style={{
+                    background: `${color}1A`,
+                    borderRadius: PROJECT_CARD_BORDER_RADIUS,
+                  }}
                 >
                   <Image
                     src={thumb}
@@ -785,7 +796,10 @@ function SectionProjectsMobile({
               ) : (
                 <div
                   className="mb-3 aspect-[4/3] w-full"
-                  style={{ background: `${color}1A` }}
+                  style={{
+                    background: `${color}1A`,
+                    borderRadius: PROJECT_CARD_BORDER_RADIUS,
+                  }}
                   aria-hidden
                 />
               )}
@@ -809,10 +823,12 @@ function SectionProjectsMobile({
           const tileStyle: React.CSSProperties = {
             padding: 12,
             border: `1px solid ${color}`,
+            borderRadius: PROJECT_CARD_BORDER_RADIUS,
             background: "transparent",
             display: "flex",
             flexDirection: "column",
             transition: "background 0.2s ease",
+            overflow: "hidden",
           };
           return p.slug ? (
             <Link
@@ -918,8 +934,8 @@ function SectionTeamMobile({
         >
           {members.map((m, i) => (
             <li key={m?._id ?? i} style={{ scrollSnapAlign: "start" }}>
-              {m?.photoUrl ? (
-                <div className="relative mb-3 aspect-[3/4] w-full overflow-hidden bg-black/5">
+              <div className="relative mb-2 aspect-[3/4] w-full overflow-hidden bg-black/5">
+                {m?.photoUrl ? (
                   <Image
                     src={m.photoUrl}
                     alt={m?.name ?? ""}
@@ -927,12 +943,21 @@ function SectionTeamMobile({
                     sizes="60vw"
                     className="object-cover"
                   />
-                </div>
-              ) : (
-                <div className="mb-3 aspect-[3/4] w-full bg-black/5" />
-              )}
-              <div className="text-[clamp(1rem,4vw,1.125rem)] font-medium">{m?.name}</div>
-              {m?.role ? <div className="text-sm opacity-70">{m.role}</div> : null}
+                ) : null}
+                {m?.linkedin ? (
+                  <a
+                    href={m.linkedin}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    aria-label={`${m?.name ?? "Team member"} on LinkedIn`}
+                    className="absolute bottom-1.5 right-1.5 flex h-11 w-11 items-center justify-center text-white transition-opacity hover:opacity-80"
+                  >
+                    <Linkedin size={22} strokeWidth={2} aria-hidden />
+                  </a>
+                ) : null}
+              </div>
+              <div className="text-[clamp(1.0625rem,4.4vw,1.25rem)] font-medium leading-tight">{m?.name}</div>
+              {m?.role ? <div className="text-[clamp(0.875rem,3.6vw,1rem)] opacity-70 leading-tight">{m.role}</div> : null}
             </li>
           ))}
         </ul>

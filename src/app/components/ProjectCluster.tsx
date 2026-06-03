@@ -18,7 +18,7 @@ import type {
   Domain,
   Method,
 } from "./projectNetworkData";
-import { CONTENT_TOP, NAV_HEIGHT_TOTAL, PANEL_PADDING, PROJECT_CARD_AREA_TOP, PROJECT_TILE_CARDS_TOP_EXTRA, PROJECT_TILE_SECTION_TOP, PROJECT_TILE_VERTICAL_MARGIN } from "./sections/SectionShell";
+import { CONTENT_TOP, NAV_HEIGHT_TOTAL, PANEL_PADDING, PROJECT_CARD_AREA_TOP, PROJECT_TILE_CARDS_TOP_EXTRA, PROJECT_TILE_SECTION_TOP } from "./sections/SectionShell";
 
 const VISIBLE_DOMAINS: Domain[] = [
   "education",
@@ -38,11 +38,8 @@ const NODE_VIEW_ENABLED = false;
 
 const BOTTOM_TAG_ROW_GAP = 4;
 const BOTTOM_OFFSET = "clamp(16px, 3vh, 32px)";
-/** Extra breathing room between the card grid bottom and the tag menu. */
-const TILE_GRID_TO_TAG_EXTRA = "clamp(2rem, 4vh, 3rem)";
 
 // Tile view — embedded detail cards fill viewport-sized grid rows.
-const TILE_VERTICAL_MARGIN = PROJECT_TILE_VERTICAL_MARGIN;
 const TILE_CARDS_TOP_EXTRA = PROJECT_TILE_CARDS_TOP_EXTRA;
 const TILE_SECTION_TOP = PROJECT_TILE_SECTION_TOP;
 const TILE_HEADING_BLOCK = "clamp(1.65rem, 3.3vw, 2.75rem)";
@@ -65,11 +62,13 @@ const TILE_MIN_COL_WIDTH = 148;
 const TILE_PAGINATION_COLOR = "#242423";
 /** Embedded tile card surface — prev/next buttons match this. */
 const TILE_CARD_BG = "#2a2a2a";
+/** Corner radius for project cards (8pt grid). */
+const PROJECT_CARD_BORDER_RADIUS = 8;
 const TILE_PAGINATION_HOVER_BG = "#5A7482";
 /** Fixed tile grid width — was ~9 cols at desktop; now 8 with hybrid page-1 layout. */
 const TILE_GRID_COLUMNS = 8;
 /** Projects visible per page in tile view. */
-const TILE_GROUP_SIZE = 4;
+const TILE_GROUP_SIZE = 3;
 /** Match BlobNav BOX_HEIGHT — shared control height for category row. */
 const NAV_BOX_HEIGHT = 42;
 /** Taller than NAV_BOX_HEIGHT so domain labels can wrap to two lines; bottom edge stays fixed via layout math. */
@@ -78,8 +77,9 @@ const TILE_CONTROL_FONT_SIZE = "1rem";
 /** Matches domain/sub-category chips on embedded project cards. */
 const TILE_TAG_FONT_SIZE = "clamp(0.75rem, 0.95vw, 0.875rem)";
 const TILE_PROGRESS_DOT_SIZE = 14;
-/** Dots per row in the progress grid (left → right, then next row down). */
-const TILE_PROGRESS_DOTS_PER_ROW = 4;
+/** Dots per row in the progress grid (left → right, then next row down).
+ *  Kept in sync with TILE_GROUP_SIZE so one dot row == one card page. */
+const TILE_PROGRESS_DOTS_PER_ROW = TILE_GROUP_SIZE;
 const TILE_CARD_SLIDE_S = 0.45;
 const TILE_CARD_SLIDE_STAGGER_S = 0.065;
 const TILE_CARD_SLIDE_EASE: [number, number, number, number] = [0.25, 1, 0.5, 1];
@@ -168,13 +168,13 @@ function getTileFlankingNavButtonWidthInStage(): string {
   return `calc(${getTileStageColumnWidthExpr()} * ${TILE_FLANKING_NAV_COLS})`;
 }
 
-/** Card row: flanking nav | 4 cards | flanking nav — fits control row width exactly. */
+/** Card row: flanking nav | N cards | flanking nav — fits control row width exactly. */
 function getTileCardRowGridTemplateColumns(showNavButtons: boolean): string {
   if (showNavButtons) {
     const navW = getTileFlankingNavButtonWidthInStage();
-    return `${navW} repeat(4, minmax(0, 1fr)) ${navW}`;
+    return `${navW} repeat(${TILE_GROUP_SIZE}, minmax(0, 1fr)) ${navW}`;
   }
-  return `repeat(4, minmax(0, 1fr))`;
+  return `repeat(${TILE_GROUP_SIZE}, minmax(0, 1fr))`;
 }
 
 const TILE_FLANKING_NAV_ICON_SIZE = 24;
@@ -314,9 +314,11 @@ const TILE_CARD_BODY_VARIANTS = getTileCardParallaxVariants(TILE_CARD_PARALLAX_B
 function TileProgressDots({
   projects,
   pageIndex,
+  onSelectPage,
 }: {
   projects: NetProject[];
   pageIndex: number;
+  onSelectPage?: (pageIndex: number) => void;
 }) {
   const [outgoingIndices, setOutgoingIndices] = useState<number[] | null>(null);
   const [transitionReversed, setTransitionReversed] = useState(false);
@@ -408,9 +410,22 @@ function TileProgressDots({
       }}
     >
       {dotRows.map((row, rowIndex) => (
-        <div
+        <button
+          type="button"
           key={`dot-row-${rowIndex}`}
+          onClick={() => onSelectPage?.(rowIndex)}
+          aria-label={`Show projects page ${rowIndex + 1} of ${dotRows.length}`}
+          aria-current={rowIndex === pageIndex ? "true" : undefined}
           style={{
+            // Parent column is pointer-events:none (so it never steals clicks
+            // from the pagination button); re-enable it on the interactive rows.
+            pointerEvents: "auto",
+            appearance: "none",
+            background: "transparent",
+            border: "none",
+            padding: "2px 0",
+            margin: 0,
+            cursor: "pointer",
             display: "flex",
             flexDirection: "row",
             justifyContent: "flex-end",
@@ -476,7 +491,7 @@ function TileProgressDots({
               </span>
             );
           })}
-        </div>
+        </button>
       ))}
     </div>
   );
@@ -523,10 +538,12 @@ function TileProgressDotsColumn({
   projects,
   pageIndex,
   top,
+  onSelectPage,
 }: {
   projects: NetProject[];
   pageIndex: number;
   top: string;
+  onSelectPage?: (pageIndex: number) => void;
 }) {
   const gridMeasureRef = useRef<HTMLDivElement>(null);
 
@@ -542,7 +559,10 @@ function TileProgressDotsColumn({
         zIndex: 20,
         width: getTileNavColumnWidth(),
         minHeight: 0,
-        pointerEvents: "auto",
+        // Decorative progress indicator — must not intercept clicks. Its column
+        // overlaps the right-hand "next" pagination button, so leaving pointer
+        // events on here was swallowing clicks meant for that button.
+        pointerEvents: "none",
         boxSizing: "border-box",
       }}
     >
@@ -554,7 +574,7 @@ function TileProgressDotsColumn({
         }}
       >
         <TileDotGridMeasure measureRef={gridMeasureRef} />
-        <TileProgressDots projects={projects} pageIndex={pageIndex} />
+        <TileProgressDots projects={projects} pageIndex={pageIndex} onSelectPage={onSelectPage} />
       </div>
     </div>
   );
@@ -643,7 +663,7 @@ function TilePaginationButton({
         height: navColumn || navFlankIconOnly ? "100%" : navBar ? NAV_BOX_HEIGHT : navSlot ? undefined : tall ? "100%" : height,
         boxSizing: "border-box",
         border: `1px solid ${borderColor}`,
-        borderRadius: 0,
+        borderRadius: navFlankIconOnly ? PROJECT_CARD_BORDER_RADIUS : 0,
         background,
         color: foreground,
         cursor: disabled ? "not-allowed" : "pointer",
@@ -830,6 +850,8 @@ function TileProjectGrid({
                   gridRow: `1 / span ${TILE_VISIBLE_ROWS}`,
                   minHeight: 0,
                   zIndex: 6,
+                  borderRadius: PROJECT_CARD_BORDER_RADIUS,
+                  overflow: "hidden",
                 }}
               >
                 <TilePaginationButton mode="previous" navFlankIconOnly onClick={handlePrev} />
@@ -849,6 +871,8 @@ function TileProjectGrid({
                   height: "100%",
                   overflow: "hidden",
                   isolation: "isolate",
+                  borderRadius: PROJECT_CARD_BORDER_RADIUS,
+                  contain: "layout paint",
                 }}
               >
                 <EmbeddedTileProjectCard
@@ -866,10 +890,13 @@ function TileProjectGrid({
                 className="select-none"
                 data-tile-pagination
                 style={{
-                  gridColumn: 6,
+                  // Last column: 1 flank + N cards (so the flank sits after them).
+                  gridColumn: TILE_GROUP_SIZE + 2,
                   gridRow: `1 / span ${TILE_VISIBLE_ROWS}`,
                   minHeight: 0,
                   zIndex: 6,
+                  borderRadius: PROJECT_CARD_BORDER_RADIUS,
+                  overflow: "hidden",
                 }}
               >
                 <TilePaginationButton mode="next" navFlankIconOnly onClick={handleNext} />
@@ -1416,10 +1443,10 @@ export default function ProjectCluster({ projects, backgroundColor, heading }: P
 
   const isMobile = stageSize.w > 0 && stageSize.w < 768;
   const clusterStageTop = heading ? TILE_GRID_TOP_WITH_HEADING : TILE_GRID_TOP;
-  const baseNavToTileGap = heading
-    ? `calc(${TILE_VERTICAL_MARGIN} + ${TILE_HEADING_BLOCK} + ${TILE_GRID_GAP_BELOW_HEADING})`
-    : TILE_VERTICAL_MARGIN;
-  const cardToTagGap = `calc(${baseNavToTileGap} + ${TILE_GRID_TO_TAG_EXTRA})`;
+  // Small clearance between the bottom of the cards and the filter buttons —
+  // the cards expand down to (nearly) meet the buttons. Matches the gap used
+  // between cards for a consistent rhythm.
+  const cardToTagGap = `${TILE_GRID_GAP}px`;
   const tileGridBlockHeight = getTileGridBlockHeight(clusterStageTop, cardToTagGap);
   const tileRowHeight = getTileRowHeight(clusterStageTop, cardToTagGap);
   /** Top edge of the filter bar — sits below the card grid with cardToTagGap clearance. */
@@ -1465,6 +1492,7 @@ export default function ProjectCluster({ projects, backgroundColor, heading }: P
         projects={tileProjects}
         pageIndex={safeTilePageIndex}
         top={clusterStageTop}
+        onSelectPage={(p) => setTilePageIndex(wrapPageIndex(p, tilePageCount))}
       />
 
 
@@ -1505,7 +1533,7 @@ export default function ProjectCluster({ projects, backgroundColor, heading }: P
                   minHeight: CATEGORY_TAG_BOX_HEIGHT,
                   padding: "0 8px",
                   border: `1px solid ${projectsSectionDomainColor(domain)}`,
-                  borderRadius: 0,
+                  borderRadius: PROJECT_CARD_BORDER_RADIUS,
                   fontFamily: "var(--font-work-sans), system-ui, sans-serif",
                   fontSize: TILE_TAG_FONT_SIZE,
                   fontWeight: 400,
@@ -1548,6 +1576,11 @@ export default function ProjectCluster({ projects, backgroundColor, heading }: P
           right: CLUSTER_STAGE_INSET,
           height: tileGridBlockHeight,
           overflow: "hidden",
+          // Sit above the decorative progress-dots column (zIndex 20). The
+          // right-hand "next" pagination button lives at the edge of this
+          // stage and visually overlaps the dots column; without this the
+          // dots layer painted on top and only the arrow area received clicks.
+          zIndex: 21,
         }}
       >
       {/* Tile grid — domain-coloured cards in tag-menu order (LTR, matches bottom bar). */}
@@ -1778,13 +1811,19 @@ export default function ProjectCluster({ projects, backgroundColor, heading }: P
 
 const EMBEDDED_DETAIL_IMAGE_FRACTION = 0.38;
 const EMBEDDED_SUMMARY_LINE_CLAMP = 9;
+// Slightly larger than before — the 3-up card layout (vs 4-up) gives each card
+// more width, so the type can breathe.
+// Sized in container-query units (cqi = 1% of the card's own width) so the type
+// scales with the card across every screen size, with rem min/max guards to
+// keep it readable on the smallest cards and from ballooning on the largest.
+// The card sets `container-type: inline-size` to anchor these units.
 const EMBEDDED_FONT = {
-  title: "clamp(0.75rem, 0.95vw, 0.875rem)",
-  summary: "clamp(0.625rem, 0.78vw, 0.75rem)",
-  meta: "clamp(0.625rem, 0.75vw, 0.6875rem)",
-  small: "clamp(0.5625rem, 0.7vw, 0.625rem)",
-  tag: "clamp(0.5625rem, 0.68vw, 0.625rem)",
-  contact: "clamp(0.625rem, 0.75vw, 0.6875rem)",
+  title: "clamp(0.9rem, 5cqi, 1.5rem)",
+  summary: "clamp(0.78rem, 4cqi, 1.1rem)",
+  meta: "clamp(0.78rem, 3.8cqi, 1.05rem)",
+  small: "clamp(0.72rem, 3.5cqi, 0.95rem)",
+  tag: "clamp(0.72rem, 3.5cqi, 0.95rem)",
+  contact: "clamp(0.78rem, 3.8cqi, 1.05rem)",
 } as const;
 
 /** Category accent blended toward a canvas for type hierarchy on outlined cards. */
@@ -1792,12 +1831,13 @@ function accentTone(accent: string, weight: number, canvas: string = BG_CREAM): 
   return `color-mix(in srgb, ${accent} ${weight}%, ${canvas})`;
 }
 
-/** Four explicit 1px fills — uniform weight; pointer-events none keeps text selectable underneath. */
+function formatProjectYears(year: unknown): string | null {
+  if (year == null || year === "") return null;
+  return String(year);
+}
+
+/** Inset stroke follows border-radius; divider sits below the image band. */
 function EmbeddedCardFrameOverlay({ accent }: { accent: string }) {
-  const edge = {
-    position: "absolute" as const,
-    pointerEvents: "none" as const,
-  };
   return (
     <div
       aria-hidden
@@ -1806,21 +1846,20 @@ function EmbeddedCardFrameOverlay({ accent }: { accent: string }) {
         inset: 0,
         zIndex: 10,
         pointerEvents: "none",
+        borderRadius: PROJECT_CARD_BORDER_RADIUS,
+        boxShadow: `inset 0 0 0 1px ${accent}`,
       }}
     >
-      <div style={{ ...edge, left: 0, top: 0, bottom: 0, width: 1, background: accent }} />
-      <div style={{ ...edge, right: 0, top: 0, bottom: 0, width: 1, background: accent }} />
-      <div style={{ ...edge, left: 0, right: 0, top: 0, height: 1, background: accent }} />
-      <div style={{ ...edge, left: 0, right: 0, bottom: 0, height: 1, background: accent }} />
       <div
         style={{
-          ...edge,
+          position: "absolute",
           left: 0,
           right: 0,
           top: `${EMBEDDED_DETAIL_IMAGE_FRACTION * 100}%`,
           height: 1,
           background: accentTone(accent, 28),
           transform: "translateY(-1px)",
+          pointerEvents: "none",
         }}
       />
     </div>
@@ -2067,10 +2106,12 @@ function EmbeddedTileProjectCard({
       style={{
         padding: 12,
         height: "100%",
+        maxHeight: "100%",
         boxSizing: "border-box",
         display: "flex",
         flexDirection: "column",
         overflow: "hidden",
+        minHeight: 0,
       }}
     >
       <h3
@@ -2128,59 +2169,69 @@ function EmbeddedTileProjectCard({
       >
         {project.summary}
       </p>
-      {methodLabels.length > 0 ? (
-        <div
-          style={{
-            display: "flex",
-            flexWrap: "wrap",
-            gap: 4,
-            marginTop: 6,
-            flexShrink: 0,
-          }}
-        >
-          {methodLabels.map((label) => (
-            <span
-              key={label}
-              style={{
-                padding: "2px 8px",
-                fontSize: EMBEDDED_FONT.tag,
-                fontFamily: "var(--font-manrope), system-ui, sans-serif",
-                letterSpacing: "0.05em",
-                color: accent,
-                background: "transparent",
-                border: `1px solid ${accentTone(accent, 55)}`,
-              }}
-            >
-              {label}
-            </span>
-          ))}
-        </div>
-      ) : null}
-      {cardLinks.length > 0 ? (
-        <div style={{ display: "flex", flexDirection: "column", gap: 4, marginTop: 6, flexShrink: 0 }}>
-          {cardLinks.map((link) =>
-            link.url ? (
-              <a
-                key={link.url}
-                href={link.url}
-                target="_blank"
-                rel="noopener noreferrer"
+      <div
+        style={{
+          flex: "0 1 auto",
+          minHeight: 0,
+          display: "flex",
+          flexDirection: "column",
+          overflow: "hidden",
+        }}
+      >
+        {methodLabels.length > 0 ? (
+          <div
+            style={{
+              display: "flex",
+              flexWrap: "wrap",
+              gap: 4,
+              marginTop: 6,
+              flexShrink: 0,
+            }}
+          >
+            {methodLabels.map((label) => (
+              <span
+                key={label}
                 style={{
-                  fontSize: EMBEDDED_FONT.meta,
-                  fontWeight: 500,
-                  color: accent,
+                  padding: "2px 8px",
+                  fontSize: EMBEDDED_FONT.tag,
                   fontFamily: "var(--font-manrope), system-ui, sans-serif",
-                  textDecoration: "none",
+                  letterSpacing: "0.05em",
+                  color: accent,
+                  background: "transparent",
+                  border: `1px solid ${accentTone(accent, 55)}`,
                 }}
               >
-                {link.label || link.url}
-              </a>
-            ) : null,
-          )}
-        </div>
-      ) : null}
-      {renderTags()}
-      {renderContact()}
+                {label}
+              </span>
+            ))}
+          </div>
+        ) : null}
+        {cardLinks.length > 0 ? (
+          <div style={{ display: "flex", flexDirection: "column", gap: 4, marginTop: 6, flexShrink: 0 }}>
+            {cardLinks.map((link) =>
+              link.url ? (
+                <a
+                  key={link.url}
+                  href={link.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{
+                    fontSize: EMBEDDED_FONT.meta,
+                    fontWeight: 500,
+                    color: accent,
+                    fontFamily: "var(--font-manrope), system-ui, sans-serif",
+                    textDecoration: "none",
+                  }}
+                >
+                  {link.label || link.url}
+                </a>
+              ) : null,
+            )}
+          </div>
+        ) : null}
+        {renderTags()}
+        {renderContact()}
+      </div>
     </div>
   );
 
@@ -2199,6 +2250,10 @@ function EmbeddedTileProjectCard({
         display: "flex",
         flexDirection: "column",
         boxSizing: "border-box",
+        borderRadius: PROJECT_CARD_BORDER_RADIUS,
+        // Anchor the card's cqi-based font sizes to its own width so the type
+        // scales with the card on every screen size.
+        containerType: "inline-size",
       }}
     >
       <div
@@ -2208,6 +2263,8 @@ function EmbeddedTileProjectCard({
           overflow: "hidden",
           position: "relative",
           zIndex: 0,
+          borderTopLeftRadius: PROJECT_CARD_BORDER_RADIUS,
+          borderTopRightRadius: PROJECT_CARD_BORDER_RADIUS,
         }}
       >
         <AnimatePresence initial={false} custom={slideDirection} mode="sync">
@@ -2222,6 +2279,7 @@ function EmbeddedTileProjectCard({
             style={{
               position: "absolute",
               inset: 0,
+              overflow: "hidden",
               willChange: "transform",
               backfaceVisibility: "hidden",
             }}
@@ -2251,6 +2309,7 @@ function EmbeddedTileProjectCard({
             style={{
               position: "absolute",
               inset: 0,
+              overflow: "hidden",
               willChange: "transform",
               backfaceVisibility: "hidden",
             }}
@@ -2337,6 +2396,7 @@ function ExpandedProjectCard({
   const methodLabels = (project.methods ?? [])
     .filter((m): m is Method => KNOWN_METHOD_VALUES.has(m))
     .map((m) => getMethodLabel(m, locale));
+  const yearsLabel = formatProjectYears(project.year);
 
   useLayoutEffect(() => {
     const scroller = scrollerRef.current;
@@ -2493,6 +2553,35 @@ function ExpandedProjectCard({
             </button>
           </>
         ) : null}
+        {isMobile && yearsLabel ? (
+          <div
+            aria-hidden
+            style={{
+              position: "absolute",
+              left: 0,
+              right: 0,
+              bottom: 0,
+              zIndex: 3,
+              pointerEvents: "none",
+              padding: "32px 16px 12px",
+              background:
+                "linear-gradient(to top, rgba(0,0,0,0.6) 0%, rgba(0,0,0,0.25) 55%, transparent 100%)",
+            }}
+          >
+            <p
+              style={{
+                margin: 0,
+                fontSize: "0.8rem",
+                fontStyle: "italic",
+                letterSpacing: "0.02em",
+                color: "rgba(255,255,255,0.95)",
+                fontFamily: "var(--font-manrope), system-ui, sans-serif",
+              }}
+            >
+              {yearsLabel}
+            </p>
+          </div>
+        ) : null}
       </div>
     );
   };
@@ -2526,16 +2615,18 @@ function ExpandedProjectCard({
           {customers.join(" · ")}
         </p>
       ) : null}
-      <p
-        style={{
-          margin: "0 0 14px 0",
-          fontSize: "0.8rem",
-          color: "rgba(255,255,255,0.55)",
-          fontFamily: "var(--font-manrope), system-ui, sans-serif",
-        }}
-      >
-        {project.year}
-      </p>
+      {!isMobile && yearsLabel ? (
+        <p
+          style={{
+            margin: "0 0 14px 0",
+            fontSize: "0.8rem",
+            color: "rgba(255,255,255,0.55)",
+            fontFamily: "var(--font-manrope), system-ui, sans-serif",
+          }}
+        >
+          {yearsLabel}
+        </p>
+      ) : null}
       <p
         style={{
           margin: "0 0 14px 0",
@@ -2700,6 +2791,7 @@ function ExpandedProjectCard({
           maxHeight: CARD_MAX_HEIGHT,
           background: TILE_CARD_BG,
           border: "1px solid rgba(255,255,255,0.1)",
+          borderRadius: PROJECT_CARD_BORDER_RADIUS,
           padding: 0,
           overflow: "hidden",
           zIndex: 30,

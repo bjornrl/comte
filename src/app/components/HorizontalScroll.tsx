@@ -33,29 +33,27 @@ type Props = {
 
 // ---------- Tuning constants ----------
 
-// Distance from a snap point (as a fraction of the viewport width) within which
-// the page snaps to that point on scroll-end. 0.30 means the outer 30% on each
-// side of every snap target snaps; the 40% in the middle is a "free zone" where
-// the user can leave the page resting between two sections.
-const SNAP_THRESHOLD = 0.3;
+// Smooth-scroll duration for programmatic nav jumps (BlobNav clicks, arrows).
+// Higher = more graceful. Free wheel scrolling uses momentum smoothing instead.
+const NAV_DURATION_MS = 500;
 
-// Smooth-scroll duration when we snap to a section. Higher = more graceful.
-const SNAP_DURATION_MS = 500;
-
-// How long the container must be idle before we consider a scroll "ended".
-// Trackpad inertia keeps firing scroll events for ~80–120ms after a swipe, so
-// 150ms gives the user's "roll" room to play out before snap kicks in.
+// How long the container must be idle before a non-wheel scroll (touch drag,
+// scrollbar) is considered "ended" and we drop the isScrolling flag.
 const SCROLL_IDLE_MS = 150;
 
-// Cap on how far a single wheel tick can move the page, expressed as a fraction
-// of viewport width. Stops a single mousewheel click from blasting past 2+
-// panels.
+// Cap on how far a single wheel tick can advance the momentum target, expressed
+// as a fraction of viewport width. Stops a single mousewheel click from blasting
+// the target past 2+ panels in one event.
 const MAX_WHEEL_DELTA_FRACTION = 1.1;
 
-/** Loop seam teleports only when scroll/visual alignment is tight — not at the
- *  wider SNAP_THRESHOLD used for snap attraction (early teleport caused the
- *  fixed landing layer to jump when wrapping contact → home). */
-const LOOP_SEAM_ALIGN_PX = 4;
+// Momentum smoothing — the fraction of the remaining distance to the target the
+// scroll position covers each frame. Lower = longer, glidier "yourbana" tail;
+// higher = snappier. ~0.12 gives a smooth, weighty glide at 60fps.
+const WHEEL_SMOOTHING = 0.12;
+
+// Below this distance (px) from the target we consider the glide finished and
+// settle exactly onto it.
+const SETTLE_EPSILON_PX = 0.5;
 
 /** Minimum index gap before nav reorders sections for a short hop. */
 const NAV_JUMP_MIN_GAP = 2;
@@ -89,7 +87,7 @@ function buildNavJumpOrder(
   const target = sections[targetIdx];
   const withoutTarget = sections.filter((s) => s.id !== target.id);
   const anchorId = sections[insertAfterIdx].id;
-  let anchorPos = withoutTarget.findIndex((s) => s.id === anchorId);
+  const anchorPos = withoutTarget.findIndex((s) => s.id === anchorId);
 
   // Target is the anchor section (e.g. navigating to home from contact).
   if (anchorPos < 0 && target.id === anchorId) {
@@ -145,11 +143,12 @@ type PendingNav = {
  * Horizontally scrolling section list with infinite-loop behaviour and
  * optional non-snap interstitial panels between sections.
  *
- * Uses custom JS for snap (no CSS scroll-snap) so we can:
- *   - keep scroll position 1:1 with input,
- *   - only snap when the user has crossed a threshold into the next section,
- *   - run a slower easing curve on the snap animation,
- *   - allow trackpad inertia to roll for a frame or two without overshooting.
+ * Free scrolling is smooth and snap-free (à la yourbana.com): wheel/trackpad
+ * input feeds a momentum target and the scroll position lerps toward it each
+ * frame, so the page glides and can rest anywhere. The infinite loop is
+ * maintained by continuously wrapping the scroll position across the clone
+ * seams every frame, so the glide is never interrupted. Programmatic nav
+ * (BlobNav, arrows) still animates with a controlled-duration easing curve.
  */
 export default function HorizontalScroll({
   sections,
@@ -172,12 +171,20 @@ export default function HorizontalScroll({
   // during that time should not be treated as user motion.
   const isAdjusting = useRef(false);
   const animFrameId = useRef<number | null>(null);
-  /** Last panel index we snapped to (real or clone). */
+  /** Last panel index a nav jump landed on (real or clone). */
   const lastSnappedIndexRef = useRef(1);
-  /** False until the initial snap-to-home on mount completes. */
+  /** False until the initial park-on-home on mount completes. */
   const loopSeamsEnabledRef = useRef(false);
-  /** False when the user rests in the free zone between snap points. */
-  const isSnappedRef = useRef(true);
+
+  // ---- momentum (free wheel scroll) -----------------------------------------
+  /** Desired scrollLeft the momentum glide is chasing. */
+  const targetRef = useRef(0);
+  /** RAF id for the momentum glide loop (null when idle). */
+  const momentumRaf = useRef<number | null>(null);
+  /** Whether we've reported isScrolling=true to the parent. */
+  const scrollingRef = useRef(false);
+  /** Last section id reported active — dedupes per-frame setState calls. */
+  const lastActiveIdRef = useRef<string | null>(null);
 
   // ---- helpers --------------------------------------------------------------
 
@@ -233,6 +240,95 @@ export default function HorizontalScroll({
     }
   }, []);
 
+  const stopMomentum = useCallback(() => {
+    if (momentumRaf.current != null) {
+      cancelAnimationFrame(momentumRaf.current);
+      momentumRaf.current = null;
+    }
+  }, []);
+
+  /**
+   * Keep scrollLeft within the first loop period [firstReal, cloneFirst) by
+   * teleporting across the clone seam whenever it crosses out. The seam content
+   * is identical on both sides (clones are exact copies), so the jump is
+   * invisible. The momentum target moves by the same delta so the glide
+   * continues uninterrupted. Runs every frame — this is what makes the infinite
+   * loop work without snapping to align it first.
+   */
+  const wrapLoop = useCallback(() => {
+    if (!loopSeamsEnabledRef.current) return;
+    const el = containerRef.current;
+    if (!el) return;
+    const panels = getSnapPanels();
+    const n = renderSectionsRef.current.length;
+    if (panels.length < n + 2) return;
+    const firstRealLeft = panels[1].offsetLeft;
+    const cloneFirstLeft = panels[n + 1].offsetLeft;
+    const loopWidth = cloneFirstLeft - firstRealLeft;
+    if (loopWidth <= 0) return;
+
+    if (el.scrollLeft >= cloneFirstLeft) {
+      el.scrollLeft -= loopWidth;
+      targetRef.current -= loopWidth;
+    } else if (el.scrollLeft < firstRealLeft) {
+      el.scrollLeft += loopWidth;
+      targetRef.current += loopWidth;
+    }
+  }, [getSnapPanels]);
+
+  /** Report the section nearest the viewport's left edge to the parent, mapping
+   *  clone panels back to their real section. Deduped so we only fire on change. */
+  const reportActiveSection = useCallback(() => {
+    const { index } = findNearestSnapIndex();
+    if (index < 0) return;
+    const list = renderSectionsRef.current;
+    const n = list.length;
+    let section: Section | undefined;
+    if (index === 0) section = list[n - 1];
+    else if (index === n + 1) section = list[0];
+    else section = list[index - 1];
+    if (section && section.id !== lastActiveIdRef.current) {
+      lastActiveIdRef.current = section.id;
+      onActiveSectionChange?.(section.id);
+    }
+  }, [findNearestSnapIndex, onActiveSectionChange]);
+
+  /** Holds the latest stepMomentum so the RAF loop can recurse without the
+   *  callback referencing itself before declaration. */
+  const stepMomentumRef = useRef<() => void>(() => {});
+
+  /** Momentum glide: lerp scrollLeft toward the target each frame, wrapping the
+   *  loop and reporting the active section as we go. Stops when settled. */
+  const stepMomentum = useCallback(() => {
+    const el = containerRef.current;
+    if (!el) {
+      momentumRaf.current = null;
+      return;
+    }
+    const current = el.scrollLeft;
+    const diff = targetRef.current - current;
+
+    if (Math.abs(diff) < SETTLE_EPSILON_PX) {
+      el.scrollLeft = targetRef.current;
+      wrapLoop();
+      targetRef.current = el.scrollLeft;
+      reportActiveSection();
+      momentumRaf.current = null;
+      scrollingRef.current = false;
+      onScrollingChange?.(false);
+      return;
+    }
+
+    el.scrollLeft = current + diff * WHEEL_SMOOTHING;
+    wrapLoop();
+    reportActiveSection();
+    momentumRaf.current = requestAnimationFrame(() => stepMomentumRef.current());
+  }, [wrapLoop, reportActiveSection, onScrollingChange]);
+
+  useEffect(() => {
+    stepMomentumRef.current = stepMomentum;
+  }, [stepMomentum]);
+
   /** RAF-driven smooth scroll with easeOutCubic. Replaces the native
    * scrollTo({ behavior: 'smooth' }) so duration is fully under our control. */
   const smoothScrollTo = useCallback(
@@ -240,9 +336,11 @@ export default function HorizontalScroll({
       const el = containerRef.current;
       if (!el) return;
       stopAnimation();
+      stopMomentum();
       const startX = el.scrollLeft;
       const distance = targetX - startX;
       if (Math.abs(distance) < 0.5) {
+        targetRef.current = el.scrollLeft;
         onComplete?.();
         return;
       }
@@ -257,6 +355,9 @@ export default function HorizontalScroll({
           animFrameId.current = requestAnimationFrame(tick);
         } else {
           animFrameId.current = null;
+          // Re-sync the momentum target so the next wheel tick continues from
+          // here instead of snapping back to a stale target.
+          targetRef.current = el.scrollLeft;
           // Give the browser two frames to flush the final scroll event before
           // we hand control back to the user; otherwise the trailing event can
           // re-trigger our handler and look like user input.
@@ -270,7 +371,7 @@ export default function HorizontalScroll({
       };
       animFrameId.current = requestAnimationFrame(tick);
     },
-    [stopAnimation],
+    [stopAnimation, stopMomentum],
   );
 
   /** Instant scroll (no animation) used for the loop teleport. */
@@ -279,15 +380,17 @@ export default function HorizontalScroll({
       const el = containerRef.current;
       if (!el) return;
       stopAnimation();
+      stopMomentum();
       isAdjusting.current = true;
       el.scrollLeft = targetX;
+      targetRef.current = targetX;
       requestAnimationFrame(() => {
         requestAnimationFrame(() => {
           isAdjusting.current = false;
         });
       });
     },
-    [stopAnimation],
+    [stopAnimation, stopMomentum],
   );
 
   // ---- nav API --------------------------------------------------------------
@@ -301,10 +404,9 @@ export default function HorizontalScroll({
         return;
       }
       lastSnappedIndexRef.current = snapIdx;
-      isSnappedRef.current = true;
       const targetX = getSnapTarget(target);
       if (smooth) {
-        smoothScrollTo(targetX, SNAP_DURATION_MS, onComplete);
+        smoothScrollTo(targetX, NAV_DURATION_MS, onComplete);
       } else {
         jumpToScrollLeft(targetX);
         requestAnimationFrame(() => {
@@ -340,8 +442,11 @@ export default function HorizontalScroll({
         dispatchSectionPrime(id);
       }
 
+      // Derive the current section from the live scroll position so nav works
+      // correctly even when the page is resting freely between sections.
+      const { index: nearestIdx } = findNearestSnapIndex();
       const currentId = getSectionIdAtSnapIndex(
-        lastSnappedIndexRef.current,
+        nearestIdx,
         renderSectionsRef.current,
       );
       const currentIdx = canonical.findIndex((s) => s.id === currentId);
@@ -363,7 +468,6 @@ export default function HorizontalScroll({
           if (lastReal) {
             jumpToScrollLeft(getSnapTarget(lastReal));
             lastSnappedIndexRef.current = n;
-            isSnappedRef.current = true;
           }
           onActiveSectionChange?.("contact");
           onScrollingChange?.(false);
@@ -397,7 +501,7 @@ export default function HorizontalScroll({
       };
       setRenderSections(tempOrder);
     },
-    [scrollToSectionId, scrollToSnapIndex, getSnapPanels, getSnapTarget, jumpToScrollLeft, onActiveSectionChange, onScrollingChange, stopAnimation],
+    [scrollToSectionId, scrollToSnapIndex, getSnapPanels, getSnapTarget, jumpToScrollLeft, findNearestSnapIndex, onActiveSectionChange, onScrollingChange, stopAnimation],
   );
 
   // After a temporary reorder, preserve the current view, animate one panel
@@ -464,225 +568,95 @@ export default function HorizontalScroll({
     });
   }, [scrollToSnapIndex]);
 
-  // ---- scroll-end snap + active-section tracking ----------------------------
+  // ---- loop wrap + active-section tracking for non-wheel scrolling ----------
+  // Wheel scrolling is driven by the momentum loop (which wraps + reports as it
+  // runs). This listener covers everything else — touch drags, scrollbar drags,
+  // keyboard — keeping the infinite loop seamless and the nav highlight in sync.
 
   useEffect(() => {
     const el = containerRef.current;
     if (!el) return;
 
     let idleTimeout: ReturnType<typeof setTimeout>;
-    let scrolling = false;
-
-    const numReal = () => renderSectionsRef.current.length;
-    const isCloneIndex = (snapIdx: number) =>
-      snapIdx === 0 || snapIdx === numReal() + 1;
-
-    const updateActiveSection = (snapIdx: number) => {
-      const n = numReal();
-      let section: Section | undefined;
-      if (snapIdx === 0) section = renderSectionsRef.current[n - 1];
-      else if (snapIdx === n + 1) section = renderSectionsRef.current[0];
-      else section = renderSectionsRef.current[snapIdx - 1];
-      if (section) onActiveSectionChange?.(section.id);
-    };
-
-    /** Instant jump at clone seams once the clone panel is actually aligned
-     *  (not merely at maxScroll, which can overshoot and clip clone-first). */
-    const maybeTeleportLoopSeam = (): boolean => {
-      if (!loopSeamsEnabledRef.current) return false;
-      const panels = getSnapPanels();
-      const n = numReal();
-      if (panels.length < n + 2) return false;
-
-      const { index: nearestIdx } = findNearestSnapIndex();
-      const cloneFirst = panels[n + 1];
-      const cloneLast = panels[0];
-      const firstReal = panels[1];
-      const lastReal = panels[n];
-      if (!cloneFirst || !cloneLast || !firstReal || !lastReal) return false;
-
-      const containerLeft = el.getBoundingClientRect().left;
-
-      const isLoopSeamAligned = (
-        panel: HTMLElement,
-        snapTarget: number,
-      ): boolean => {
-        const panelLeft = panel.getBoundingClientRect().left - containerLeft;
-        return (
-          Math.abs(el.scrollLeft - snapTarget) <= LOOP_SEAM_ALIGN_PX ||
-          Math.abs(panelLeft) <= LOOP_SEAM_ALIGN_PX
-        );
-      };
-
-      // Forward wrap: clone-first is dominant AND aligned with its snap target.
-      if (nearestIdx === n + 1) {
-        const cloneFirstTarget = getSnapTarget(cloneFirst);
-        if (!isLoopSeamAligned(cloneFirst, cloneFirstTarget)) return false;
-
-        jumpToScrollLeft(getSnapTarget(firstReal));
-        lastSnappedIndexRef.current = 1;
-        isSnappedRef.current = true;
-        updateActiveSection(1);
-        return true;
-      }
-
-      // Backward wrap: clone-last is dominant AND aligned.
-      if (nearestIdx === 0) {
-        const cloneLastTarget = getSnapTarget(cloneLast);
-        if (!isLoopSeamAligned(cloneLast, cloneLastTarget)) return false;
-
-        jumpToScrollLeft(getSnapTarget(lastReal));
-        lastSnappedIndexRef.current = n;
-        isSnappedRef.current = true;
-        updateActiveSection(n);
-        return true;
-      }
-
-      return false;
-    };
-
-    const handleIdle = () => {
-      if (isAdjusting.current || isNavJumpRef.current) return;
-      if (maybeTeleportLoopSeam()) {
-        scrolling = false;
-        onScrollingChange?.(false);
-        return;
-      }
-
-      const panels = getSnapPanels();
-      if (!panels.length) {
-        scrolling = false;
-        onScrollingChange?.(false);
-        return;
-      }
-      const panelWidth = el.clientWidth;
-      const { index: nearestIdx, distance: nearestDist } = findNearestSnapIndex();
-      const nearest = panels[nearestIdx];
-      if (!nearest) {
-        scrolling = false;
-        onScrollingChange?.(false);
-        return;
-      }
-
-      // Loop seam: glide to the clone panel, then teleport once aligned.
-      if (isCloneIndex(nearestIdx)) {
-        if (maybeTeleportLoopSeam()) {
-          scrolling = false;
-          onScrollingChange?.(false);
-          return;
-        }
-        smoothScrollTo(getSnapTarget(nearest), SNAP_DURATION_MS, () => {
-          maybeTeleportLoopSeam();
-          scrolling = false;
-          onScrollingChange?.(false);
-        });
-        return;
-      }
-
-      // Within the threshold of a real snap point → snap to it.
-      if (nearestDist <= panelWidth * SNAP_THRESHOLD) {
-        smoothScrollTo(getSnapTarget(nearest), SNAP_DURATION_MS, () => {
-          lastSnappedIndexRef.current = nearestIdx;
-          isSnappedRef.current = true;
-          updateActiveSection(nearestIdx);
-          scrolling = false;
-          onScrollingChange?.(false);
-        });
-        return;
-      }
-
-      // Free zone: stay where we are, just report which section is the
-      // dominant one in the viewport.
-      isSnappedRef.current = false;
-      updateActiveSection(nearestIdx);
-      scrolling = false;
-      onScrollingChange?.(false);
-    };
 
     const handleScroll = () => {
-      if (isAdjusting.current || isNavJumpRef.current) return;
-      if (maybeTeleportLoopSeam()) {
-        clearTimeout(idleTimeout);
-        scrolling = false;
-        onScrollingChange?.(false);
+      // The momentum loop and nav animations manage their own wrapping +
+      // reporting; don't double-process their scroll events here.
+      if (momentumRaf.current != null || isAdjusting.current || isNavJumpRef.current) {
         return;
       }
-      isSnappedRef.current = false;
-      if (!scrolling) {
-        scrolling = true;
+      wrapLoop();
+      reportActiveSection();
+      if (!scrollingRef.current) {
+        scrollingRef.current = true;
         onScrollingChange?.(true);
       }
       clearTimeout(idleTimeout);
-      idleTimeout = setTimeout(handleIdle, SCROLL_IDLE_MS);
+      idleTimeout = setTimeout(() => {
+        scrollingRef.current = false;
+        onScrollingChange?.(false);
+        targetRef.current = el.scrollLeft;
+        reportActiveSection();
+      }, SCROLL_IDLE_MS);
     };
 
     el.addEventListener("scroll", handleScroll, { passive: true });
 
     // Initial active-section report.
-    const { index: initialIdx } = findNearestSnapIndex();
-    if (initialIdx >= 0) updateActiveSection(initialIdx);
+    reportActiveSection();
 
     return () => {
       el.removeEventListener("scroll", handleScroll);
       clearTimeout(idleTimeout);
+      stopMomentum();
       stopAnimation();
     };
-  }, [
-    findNearestSnapIndex,
-    getSnapPanels,
-    getSnapTarget,
-    jumpToScrollLeft,
-    onActiveSectionChange,
-    onScrollingChange,
-    smoothScrollTo,
-    stopAnimation,
-  ]);
+  }, [wrapLoop, reportActiveSection, onScrollingChange, stopMomentum, stopAnimation]);
 
-  // ---- resize: keep snapped section aligned when vw-based layout shifts ----
+  // ---- resize: keep the current section aligned when vw-based layout shifts -
 
   useEffect(() => {
     const el = containerRef.current;
     if (!el) return;
 
-    const numReal = () => renderSectionsRef.current.length;
-    const isCloneIndex = (snapIdx: number) =>
-      snapIdx === 0 || snapIdx === numReal() + 1;
+    const realignAfterResize = () => {
+      if (isNavJumpRef.current || momentumRaf.current != null) return;
 
-    const resnapAfterResize = () => {
-      if (!isSnappedRef.current || isNavJumpRef.current) return;
-
+      // Re-anchor to the section nearest the viewport so vw-width reflow
+      // doesn't leave the page resting at a meaningless offset.
+      const { index } = findNearestSnapIndex();
       const panels = getSnapPanels();
-      const idx = lastSnappedIndexRef.current;
-      const panel = panels[idx];
-      if (!panel || isCloneIndex(idx)) return;
+      const panel = panels[index];
+      if (!panel) return;
 
       stopAnimation();
       jumpToScrollLeft(getSnapTarget(panel));
-      lastSnappedIndexRef.current = idx;
-      isSnappedRef.current = true;
+      wrapLoop();
     };
 
     let frameId = 0;
-    const scheduleResnap = () => {
+    const scheduleRealign = () => {
       cancelAnimationFrame(frameId);
       // Two frames so vw widths + snap anchors finish reflowing.
       frameId = requestAnimationFrame(() => {
-        frameId = requestAnimationFrame(resnapAfterResize);
+        frameId = requestAnimationFrame(realignAfterResize);
       });
     };
 
-    const ro = new ResizeObserver(scheduleResnap);
+    const ro = new ResizeObserver(scheduleRealign);
     ro.observe(el);
     return () => {
       ro.disconnect();
       cancelAnimationFrame(frameId);
     };
-  }, [getSnapPanels, getSnapTarget, jumpToScrollLeft, stopAnimation]);
+  }, [findNearestSnapIndex, getSnapPanels, getSnapTarget, jumpToScrollLeft, wrapLoop, stopAnimation]);
 
   const applyWheelDelta = useCallback((deltaX: number, deltaY: number) => {
     const el = containerRef.current;
     if (!el) return;
 
+    // A new wheel gesture cancels any in-flight nav animation and hands control
+    // back to free scrolling.
     stopAnimation();
     isAdjusting.current = false;
 
@@ -696,8 +670,23 @@ export default function HorizontalScroll({
     else delta = deltaX + deltaY;
 
     const maxDelta = el.clientWidth * MAX_WHEEL_DELTA_FRACTION;
-    el.scrollLeft += Math.max(-maxDelta, Math.min(maxDelta, delta));
-  }, [stopAnimation]);
+    delta = Math.max(-maxDelta, Math.min(maxDelta, delta));
+
+    // Feed the momentum target rather than moving scrollLeft directly. The glide
+    // loop chases the target each frame, producing the smooth, weighty motion.
+    // Seed the target from the live position when the loop is idle so we never
+    // glide from a stale value.
+    if (momentumRaf.current == null) targetRef.current = el.scrollLeft;
+    targetRef.current += delta;
+
+    if (!scrollingRef.current) {
+      scrollingRef.current = true;
+      onScrollingChange?.(true);
+    }
+    if (momentumRaf.current == null) {
+      momentumRaf.current = requestAnimationFrame(stepMomentum);
+    }
+  }, [stopAnimation, stepMomentum, onScrollingChange]);
 
   const shouldIgnoreWheelTarget = useCallback((target: EventTarget | null): boolean => {
     const el = containerRef.current;
@@ -727,7 +716,7 @@ export default function HorizontalScroll({
     return false;
   }, []);
 
-  // ---- wheel: 1:1 vertical + horizontal trackpad → scrollLeft ---------------
+  // ---- wheel: vertical + horizontal trackpad → smoothed momentum target -----
 
   useEffect(() => {
     const el = containerRef.current;

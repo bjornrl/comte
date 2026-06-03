@@ -40,6 +40,12 @@ export const teamMember = defineType({
       description: "Phone number shown alongside email on the responsible block of project cards.",
     }),
     defineField({
+      name: "linkedin",
+      title: "LinkedIn URL",
+      type: "url",
+      description: "Link to this person's LinkedIn profile. Shows a LinkedIn icon on their team card.",
+    }),
+    defineField({
       name: "order",
       title: "Sort Order",
       type: "number",

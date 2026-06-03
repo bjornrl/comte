@@ -13,6 +13,12 @@ function sanityImageUrl(imageField: any, width = 1600): string | null {
   return urlFor(imageField).width(width).auto("format").quality(80).url();
 }
 
+/** Year or duration label for display (supports a single year or a range string). */
+function formatProjectYears(year: unknown): string | null {
+  if (year == null || year === "") return null;
+  return String(year);
+}
+
 type Props = {
   project: any;
   variant?: "page" | "sheet";
@@ -40,6 +46,7 @@ export default function ProjectDetailContent({
     photoUrl?: string;
   } | null = project.responsible ?? null;
   const isSheet = variant === "sheet";
+  const yearsLabel = formatProjectYears(project.year);
 
   return (
     <>
@@ -56,12 +63,14 @@ export default function ProjectDetailContent({
             {project.title}
           </h1>
         )}
-        <p
-          className="italic text-base sm:text-xl text-gray-500"
-          style={{ marginTop: isSheet ? 0 : 8 }}
-        >
-          {project.year}
-        </p>
+        {!isSheet && yearsLabel ? (
+          <p
+            className="italic text-base sm:text-xl text-gray-500"
+            style={{ marginTop: 8 }}
+          >
+            {yearsLabel}
+          </p>
+        ) : null}
         <p className="text-base sm:text-xl text-gray-500">{project.client}</p>
       </div>
 
@@ -75,6 +84,16 @@ export default function ProjectDetailContent({
             sizes="(max-width: 768px) 100vw, (max-width: 1024px) 80vw, 70vw"
             priority
           />
+          {isSheet && yearsLabel ? (
+            <div
+              className="pointer-events-none absolute inset-x-0 bottom-0 z-10 bg-gradient-to-t from-black/60 via-black/25 to-transparent px-4 pb-3 pt-12"
+              aria-hidden
+            >
+              <p className="font-[family-name:var(--font-manrope)] text-sm italic tracking-wide text-white/95">
+                {yearsLabel}
+              </p>
+            </div>
+          ) : null}
         </div>
       </div>
 

@@ -11,7 +11,18 @@ import {
 const DEFAULT_BG = "#5A7482";
 const TILT_COLOR = "#F5F5E9";
 
-const LINES = ["Design to", "evolve"];
+/** Fallback when Sanity has no heroText yet. */
+const DEFAULT_LINES = ["Design to", "evolve"];
+
+/** Split the Sanity heroText into display lines (one per newline). Falls back
+ *  to the default motto when empty. */
+function heroTextToLines(heroText?: string): string[] {
+  const lines = (heroText ?? "")
+    .split(/\r?\n/)
+    .map((l) => l.trim())
+    .filter(Boolean);
+  return lines.length ? lines : DEFAULT_LINES;
+}
 
 type Props = {
   heroText?: string;
@@ -24,12 +35,14 @@ type Props = {
 };
 
 export default function SectionMotto({
+  heroText,
   backgroundColor,
   backgroundVideoUrl,
   animationsActive = true,
   landingEpoch = 1,
 }: Props) {
   const bg = backgroundColor ?? DEFAULT_BG;
+  const lines = heroTextToLines(heroText);
   const [introSettled, setIntroSettled] = useState(false);
 
   useEffect(() => {
@@ -82,7 +95,7 @@ export default function SectionMotto({
 
       <TiltedHeading
         key={`motto-heading-${landingEpoch}`}
-        lines={LINES}
+        lines={lines}
         color={TILT_COLOR}
         parallaxFactor={0.18}
         blockAlignPanelXFraction={0.5}
