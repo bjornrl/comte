@@ -15,6 +15,7 @@ import {
   resolvePublicationPricing,
 } from "@/lib/publicationPricing";
 import { getStripe } from "@/lib/stripe";
+import { getUi } from "@/lib/uiStrings";
 
 const PLACEHOLDER_IMAGE =
   "https://images.unsplash.com/photo-1773558058134-9ff1a3212ef0?q=80&w=1572&auto=format&fit=crop";
@@ -74,6 +75,7 @@ export default async function PublicationSuccessPage({
   const { slug } = await params;
   const { session_id } = await searchParams;
   const locale = await getServerLocale();
+  const ui = getUi(locale);
 
   let publication: any = null;
   try {
@@ -111,7 +113,7 @@ export default async function PublicationSuccessPage({
           className="mt-3 text-xs font-medium uppercase tracking-[0.15em] sm:text-sm"
           style={{ color: verification.ok ? "#1F3A32" : "#FF5252" }}
         >
-          {verification.ok ? "Thank you · Payment received" : "Payment not confirmed"}
+          {verification.ok ? ui.success.thanks : ui.success.notConfirmed}
         </p>
       </div>
 
@@ -138,14 +140,14 @@ export default async function PublicationSuccessPage({
               className="font-[family-name:var(--font-manrope)] font-bold leading-tight"
               style={{ fontSize: "clamp(1.5rem, 6vw, 3rem)" }}
             >
-              Your copy is ready.
+              {ui.success.ready}
             </h2>
             <p className="font-[family-name:var(--font-manrope)] text-base font-light max-w-prose">
               {verification.amountPaid && verification.amountPaid > 0
-                ? `We charged ${formatPriceNOK(verification.amountPaid)}`
-                : "Payment confirmed"}
-              {verification.email ? ` and emailed a receipt to ${verification.email}.` : "."}
-              {" "}Click below to download the PDF — you can come back to this page any time.
+                ? ui.success.charged(formatPriceNOK(verification.amountPaid))
+                : ui.success.confirmed}
+              {verification.email ? ui.success.emailedReceipt(verification.email) : "."}
+              {" "}{ui.success.clickBelow}
             </p>
 
             {hasPdf ? (
@@ -159,13 +161,11 @@ export default async function PublicationSuccessPage({
                   minHeight: 48,
                 }}
               >
-                Download PDF
+                {ui.publication.downloadPdf}
               </a>
             ) : (
               <p className="font-[family-name:var(--font-manrope)] text-sm font-light italic max-w-prose">
-                The PDF hasn&rsquo;t been uploaded yet — we&rsquo;ll email it as
-                soon as it&rsquo;s available. If you need it sooner, reply to
-                your Stripe receipt.
+                {ui.success.pdfNotUploaded}
               </p>
             )}
           </>
@@ -175,11 +175,10 @@ export default async function PublicationSuccessPage({
               className="font-[family-name:var(--font-manrope)] font-bold leading-tight"
               style={{ fontSize: "clamp(1.5rem, 6vw, 3rem)" }}
             >
-              We couldn&rsquo;t verify the payment.
+              {ui.success.couldNotVerify}
             </h2>
             <p className="font-[family-name:var(--font-manrope)] text-base font-light max-w-prose">
-              {verification.reason} If you were charged, contact us and
-              we&rsquo;ll sort it out.
+              {verification.reason} {ui.success.ifCharged}
             </p>
             {pricing === "paid" && price > 0 && (
               <Link
@@ -191,7 +190,7 @@ export default async function PublicationSuccessPage({
                   minHeight: 48,
                 }}
               >
-                Try again ({formatPriceNOK(price)})
+                {ui.success.tryAgain(formatPriceNOK(price))}
               </Link>
             )}
           </>
@@ -203,11 +202,11 @@ export default async function PublicationSuccessPage({
           href="/#publications"
           className="text-foreground/70 underline-offset-4 hover:underline"
         >
-          ← Back to all publications
+          {ui.publication.backToAll}
         </Link>
       </div>
 
-      <Footer />
+      <Footer locale={locale} />
     </div>
   );
 }

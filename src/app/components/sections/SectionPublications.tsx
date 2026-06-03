@@ -18,6 +18,7 @@ import {
 import TiltedHeading from "../TiltedHeading";
 import { urlFor } from "@/sanity/lib/image";
 import type { CardItem } from "./SectionCardGrid";
+import { useUi } from "../useUi";
 
 function publicationHref(item: CardItem): string | null {
   return item.slug ? `/publications/${item.slug}` : null;
@@ -87,6 +88,7 @@ function MarqueeTile({
   onHover: () => void;
   onLeave: () => void;
 }) {
+  const ui = useUi();
   const [hovered, setHovered] = useState(false);
   const imageUrl = sanityImageUrl(item.image, 800) ?? PLACEHOLDER_IMAGE;
   const href = publicationHref(item);
@@ -101,8 +103,8 @@ function MarqueeTile({
       onLeave();
     },
     "aria-label": item.title
-      ? `Read more about ${item.title}`
-      : "Read more about this publication",
+      ? ui.publication.readMoreAbout(item.title)
+      : ui.publication.readMoreAboutThis,
     className: "relative block w-full overflow-hidden bg-gray-100 text-left",
     style: {
       height: MARQUEE_TILE_HEIGHT,
@@ -196,7 +198,7 @@ function MarqueeTile({
           className="font-[family-name:var(--font-manrope)] text-base font-bold tracking-wide"
           style={{ color: "rgba(255,255,255,0.98)", textAlign: "center", padding: "0 12px" }}
         >
-          Read more and order
+          {ui.publication.readMoreAndOrder}
         </span>
       </div>
     </Wrapper>
@@ -276,10 +278,11 @@ function CarouselNavButton({
   disabled: boolean;
   onClick: () => void;
 }) {
+  const ui = useUi();
   const [hovered, setHovered] = useState(false);
   const Icon = direction === "up" ? ChevronUp : ChevronDown;
   const active = !disabled && hovered;
-  const label = direction === "up" ? "Scroll publications up" : "Scroll publications down";
+  const label = direction === "up" ? ui.publication.scrollUp : ui.publication.scrollDown;
 
   return (
     <button
@@ -322,6 +325,7 @@ function CarouselSlot({
   onClick: () => void;
   flexBasis: string;
 }) {
+  const ui = useUi();
   const [hovered, setHovered] = useState(false);
 
   if (!item) return <div style={{ flex: `0 0 ${flexBasis}`, background: "transparent" }} />;
@@ -337,7 +341,7 @@ function CarouselSlot({
       onMouseLeave={() => setHovered(false)}
       onFocus={() => setHovered(true)}
       onBlur={() => setHovered(false)}
-      aria-label={`View ${item.title ?? "publication"}`}
+      aria-label={`${ui.publication.view} ${item.title ?? ui.publication.publicationSuffix.toLowerCase()}`}
       className="relative w-full overflow-hidden bg-gray-100 text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1F3A32]"
       style={{ flex: `0 0 ${flexBasis}`, cursor: "pointer", border: "none", padding: 0 }}
     >
@@ -378,7 +382,7 @@ function CarouselSlot({
           className="font-[family-name:var(--font-manrope)] text-sm font-bold tracking-wide sm:text-base"
           style={{ color: "rgba(255,255,255,0.98)", textAlign: "center", padding: "0 12px" }}
         >
-          Read more and order
+          {ui.publication.readMoreAndOrder}
         </span>
       </div>
     </button>
@@ -553,6 +557,7 @@ export default function SectionPublications({
   onItemViewChange,
   registerBackHandler,
 }: Props) {
+  const ui = useUi();
   const [stack, setStack] = useState<ViewEntry[]>([{ kind: "overview" }]);
   const [activeIndex, setActiveIndex] = useState(0);
   const [transitionEnabled, setTransitionEnabled] = useState(true);
@@ -683,9 +688,9 @@ export default function SectionPublications({
     // sync with the page scroll. useLayoutEffect keeps the title in sync
     // with item swaps before paint so BlobNav can remeasure width.
     onItemViewChange?.(
-      navbarItemViewActive ? currentItemTitle || "back to overview" : null,
+      navbarItemViewActive ? currentItemTitle || ui.navAria.backToOverview : null,
     );
-  }, [navbarItemViewActive, currentItemTitle, onItemViewChange]);
+  }, [navbarItemViewActive, currentItemTitle, onItemViewChange, ui.navAria.backToOverview]);
 
   useEffect(() => {
     if (!registerBackHandler) return;
@@ -879,6 +884,7 @@ function OverviewPanel({
   onBrowse: () => void;
   hasBrowseTarget: boolean;
 }) {
+  const ui = useUi();
   return (
     <div className="relative h-full w-full">
       <div
@@ -901,7 +907,7 @@ function OverviewPanel({
             type="button"
             onClick={onBrowse}
             disabled={!hasBrowseTarget}
-            aria-label="Browse publications"
+            aria-label={ui.publication.browse}
             className="inline-flex min-h-11 items-center gap-2 font-[family-name:var(--font-manrope)] text-base font-medium transition-[background-color,color,transform] duration-150 ease-out hover:bg-[var(--section-cta-hover-bg)] hover:text-[var(--section-cta-hover-fg)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-transparent disabled:hover:text-[var(--section-cta-fg)]"
             style={{
               marginTop: body ? "2.5rem" : 0,

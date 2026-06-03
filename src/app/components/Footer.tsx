@@ -1,26 +1,32 @@
 import Link from "next/link";
 import Image from "next/image";
 import { FALLBACK_SITE_SETTINGS } from "@/lib/fallbacks";
+import { DEFAULT_LOCALE, type Locale } from "@/lib/locale";
+import { getUi } from "@/lib/uiStrings";
 
+// `navKey` indexes the localized label table; `href` stays stable.
 const NAV_LINKS = [
-  { label: "About", href: "/about" },
-  { label: "Projects", href: "/projects" },
-  { label: "Team", href: "/team" },
-  { label: "Publications", href: "/publications" },
-  { label: "Ventures", href: "/ventures" },
-];
+  { navKey: "about-intro", href: "/about" },
+  { navKey: "projects", href: "/projects" },
+  { navKey: "team", href: "/team" },
+  { navKey: "publications", href: "/publications" },
+  { navKey: "ventures", href: "/ventures" },
+] as const;
 
 type FooterProps = {
   email?: string;
   location?: string;
   copyright?: string;
+  locale?: Locale;
 };
 
 export default function Footer({
   email = FALLBACK_SITE_SETTINGS.email,
   location = FALLBACK_SITE_SETTINGS.location,
   copyright = FALLBACK_SITE_SETTINGS.copyright,
+  locale = DEFAULT_LOCALE,
 }: FooterProps = {}) {
+  const ui = getUi(locale);
   return (
     <footer className="mt-18 border-t border-black/10">
       <div className="relative w-full overflow-hidden bg-[var(--comte-light-base)] font-[var(--font-neue-haas)] text-[var(--comte-dark-green)]">
@@ -52,9 +58,9 @@ export default function Footer({
 
               {/* Navigation + Contact (right side on desktop) */}
               <div className="flex flex-col gap-12 md:flex-row md:items-start md:gap-16">
-                <nav aria-label="Footer navigation" className="flex flex-col gap-3">
+                <nav aria-label={ui.footer.navigation} className="flex flex-col gap-3">
                   <p className="mb-1 text-[clamp(0.7rem,1vw,0.8rem)] font-normal uppercase tracking-[0.1em] text-[color-mix(in_srgb,var(--comte-dark-green)_45%,transparent)]">
-                    Navigation
+                    {ui.footer.navigation}
                   </p>
                   {NAV_LINKS.map((link) => (
                     <Link
@@ -62,14 +68,14 @@ export default function Footer({
                       href={link.href}
                       className="text-[clamp(0.875rem,1.2vw,1rem)] font-light text-[color-mix(in_srgb,var(--comte-dark-green)_72%,transparent)] no-underline"
                     >
-                      {link.label}
+                      {ui.nav[link.navKey]}
                     </Link>
                   ))}
                 </nav>
 
                 <div className="flex flex-col gap-3">
                   <p className="mb-1 text-[clamp(0.7rem,1vw,0.8rem)] font-normal uppercase tracking-[0.1em] text-[color-mix(in_srgb,var(--comte-dark-green)_45%,transparent)]">
-                    Contact
+                    {ui.footer.contact}
                   </p>
                   <a
                     href={`mailto:${email}`}

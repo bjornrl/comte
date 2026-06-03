@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useUi } from "@/app/components/useUi";
 
 type Props = {
   slug: string;
@@ -8,6 +9,7 @@ type Props = {
 };
 
 export default function BuyButton({ slug, priceLabel }: Props) {
+  const ui = useUi();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -22,11 +24,11 @@ export default function BuyButton({ slug, priceLabel }: Props) {
       });
       const data = await res.json();
       if (!res.ok || !data?.url) {
-        throw new Error(data?.error ?? "Could not start checkout.");
+        throw new Error(data?.error ?? ui.buy.couldNotStart);
       }
       window.location.href = data.url;
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Something went wrong.");
+      setError(e instanceof Error ? e.message : ui.buy.somethingWrong);
       setLoading(false);
     }
   };
@@ -47,7 +49,7 @@ export default function BuyButton({ slug, priceLabel }: Props) {
           border: "none",
         }}
       >
-        {loading ? "Redirecting…" : `Buy now — ${priceLabel}`}
+        {loading ? ui.buy.redirecting : `${ui.buy.buyNow} — ${priceLabel}`}
       </button>
       {error && (
         <p

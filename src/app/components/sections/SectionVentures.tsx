@@ -8,6 +8,7 @@ import TiltedHeading from "../TiltedHeading";
 import { SectionBodyText, PUBLICATIONS_VENTURES_BODY_MAX_WIDTH } from "./sectionBodyText";
 import { urlFor } from "@/sanity/lib/image";
 import type { CardItem } from "./SectionCardGrid";
+import { useUi } from "../useUi";
 
 const PLACEHOLDER_IMAGE =
   "https://images.unsplash.com/photo-1773558058134-9ff1a3212ef0?q=80&w=1572&auto=format&fit=crop";
@@ -151,6 +152,7 @@ export default function SectionVentures({
   featuredImage,
   items,
 }: Props) {
+  const ui = useUi();
   return (
     <SectionShell
       id="ventures"
@@ -203,7 +205,7 @@ export default function SectionVentures({
           <button
             type="button"
             onClick={() => navigateToSection("contact")}
-            aria-label="Get in touch — go to contact section"
+            aria-label={ui.contact.getInTouchAria}
             className="inline-flex min-h-11 items-center gap-2 font-[family-name:var(--font-manrope)] text-base font-medium transition-[background-color,color,transform] duration-150 ease-out hover:bg-[var(--section-cta-hover-bg)] hover:text-[var(--section-cta-hover-fg)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 active:scale-[0.98]"
             style={{
               marginTop: body ? "2.5rem" : 0,
@@ -217,7 +219,7 @@ export default function SectionVentures({
               ["--section-cta-hover-fg" as string]: backgroundColor,
             } as CSSProperties}
           >
-            Get in touch
+            {ui.contact.getInTouch}
             <ArrowRight size={16} strokeWidth={2} aria-hidden />
           </button>
           {heading && (

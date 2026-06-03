@@ -6,6 +6,8 @@ import {
   formatPriceNOK,
   resolvePublicationPricing,
 } from "@/lib/publicationPricing";
+import { DEFAULT_LOCALE, type Locale } from "@/lib/locale";
+import { getUi } from "@/lib/uiStrings";
 import BuyButton from "@/app/(pages)/publications/[slug]/BuyButton";
 
 const PLACEHOLDER_IMAGE =
@@ -23,13 +25,16 @@ type Props = {
    *  "back to all publications" link, since the sheet itself handles
    *  dismissal. */
   variant?: "page" | "sheet";
+  locale?: Locale;
 };
 
 export default function PublicationDetailContent({
   publication,
   canceled,
   variant = "page",
+  locale = DEFAULT_LOCALE,
 }: Props) {
+  const ui = getUi(locale);
   const { pricing, price } = resolvePublicationPricing({
     _id: publication._id,
     pricing: publication.pricing,
@@ -66,7 +71,9 @@ export default function PublicationDetailContent({
             marginTop: isSheet ? 0 : 12,
           }}
         >
-          {isFree ? "Free publication" : `${formatPriceNOK(price)} · Publication`}
+          {isFree
+            ? ui.publication.freeBadge
+            : `${formatPriceNOK(price)} · ${ui.publication.publicationSuffix}`}
         </p>
       </div>
 
@@ -112,13 +119,13 @@ export default function PublicationDetailContent({
             {isFree && (
               <>
                 <span className="text-xs font-medium uppercase tracking-[0.15em] opacity-70 sm:text-sm">
-                  Download
+                  {ui.publication.downloadLabel}
                 </span>
                 <h2
                   className="font-[family-name:var(--font-manrope)] font-bold leading-tight"
                   style={{ fontSize: "clamp(1.5rem, 6vw, 3rem)" }}
                 >
-                  This publication is free to download.
+                  {ui.publication.freeToDownload}
                 </h2>
               </>
             )}
@@ -127,7 +134,7 @@ export default function PublicationDetailContent({
                 className="font-[family-name:var(--font-manrope)] text-sm font-medium"
                 style={{ color: "#FF5252" }}
               >
-                Checkout was canceled — no payment was taken.
+                {ui.publication.checkoutCanceled}
               </p>
             )}
           </div>
@@ -146,7 +153,7 @@ export default function PublicationDetailContent({
                 minHeight: 48,
               }}
             >
-              Download PDF
+              {ui.publication.downloadPdf}
             </a>
           ) : (
             <div
@@ -159,7 +166,7 @@ export default function PublicationDetailContent({
               }}
               aria-disabled="true"
             >
-              PDF coming soon
+              {ui.publication.pdfComingSoon}
             </div>
           )
         ) : (
@@ -176,7 +183,7 @@ export default function PublicationDetailContent({
             href="/#publications"
             className="text-foreground/70 underline-offset-4 hover:underline"
           >
-            ← Back to all publications
+            {ui.publication.backToAll}
           </Link>
         </div>
       )}

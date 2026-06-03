@@ -2,6 +2,8 @@ import Image from "next/image";
 import Link from "next/link";
 import { urlFor } from "@/sanity/lib/image";
 import { DOMAIN_LABELS, type Domain } from "@/app/components/projectNetworkData";
+import { DEFAULT_LOCALE, type Locale } from "@/lib/locale";
+import { getUi } from "@/lib/uiStrings";
 
 const PLACEHOLDER_IMAGE =
   "https://images.unsplash.com/photo-1773558058134-9ff1a3212ef0?q=80&w=1572&auto=format&fit=crop";
@@ -14,9 +16,15 @@ function sanityImageUrl(imageField: any, width = 1600): string | null {
 type Props = {
   project: any;
   variant?: "page" | "sheet";
+  locale?: Locale;
 };
 
-export default function ProjectDetailContent({ project, variant = "page" }: Props) {
+export default function ProjectDetailContent({
+  project,
+  variant = "page",
+  locale = DEFAULT_LOCALE,
+}: Props) {
+  const ui = getUi(locale);
   const gallery: any[] = project.gallery ?? [];
   const heroImage = gallery[0];
   const heroUrl = sanityImageUrl(heroImage) ?? PLACEHOLDER_IMAGE;
@@ -149,7 +157,7 @@ export default function ProjectDetailContent({ project, variant = "page" }: Prop
             className="font-[family-name:var(--font-manrope)] font-bold leading-tight"
             style={{ fontSize: "clamp(1.5rem, 5vw, 2.5rem)", marginBottom: 24 }}
           >
-            Want to know more about the project?
+            {ui.project.wantToKnowMore}
           </h2>
           <div className="flex flex-col sm:flex-row sm:items-center gap-5">
             {responsible.photoUrl && (
@@ -202,16 +210,16 @@ export default function ProjectDetailContent({ project, variant = "page" }: Prop
         <>
           <div className="w-full bg-background px-4 sm:px-6 md:px-2 pt-12 pb-6 md:pb-0 md:h-[50vh] flex flex-col items-start justify-end">
             <h2 className="text-3xl sm:text-4xl md:text-5xl py-6 md:py-12 font-light text-foreground leading-tight">
-              Do you have any questions regarding this project?
+              {ui.project.haveQuestions}
             </h2>
           </div>
           <div className="w-full flex flex-col md:flex-row md:items-stretch gap-2 py-2 p-0">
             <Link
               href="/about"
               className="w-full md:w-1/2 h-[30vh] md:h-[50vh] flex items-center justify-center border border-foreground text-foreground font-light text-2xl md:text-3xl tracking-wide transition-[box-shadow,background-color,color] duration-300 ease-out focus:outline-none focus:ring-2 focus:ring-inset focus:ring-background/30 shrink-0 hover:[box-shadow:inset_0_0_100px_0_rgba(255,82,82,0.85)]"
-              aria-label="Get in touch"
+              aria-label={ui.project.getInTouch}
             >
-              Get in touch
+              {ui.project.getInTouch}
             </Link>
             <div className="relative h-[30vh] w-full md:h-[50vh] md:w-1/2 overflow-hidden">
               <Image

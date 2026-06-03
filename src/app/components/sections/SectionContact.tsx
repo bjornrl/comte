@@ -1,3 +1,5 @@
+"use client";
+
 import SectionShell, {
   SECTION_BODY_CONTENT_TOP,
   SECTION_TITLE_SIZE,
@@ -5,6 +7,7 @@ import SectionShell, {
 } from "./SectionShell";
 import { SECTION_BODY_MAX_WIDTH, SectionBodyText } from "./sectionBodyText";
 import { CONTACT_BG, CONTACT_FG } from "../homeLayout";
+import { useUi } from "../useUi";
 
 const TEXT_BLOCK_GAP = "2.5rem";
 
@@ -39,11 +42,12 @@ export default function SectionContact({
   block3Title,
   block3Body,
 }: Props) {
-  const title1 = block1Title ?? "Get in touch";
+  const ui = useUi();
+  const title1 = block1Title ?? ui.contact.getInTouch;
   const body1 = block1Body ?? "hello@comtebureau.com";
-  const title2 = block2Title ?? "Where to find us";
+  const title2 = block2Title ?? ui.contact.whereToFind;
   const body2 = block2Body ?? "Oslo, Norway";
-  const title3 = block3Title ?? "Contact";
+  const title3 = block3Title ?? ui.contact.contact;
   const body3 = block3Body ?? "";
 
   return (

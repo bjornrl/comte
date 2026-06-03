@@ -4,6 +4,7 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState, Fragment } f
 import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import LocaleToggle from "./LocaleToggle";
+import { useUi } from "./useUi";
 import {
   NAV_ACTIVE_BG,
   NAV_ACTIVE_FG,
@@ -220,6 +221,7 @@ export default function BlobNav({
   const navRowRef = useRef<HTMLDivElement>(null);
   const pathname = usePathname();
   const router = useRouter();
+  const ui = useUi();
 
   const logoActive = isLogoActive(activeSection);
   /** Coral mark on landing at rest; fades to logo blue once horizontal scroll begins. */
@@ -636,7 +638,7 @@ export default function BlobNav({
               pointerEvents: "none",
             }}
           >
-            {publicationsItemView.itemTitle || "back to overview"}
+            {publicationsItemView.itemTitle || ui.navAria.backToOverview}
           </button>
         )}
         {/* Logo — always links to `/`; on the homepage we intercept and
@@ -649,7 +651,7 @@ export default function BlobNav({
           }}
           onMouseEnter={() => setLogoHovered(true)}
           onMouseLeave={() => setLogoHovered(false)}
-          aria-label="Comte – home"
+          aria-label={ui.navAria.home}
           aria-current={logoActive ? "page" : undefined}
           style={{
             display: "inline-flex",
@@ -701,7 +703,7 @@ export default function BlobNav({
         <button
           type="button"
           onClick={() => setOpen((v) => !v)}
-          aria-label={open ? "Close navigation" : "Open navigation"}
+          aria-label={open ? ui.navAria.closeMenu : ui.navAria.openMenu}
           aria-expanded={open}
           aria-controls="comte-nav-items"
           style={{
@@ -815,7 +817,7 @@ export default function BlobNav({
                         applyNavItemColorsForTheme(e.currentTarget, navTheme, isActive);
                       }}
                     >
-                      {item.label}
+                      {ui.nav[item.sectionId as keyof typeof ui.nav] ?? item.label}
                     </button>
                   </div>
 
@@ -854,8 +856,8 @@ export default function BlobNav({
                         onMouseLeave={() => setBackHovered(false)}
                         aria-label={
                           slotBackButton.itemTitle
-                            ? `Back to publications overview (currently viewing ${slotBackButton.itemTitle})`
-                            : "Back to publications overview"
+                            ? `${ui.navAria.backToPublications} (${ui.navAria.currentlyViewing(slotBackButton.itemTitle)})`
+                            : ui.navAria.backToPublications
                         }
                         style={{
                           ...boxStyle({
@@ -870,7 +872,7 @@ export default function BlobNav({
                           transition: "background 0.2s ease, color 0.2s ease",
                         }}
                       >
-                        {slotBackButton.itemTitle || "back to overview"}
+                        {slotBackButton.itemTitle || ui.navAria.backToOverview}
                       </button>
                     </div>
                   )}

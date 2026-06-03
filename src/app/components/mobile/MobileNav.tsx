@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { NAV_ITEMS } from "../BlobNav";
 import LocaleToggle from "../LocaleToggle";
+import { useUi } from "../useUi";
 
 const BOX_BG = "#F5F5E9";
 const BOX_HOVER_BG = "#FF5252";
@@ -93,6 +94,7 @@ export default function MobileNav({ activeSection }: Props) {
   }, []);
 
   const logoActive = isLogoActive(activeSection);
+  const ui = useUi();
 
   return (
     <>
@@ -112,7 +114,7 @@ export default function MobileNav({ activeSection }: Props) {
             e.preventDefault();
             navigate("home");
           }}
-          aria-label="Comte – home"
+          aria-label={ui.navAria.home}
           aria-current={logoActive ? "page" : undefined}
           className="inline-flex"
           style={{
@@ -140,7 +142,7 @@ export default function MobileNav({ activeSection }: Props) {
           <button
             type="button"
             onClick={() => setOpen((v) => !v)}
-            aria-label={open ? "Close navigation" : "Open navigation"}
+            aria-label={open ? ui.navAria.closeMenu : ui.navAria.openMenu}
             aria-expanded={open}
             aria-controls="comte-mobile-nav-items"
             className="inline-flex items-center justify-center"
@@ -229,7 +231,7 @@ export default function MobileNav({ activeSection }: Props) {
                     transition: "background 0.2s ease, color 0.2s ease",
                   }}
                 >
-                  {item.label}
+                  {ui.nav[item.sectionId as keyof typeof ui.nav] ?? item.label}
                 </button>
               </li>
             );

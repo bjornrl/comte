@@ -26,7 +26,7 @@ export default async function ProjectModal({
       ariaLabel={project.title ?? "Project"}
       title={project.title ?? "Project"}
     >
-      <ProjectDetailContent project={project} variant="sheet" />
+      <ProjectDetailContent project={project} variant="sheet" locale={locale} />
     </BottomSheet>
   );
 }

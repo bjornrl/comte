@@ -9,6 +9,7 @@ import {
   useDragControls,
 } from "framer-motion";
 import { X } from "lucide-react";
+import { useUi } from "./useUi";
 
 const SHEET_HEIGHT_VH = 92;
 const DRAG_DISMISS_PX = 140;
@@ -34,6 +35,7 @@ type Props = {
  */
 export default function BottomSheet({ ariaLabel, title, children }: Props) {
   const router = useRouter();
+  const ui = useUi();
   const scrollRef = useRef<HTMLDivElement>(null);
   const dragControls = useDragControls();
 
@@ -139,7 +141,7 @@ export default function BottomSheet({ ariaLabel, title, children }: Props) {
                 dismiss();
               }}
               onPointerDown={(e) => e.stopPropagation()}
-              aria-label="Close"
+              aria-label={ui.sheet.close}
               style={{
                 width: CLOSE_BOX_SIZE,
                 height: CLOSE_BOX_SIZE,

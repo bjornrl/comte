@@ -16,6 +16,7 @@ import {
 } from "../homeLayout";
 import { comteColors } from "@/lib/comte-colors";
 import MobileNav, { MOBILE_NAV_BOX_HEIGHT } from "./MobileNav";
+import { useUi } from "../useUi";
 import { Map, MapMarker, MarkerContent } from "@/components/ui/map";
 
 type TeamMember = {
@@ -551,6 +552,7 @@ function SectionProjectsMobile({
   bg?: string;
   projects: Project[];
 }) {
+  const ui = useUi();
   const [activeFilter, setActiveFilter] = useState<Domain | null>(null);
   // Filter chips are hidden behind a "filter" toggle by default — keeps
   // the sticky header compact and matches the mobile-nav hamburger.
@@ -596,7 +598,7 @@ function SectionProjectsMobile({
         className="mb-8 font-[var(--font-abhaya-libre)] leading-[0.95] tracking-tight"
         style={{ fontSize: "clamp(3rem, 12vw, 5rem)" }}
       >
-        {heading ?? "Projects"}
+        {heading ?? ui.nav.projects}
         <span style={{ color: LANDING_HERO_ACCENT }}>.</span>
       </h2>
 
@@ -948,6 +950,7 @@ function SectionPublicationsMobile({
   body?: string;
   items: CardItem[];
 }) {
+  const ui = useUi();
   return (
     <section
       id="publications"
@@ -1025,7 +1028,7 @@ function SectionPublicationsMobile({
                   className="mt-3 inline-flex h-[42px] w-full items-center justify-center px-5 text-[0.75rem] font-semibold uppercase tracking-[0.15em]"
                   style={{ background: "#FF5252", color: "#F5F5E9" }}
                 >
-                  Read more and order →
+                  {ui.publication.readMoreAndOrder} →
                 </span>
               </>
             );
@@ -1167,6 +1170,7 @@ function SectionContactMobile({
 }: {
   locations?: ContactLocation[];
 }) {
+  const ui = useUi();
   const resolved = resolveContactLocations(locations);
   return (
     <section
@@ -1186,7 +1190,7 @@ function SectionContactMobile({
           color: comteColors.red,
         }}
       >
-        Contact
+        {ui.contact.contact}
         <span style={{ color: LANDING_HERO_ACCENT }}>.</span>
       </h2>
       <div className="mb-14">
@@ -1194,11 +1198,11 @@ function SectionContactMobile({
           className="mb-3 font-[var(--font-abhaya-libre)] leading-[0.95] tracking-tight"
           style={{ fontSize: "clamp(2.5rem, 10vw, 4rem)", color: "#FF5252" }}
         >
-          Get in touch
+          {ui.contact.getInTouch}
         </h3>
         <div className="flex flex-col gap-6 text-[clamp(1rem,4vw,1.125rem)] leading-relaxed">
           <div className="flex flex-col gap-1">
-            <span className="text-sm uppercase tracking-[0.15em] opacity-70">General</span>
+            <span className="text-sm uppercase tracking-[0.15em] opacity-70">{ui.contact.general}</span>
             <a
               href="mailto:kontakt@comte.no"
               className="underline-offset-4 hover:underline"
@@ -1215,7 +1219,7 @@ function SectionContactMobile({
             </a>
           </div>
           <div className="flex flex-col gap-1">
-            <span className="text-sm uppercase tracking-[0.15em] opacity-70">Projects</span>
+            <span className="text-sm uppercase tracking-[0.15em] opacity-70">{ui.contact.projects}</span>
             <a
               href="mailto:adrian@comte.no"
               className="underline-offset-4 hover:underline"

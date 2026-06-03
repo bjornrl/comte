@@ -46,6 +46,7 @@ export default async function PublicationModal({
         publication={publication}
         canceled={Boolean(canceled)}
         variant="sheet"
+        locale={locale}
       />
     </BottomSheet>
   );

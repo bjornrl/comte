@@ -25,8 +25,8 @@ export default async function ProjectPage({
   return (
     <div className="min-h-svh">
       <ResponsiveNav activeSection="projects" />
-      <ProjectDetailContent project={project} variant="page" />
-      <Footer />
+      <ProjectDetailContent project={project} variant="page" locale={locale} />
+      <Footer locale={locale} />
     </div>
   );
 }
