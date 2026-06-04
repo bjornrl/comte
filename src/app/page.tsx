@@ -40,6 +40,7 @@ import {
 import { FALLBACK_PROJECTS } from "@/lib/fallbacks";
 import type { Locale } from "@/lib/locale";
 import { getServerLocale } from "@/lib/locale-server";
+import { getUi } from "@/lib/uiStrings";
 import type { CardItem } from "@/app/components/sections/SectionCardGrid";
 
 export const revalidate = 60;
@@ -239,14 +240,15 @@ export default async function Home() {
       interstitial: mapInterstitial(home?.interstitial),
     },
     motto: {
-      heroText: resolveLocaleString(motto?.heroText),
       backgroundColor: motto?.backgroundColor,
-      backgroundVideoUrl: motto?.backgroundVideoUrl,
       interstitial: mapInterstitial(motto?.interstitial),
     },
     aboutIntro: {
+      heading:
+        resolveLocaleString(aboutIntro?.heading) || getUi(locale).nav["about-intro"],
+      videoUrl: aboutIntro?.videoUrl ?? undefined,
       imageUrl: sanityImageUrl(aboutIntro?.image),
-      imageAlt: aboutIntro?.image?.alt,
+      imageAlt: resolveLocaleString(aboutIntro?.image?.alt),
       whoIsComteTitle: resolveLocaleString(aboutIntro?.whoIsComteTitle),
       whoIsComte: resolveLocaleText(aboutIntro?.whoIsComte),
       whoAreWeTitle: resolveLocaleString(aboutIntro?.whoAreWeTitle),

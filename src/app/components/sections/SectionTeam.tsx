@@ -2,19 +2,35 @@
 
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Linkedin } from "lucide-react";
-import SectionShell, { CONTENT_TOP, PANEL_PADDING } from "./SectionShell";
-import TiltedHeading from "../TiltedHeading";
+import SectionShell, {
+  CONTENT_TOP,
+  PANEL_PADDING,
+  PROJECT_TILE_SECTION_TOP,
+} from "./SectionShell";
+import SectionPanelHeading from "./SectionPanelHeading";
+import { useUi } from "../useUi";
 import { urlFor } from "@/sanity/lib/image";
 
 const BG = "#5F7C8B";
 const FG = "#F5F5E9";
+/** Join-team CTA card — cream surface, blue type (team section blue). */
+const TEAM_CTA_SURFACE = FG;
+const TEAM_CTA_TEXT = BG;
+
+function navigateToSection(sectionId: string) {
+  window.dispatchEvent(new CustomEvent("comte:navigate", { detail: { sectionId } }));
+}
 const PLACEHOLDER_IMAGE =
   "https://images.unsplash.com/photo-1773558058134-9ff1a3212ef0?q=80&w=1572&auto=format&fit=crop";
 
 const TEAM_CARD_VW_DIVISOR = 6.5;
-/** Left band reserved for the tilted section heading. */
-export const TEAM_HEADING_RESERVE = "clamp(14rem, 22vw, 18rem)";
+/** Matches project tile cards (ProjectCluster PROJECT_CARD_BORDER_RADIUS). */
+const TEAM_CARD_BORDER_RADIUS = 8;
+/** Trim height from the top; bottom stays on panel padding. */
+const TEAM_GRID_HEIGHT = "calc(100% - clamp(2rem, 5vh, 3.5rem))";
 const TEAM_HEADING_TEXT = "Our team";
+/** Pull the title up from the grid wrapper to the shared panel-heading row. */
+const TEAM_HEADING_TOP_IN_GRID = `calc(${PROJECT_TILE_SECTION_TOP} - ${CONTENT_TOP})`;
 /** Gap between the team grid and the video carousel column. */
 const GRID_TO_CAROUSEL_GAP = "clamp(2rem, 4vw, 3rem)";
 /** Fixed-width rolling video column — matches ventures marquee column (18%). */
@@ -59,8 +75,9 @@ type Props = {
 };
 
 export function getTeamSectionWidth(memberCount: number, videoCount = 0): string {
-  const cols = Math.max(1, Math.ceil(Math.max(memberCount, 1) / 2));
-  const teamPart = `calc(${TEAM_HEADING_RESERVE} + ${cols} * (100vw / ${TEAM_CARD_VW_DIVISOR}) + ${Math.max(0, cols - 1)} * 0.5rem + ${PANEL_PADDING})`;
+  const totalCells = Math.max(memberCount, 0) + 1;
+  const cols = Math.max(1, Math.ceil(totalCells / 2));
+  const teamPart = `calc(${PANEL_PADDING} + ${cols} * (100vw / ${TEAM_CARD_VW_DIVISOR}) + ${Math.max(0, cols - 1)} * 0.5rem + ${PANEL_PADDING})`;
   if (videoCount <= 0) {
     return `max(100vw, ${teamPart})`;
   }
@@ -228,33 +245,74 @@ function VideoMarqueeColumn({ videos }: { videos: TeamCarouselVideo[] }) {
   );
 }
 
+function TeamJoinCard({
+  spanBothRows,
+  getInTouchLabel,
+  getInTouchAria,
+}: {
+  spanBothRows: boolean;
+  getInTouchLabel: string;
+  getInTouchAria: string;
+}) {
+  return (
+    <article
+      className="relative flex h-full min-h-0 flex-col items-center justify-center gap-6 overflow-hidden px-4"
+      style={{
+        gridRow: spanBothRows ? "span 2" : undefined,
+        background: TEAM_CTA_SURFACE,
+        color: TEAM_CTA_TEXT,
+        borderRadius: TEAM_CARD_BORDER_RADIUS,
+      }}
+    >
+      <p
+        className="font-[family-name:var(--font-manrope)] font-medium leading-none"
+        style={{ fontSize: "clamp(2rem, 4vw, 3rem)" }}
+      >
+        You?
+      </p>
+      <button
+        type="button"
+        onClick={() => navigateToSection("contact")}
+        aria-label={getInTouchAria}
+        className="inline-flex min-h-11 items-center justify-center font-[family-name:var(--font-manrope)] text-base font-medium transition-[background-color,color,transform] duration-150 ease-out hover:bg-[var(--team-cta-hover-bg)] hover:text-[var(--team-cta-hover-fg)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 active:scale-[0.98]"
+        style={{
+          padding: "12px 24px",
+          border: `1px solid ${TEAM_CTA_TEXT}`,
+          background: "transparent",
+          color: TEAM_CTA_TEXT,
+          cursor: "pointer",
+          ["--team-cta-hover-bg" as string]: TEAM_CTA_TEXT,
+          ["--team-cta-hover-fg" as string]: TEAM_CTA_SURFACE,
+        }}
+      >
+        {getInTouchLabel}
+      </button>
+    </article>
+  );
+}
+
 export default function SectionTeam({
   heading,
   teamMembers,
   carouselVideos = [],
 }: Props) {
+  const ui = useUi();
   const hasVideoCarousel = carouselVideos.length > 0;
-  const headingLines = [heading?.trim() || TEAM_HEADING_TEXT];
+  const sectionHeading = heading?.trim() || TEAM_HEADING_TEXT;
+  const joinCardSpansBothRows = teamMembers.length % 2 === 0;
 
   return (
     <SectionShell
       id="team"
       bgColor={BG}
-      style={{ padding: 0, color: FG, overflow: "visible" }}
+      style={{ padding: 0, color: FG }}
     >
-      <TiltedHeading
-        lines={headingLines}
-        color={FG}
-        parallaxFactor={0.18}
-        leftOffsetEm={0.2}
-      />
-
       <div className="relative flex h-full w-full">
         <div
           className="flex h-full min-w-0 flex-1 flex-col"
           style={{
             paddingTop: CONTENT_TOP,
-            paddingLeft: TEAM_HEADING_RESERVE,
+            paddingLeft: PANEL_PADDING,
             paddingRight: hasVideoCarousel
               ? `calc(${VIDEO_CAROUSEL_TRAILING_BLEED} + ${VIDEO_CAROUSEL_COL_WIDTH} + ${GRID_TO_CAROUSEL_GAP})`
               : PANEL_PADDING,
@@ -262,15 +320,30 @@ export default function SectionTeam({
           }}
         >
           <div className="flex h-full min-w-0 flex-1 justify-end">
-            <div
-              className="grid h-full gap-2"
-              style={{
-                gridTemplateRows: "1fr 1fr",
-                gridAutoFlow: "column",
-                gridAutoColumns: `calc(100vw / ${TEAM_CARD_VW_DIVISOR})`,
-                width: "max-content",
-              }}
-            >
+            <div className="relative flex h-full w-max min-w-0 flex-col justify-end">
+              <SectionPanelHeading
+                snapId="team"
+                color={FG}
+                style={{
+                  position: "absolute",
+                  top: TEAM_HEADING_TOP_IN_GRID,
+                  left: 0,
+                  zIndex: 10,
+                }}
+                headingStyle={{ whiteSpace: "nowrap" }}
+              >
+                {sectionHeading}
+              </SectionPanelHeading>
+              <div
+                className="grid gap-2"
+                style={{
+                  height: TEAM_GRID_HEIGHT,
+                  gridTemplateRows: "1fr 1fr",
+                  gridAutoFlow: "column",
+                  gridAutoColumns: `calc(100vw / ${TEAM_CARD_VW_DIVISOR})`,
+                  width: "max-content",
+                }}
+              >
             {teamMembers.map((member) => {
               const photoUrl = sanityImageUrl(member.photo, 800) ?? PLACEHOLDER_IMAGE;
 
@@ -278,7 +351,10 @@ export default function SectionTeam({
                 <article
                   key={member._id}
                   className="relative h-full min-h-0 overflow-hidden bg-gray-100 select-text"
-                  style={{ color: FG }}
+                  style={{
+                    color: FG,
+                    borderRadius: TEAM_CARD_BORDER_RADIUS,
+                  }}
                 >
                   <img
                     src={photoUrl}
@@ -367,6 +443,12 @@ export default function SectionTeam({
                 </article>
               );
             })}
+                <TeamJoinCard
+                  spanBothRows={joinCardSpansBothRows}
+                  getInTouchLabel={ui.contact.getInTouch}
+                  getInTouchAria={ui.contact.getInTouchAria}
+                />
+              </div>
             </div>
           </div>
         </div>

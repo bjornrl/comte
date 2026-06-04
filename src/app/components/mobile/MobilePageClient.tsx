@@ -49,9 +49,9 @@ type Props = {
 const TRACKED_SECTION_IDS = [
   "home",
   "motto",
-  "about-intro",
   "what-we-do",
   "projects",
+  "about-intro",
   "team",
   "publications",
   "contact",
@@ -127,11 +127,10 @@ export default function MobilePageClient({
       >
         <SectionHomeMobile />
         <SectionFlowMobile />
-        <SectionMottoMobile heroText={data.motto.heroText} />
-        <SectionAboutIntroMobile {...data.aboutIntro} />
+        <SectionMottoMobile />
         {/*
-          Desktop: the video lives on what-we-do's interstitial (narrow panel
-          immediately before the what-we-do snap), not on aboutIntro.
+          Desktop: what-we-do's interstitial is the narrow panel immediately
+          before the what-we-do snap (not on aboutIntro).
         */}
         <SectionImagePlaceholderMobile interstitial={data.whatWeDo.interstitial} />
         <SectionWhatWeDoMobile {...data.whatWeDo} />
@@ -140,6 +139,7 @@ export default function MobilePageClient({
           bg={data.projects.backgroundColor}
           projects={projects}
         />
+        <SectionAboutIntroMobile {...data.aboutIntro} />
         <SectionTeamMobile heading={data.team.heading} members={data.team.members} />
         <SectionPublicationsMobile
           heading={data.publications.heading}
@@ -243,9 +243,7 @@ function SectionHomeMobile() {
 }
 
 /**
- * Decorative square showing the drifting-lights landing animation
- * (the same /public/lights.html the desktop motto uses). Placed directly
- * after the hero so the motion reads as a continuation of the landing.
+ * Drifting-lights animation (same as desktop motto panel) — no CMS video.
  */
 function SectionFlowMobile() {
   return (
@@ -266,39 +264,16 @@ function SectionFlowMobile() {
   );
 }
 
-const MOTTO_DEFAULT_LINES = ["Design to", "evolve"];
 const PROJECT_CARD_BORDER_RADIUS = 8;
 
-/** Split Sanity heroText into display lines; fall back to the default motto. */
-function mottoLines(heroText?: string): string[] {
-  const lines = (heroText ?? "")
-    .split(/\r?\n/)
-    .map((l) => l.trim())
-    .filter(Boolean);
-  return lines.length ? lines : MOTTO_DEFAULT_LINES;
-}
-
-function SectionMottoMobile({ heroText }: { heroText?: string }) {
-  const lines = mottoLines(heroText);
+function SectionMottoMobile() {
   return (
     <section
       id="motto"
       className="relative w-full overflow-x-clip pt-14"
       style={{ background: MOTTO_DEFAULT_BG, color: "#F5F5E9" }}
     >
-      {/* Horizontal, readable heading on mobile (desktop keeps the 90° rotated
-          TiltedHeading treatment, which suits the tall landing panel). */}
-      <h2
-        className="px-6 sm:px-8 font-bold tracking-tight leading-[1.02] text-[clamp(2.75rem,15vw,4.5rem)]"
-        style={{ fontFamily: "var(--font-manrope), system-ui, sans-serif" }}
-      >
-        {lines.map((line, i) => (
-          <span key={i} className="block">
-            {line}
-          </span>
-        ))}
-      </h2>
-      <p className="relative z-10 mt-6 px-6 pb-16 sm:px-8 text-[clamp(1rem,4.2vw,1.25rem)] leading-relaxed">
+      <p className="relative z-10 px-6 pb-16 sm:px-8 text-[clamp(1rem,4.2vw,1.25rem)] leading-relaxed">
         We help organizations adapt early, sharpen ideas, and turn them into action that creates
         value for people, organizations, and society.
       </p>
@@ -306,7 +281,22 @@ function SectionMottoMobile({ heroText }: { heroText?: string }) {
   );
 }
 
+const INTRO_MOBILE_HEADING_STYLE = {
+  fontFamily: "var(--font-manrope), system-ui, sans-serif",
+  fontWeight: 700,
+  fontSize: "clamp(1.5rem, 3vw, 2.5rem)",
+  lineHeight: 1.1,
+} as const;
+
+const INTRO_MOBILE_BLOCK_TITLE_STYLE = {
+  ...INTRO_MOBILE_HEADING_STYLE,
+  fontSize: "clamp(1.875rem, 2.5vw, 2.25rem)",
+  fontWeight: 600,
+} as const;
+
 function SectionAboutIntroMobile({
+  heading,
+  videoUrl,
   imageUrl,
   imageAlt,
   whoIsComteTitle,
@@ -314,29 +304,50 @@ function SectionAboutIntroMobile({
   whoAreWeTitle,
   whoAreWe,
 }: HomeData["aboutIntro"]) {
+  const hasMedia = Boolean(videoUrl || imageUrl);
   return (
     <section id="about-intro" className="relative flex w-full flex-col px-6 pb-16 sm:px-8" style={{ background: "#FFD2D2", color: "#1F3A32" }}>
-      {imageUrl ? (
+      {heading ? (
+        <h2 className="mb-6" style={{ ...INTRO_MOBILE_HEADING_STYLE, color: "#FF5252" }}>
+          {heading}
+        </h2>
+      ) : null}
+      {hasMedia ? (
         // Negative horizontal margins cancel out SECTION_BASE's px-6 / sm:px-8
-        // so the image bleeds to both screen edges while the text below
+        // so the media bleeds to both screen edges while the text below
         // keeps its normal inset.
         <div className="relative mb-8 -mx-6 aspect-[4/5] w-screen max-w-none overflow-hidden sm:-mx-8">
-          <Image
-            src={imageUrl}
-            alt={imageAlt ?? ""}
-            fill
-            sizes="(max-width: 1024px) 100vw, 50vw"
-            className="object-cover"
-          />
+          {videoUrl ? (
+            <video
+              src={videoUrl}
+              autoPlay
+              loop
+              muted
+              playsInline
+              aria-label={imageAlt || "Intro section video"}
+              className="absolute inset-0 h-full w-full object-cover object-center"
+              style={{
+                transform: "scale(1.1)",
+                transformOrigin: "center center",
+              }}
+            />
+          ) : (
+            <Image
+              src={imageUrl!}
+              alt={imageAlt ?? ""}
+              fill
+              sizes="(max-width: 1024px) 100vw, 50vw"
+              className="object-cover"
+            />
+          )}
         </div>
       ) : null}
       <div className="space-y-8">
         {whoAreWeTitle || whoAreWe ? (
           <div>
-            <h2 className="mb-3 font-[var(--font-abhaya-libre)] leading-[0.95] tracking-tight text-[#FF5252]"
-                style={{ fontSize: "clamp(2.5rem, 10vw, 4rem)" }}>
+            <h3 className="mb-3" style={{ ...INTRO_MOBILE_BLOCK_TITLE_STYLE, color: "#FF5252" }}>
               {whoAreWeTitle}
-            </h2>
+            </h3>
             <p className="text-[clamp(1rem,4vw,1.125rem)] leading-relaxed">
               {whoAreWe}
             </p>
@@ -344,10 +355,9 @@ function SectionAboutIntroMobile({
         ) : null}
         {whoIsComteTitle || whoIsComte ? (
           <div>
-            <h2 className="mb-3 font-[var(--font-abhaya-libre)] leading-[0.95] tracking-tight text-[#FF5252]"
-                style={{ fontSize: "clamp(2.5rem, 10vw, 4rem)" }}>
+            <h3 className="mb-3" style={{ ...INTRO_MOBILE_BLOCK_TITLE_STYLE, color: "#FF5252" }}>
               {whoIsComteTitle}
-            </h2>
+            </h3>
             <p className="text-[clamp(1rem,4vw,1.125rem)] leading-relaxed">
               {whoIsComte}
             </p>
@@ -364,9 +374,8 @@ function interstitialImageUrl(imageField: InterstitialData["image"]): string | u
 }
 
 /**
- * Full-bleed media between about-intro and what-we-do — mirrors the desktop
- * what-we-do interstitial (video preferred, image fallback) — same CMS
- * field as the narrow panel before the what-we-do section on desktop.
+ * Full-bleed media before what-we-do — mirrors the desktop what-we-do
+ * interstitial (video preferred, image fallback).
  *
  * Adds a light scroll-parallax: the inner stripe layer is taller than
  * the visible frame and translates Y at a fraction of the page scroll.

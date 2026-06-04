@@ -22,13 +22,6 @@ export const mottoSection = defineType({
       initialValue: "#5A7482",
     }),
     defineField({
-      name: "heroText",
-      title: "Hero Text",
-      description:
-        "The motto shown over the lights. Put each display line on its own line (e.g. \"Design to\" then \"evolve\").",
-      type: "localeText",
-    }),
-    defineField({
       name: "interstitial",
       title: "Interstitial (narrow panel to the left)",
       type: "interstitial",

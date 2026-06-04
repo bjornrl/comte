@@ -3,9 +3,17 @@
 import type { CSSProperties } from "react";
 import Image from "next/image";
 import { ArrowRight } from "lucide-react";
-import SectionShell, { SECTION_BODY_CONTENT_TOP, PANEL_PADDING } from "./SectionShell";
-import TiltedHeading from "../TiltedHeading";
-import { SectionBodyText, PUBLICATIONS_VENTURES_BODY_MAX_WIDTH } from "./sectionBodyText";
+import SectionShell, {
+  PANEL_PADDING,
+  PROJECT_CONTENT_TOP_BELOW_PANEL_TITLE,
+  PROJECT_TILE_SECTION_TOP,
+} from "./SectionShell";
+import {
+  SectionBodyText,
+  SECTION_TEXT_COLUMN_MARGIN_LEFT,
+  WHAT_WE_DO_BODY_MAX_WIDTH,
+} from "./sectionBodyText";
+import SectionPanelHeading from "./SectionPanelHeading";
 import { urlFor } from "@/sanity/lib/image";
 import type { CardItem } from "./SectionCardGrid";
 import { useUi } from "../useUi";
@@ -31,11 +39,6 @@ type Props = {
 const TILE_GAP_PX = 4;
 const MARQUEE_TILE_HEIGHT = "40vh";
 const MARQUEE_DURATION_S = 80;
-
-/** Large rotated heading bisecting the publications / ventures boundary. */
-const SECTION_BORDER_LINES = ["Ventures"];
-const SECTION_BORDER_SIZE_LINES = ["What do", "we do?"];
-const SECTION_BORDER_TEXT = "#FFD2D2";
 
 function navigateToSection(sectionId: string) {
   window.dispatchEvent(new CustomEvent("comte:navigate", { detail: { sectionId } }));
@@ -157,16 +160,8 @@ export default function SectionVentures({
     <SectionShell
       id="ventures"
       bgColor={backgroundColor}
-      style={{ color: foregroundColor, padding: 0, overflow: "visible" }}
+      style={{ color: foregroundColor, padding: 0 }}
     >
-      <TiltedHeading
-        lines={SECTION_BORDER_LINES}
-        sizeReferenceLines={SECTION_BORDER_SIZE_LINES}
-        color={SECTION_BORDER_TEXT}
-        parallaxFactor={0.18}
-        leftOffsetEm={0.2}
-        lineHeight={0.82}
-      />
       <style>{`
         @keyframes venturesMarqueeUp {
           from { transform: translateY(0%); }
@@ -185,54 +180,66 @@ export default function SectionVentures({
           <MediaFrame videoUrl={featuredVideoUrl} imageField={featuredImage} />
         </div>
 
-        {/* Centre — heading + body text */}
+        {/* Centre — heading + body text (layout matches what-we-do / publications). */}
         <div
-          className="flex min-h-0 min-w-0 flex-1 flex-col justify-start lg:h-full"
+          className="relative min-h-0 min-w-0 flex-1 lg:h-full"
           style={{
-            paddingTop: SECTION_BODY_CONTENT_TOP,
             paddingRight: PANEL_PADDING,
             paddingBottom: "2rem",
             paddingLeft: PANEL_PADDING,
           }}
         >
           <div
+            className="relative min-w-0"
             style={{
-              maxWidth: PUBLICATIONS_VENTURES_BODY_MAX_WIDTH,
-              marginLeft: "clamp(2rem, 6vw, 6rem)",
+              maxWidth: WHAT_WE_DO_BODY_MAX_WIDTH,
+              marginLeft: SECTION_TEXT_COLUMN_MARGIN_LEFT,
             }}
           >
-          {body && <SectionBodyText text={body} color={foregroundColor} />}
-          <button
-            type="button"
-            onClick={() => navigateToSection("contact")}
-            aria-label={ui.contact.getInTouchAria}
-            className="inline-flex min-h-11 items-center gap-2 font-[family-name:var(--font-manrope)] text-base font-medium transition-[background-color,color,transform] duration-150 ease-out hover:bg-[var(--section-cta-hover-bg)] hover:text-[var(--section-cta-hover-fg)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 active:scale-[0.98]"
-            style={{
-              marginTop: body ? "2.5rem" : 0,
-              padding: "12px 24px",
-              border: `1px solid ${foregroundColor}`,
-              background: "transparent",
-              color: foregroundColor,
-              cursor: "pointer",
-              ["--section-cta-fg" as string]: foregroundColor,
-              ["--section-cta-hover-bg" as string]: foregroundColor,
-              ["--section-cta-hover-fg" as string]: backgroundColor,
-            } as CSSProperties}
-          >
-            {ui.contact.getInTouch}
-            <ArrowRight size={16} strokeWidth={2} aria-hidden />
-          </button>
-          {heading && (
-            <h2
-              className="font-[family-name:var(--font-manrope)] font-bold leading-tight"
+            {heading ? (
+              <SectionPanelHeading
+                snapId="ventures"
+                color={foregroundColor}
+                style={{
+                  position: "absolute",
+                  top: PROJECT_TILE_SECTION_TOP,
+                  left: 0,
+                  zIndex: 10,
+                }}
+              >
+                {heading}
+              </SectionPanelHeading>
+            ) : null}
+            <div
+              className="w-full min-w-0"
               style={{
-                fontSize: "clamp(1.5rem, 3vw, 2.5rem)",
-                marginTop: body ? "1.5rem" : 0,
+                paddingTop: heading
+                  ? PROJECT_CONTENT_TOP_BELOW_PANEL_TITLE
+                  : PROJECT_TILE_SECTION_TOP,
               }}
             >
-              {heading}
-            </h2>
-          )}
+              {body ? <SectionBodyText text={body} color={foregroundColor} /> : null}
+              <button
+                type="button"
+                onClick={() => navigateToSection("contact")}
+                aria-label={ui.contact.getInTouchAria}
+                className="inline-flex min-h-11 items-center gap-2 font-[family-name:var(--font-manrope)] text-base font-medium transition-[background-color,color,transform] duration-150 ease-out hover:bg-[var(--section-cta-hover-bg)] hover:text-[var(--section-cta-hover-fg)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 active:scale-[0.98]"
+                style={{
+                  marginTop: body || heading ? "2.5rem" : 0,
+                  padding: "12px 24px",
+                  border: `1px solid ${foregroundColor}`,
+                  background: "transparent",
+                  color: foregroundColor,
+                  cursor: "pointer",
+                  ["--section-cta-fg" as string]: foregroundColor,
+                  ["--section-cta-hover-bg" as string]: foregroundColor,
+                  ["--section-cta-hover-fg" as string]: backgroundColor,
+                } as CSSProperties}
+              >
+                {ui.contact.getInTouch}
+                <ArrowRight size={16} strokeWidth={2} aria-hidden />
+              </button>
+            </div>
           </div>
         </div>
 

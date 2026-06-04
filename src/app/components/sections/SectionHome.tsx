@@ -116,6 +116,7 @@ export default function SectionHome({
               borderRadius: "9999px",
               background: HERO_ACCENT,
               opacity: introComplete ? 1 : 0,
+              pointerEvents: "none",
               ...(introComplete
                 ? {}
                 : {

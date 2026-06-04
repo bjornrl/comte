@@ -7,15 +7,17 @@ import { ChevronUp, ChevronDown, ArrowDown } from "lucide-react";
 import SectionShell, {
   CONTENT_TOP,
   PANEL_PADDING,
-  SECTION_BODY_CONTENT_TOP,
+  PROJECT_CONTENT_TOP_BELOW_PANEL_TITLE,
+  PROJECT_TILE_SECTION_TOP,
   SECTION_TITLE_SIZE,
 } from "./SectionShell";
 import {
   SectionBodyText,
-  PUBLICATIONS_VENTURES_BODY_MAX_WIDTH,
   SECTION_BODY_MAX_WIDTH,
+  SECTION_TEXT_COLUMN_MARGIN_LEFT,
+  WHAT_WE_DO_BODY_MAX_WIDTH,
 } from "./sectionBodyText";
-import TiltedHeading from "../TiltedHeading";
+import SectionPanelHeading from "./SectionPanelHeading";
 import { urlFor } from "@/sanity/lib/image";
 import type { CardItem } from "./SectionCardGrid";
 import { useUi } from "../useUi";
@@ -27,11 +29,6 @@ function publicationHref(item: CardItem): string | null {
 const PLACEHOLDER_IMAGE =
   "https://images.unsplash.com/photo-1773558058134-9ff1a3212ef0?q=80&w=1572&auto=format&fit=crop";
 
-/** Large rotated heading bisecting the team / publications boundary. */
-const SECTION_BORDER_LINES = ["Publicati", "ons"];
-/** Match the what-we-do tilted heading scale. */
-const SECTION_BORDER_SIZE_LINES = ["What do", "we do?"];
-const SECTION_BORDER_TEXT = "#1F3A32";
 /** Match about-intro text block title and body colors. */
 const ITEM_TITLE_COLOR = "#FF5252";
 const ITEM_BODY_COLOR = "#1F3A32";
@@ -62,9 +59,6 @@ const MARQUEE_BODY_SIZE = "clamp(1.125rem, 2.5vw, 2rem)";
 const MARQUEE_DURATION_S = 80;
 const RIGHT_COL_WIDTH = "36%";
 const RIGHT_COL_GRID_COLS = 2;
-/** Overview copy sits left of the carousel — inset from the marquee column edge. */
-const TEXT_BLOCK_OFFSET = `calc(${RIGHT_COL_WIDTH} - 16%)`;
-
 const VIEW_TRANSITION_S = 0.72;
 const VIEW_QUICK_TRANSITION_S = 0.24;
 const VIEW_EASE = "cubic-bezier(0.45, 0, 0.55, 1)";
@@ -663,10 +657,6 @@ export default function SectionPublications({
   const viewSlideTransition = transitionEnabled
     ? `transform ${quickReset ? VIEW_QUICK_TRANSITION_S : VIEW_TRANSITION_S}s ${VIEW_EASE}`
     : "none";
-  /** Match the overview stack slide so the heading exits upward in item view. */
-  const headingSlideTransform =
-    activeIndex > 0 ? `translateY(calc(-${activeIndex} * 100vh))` : undefined;
-
   // Notify parent (HomePageClient → BlobNav) of state changes so it can
   // attach a "Back to overview" button to the nav row beside the
   // publications nav item. The button label uses the currently viewed
@@ -733,33 +723,8 @@ export default function SectionPublications({
     <SectionShell
       id="publications"
       bgColor={backgroundColor}
-      style={{ color: foregroundColor, padding: 0, overflow: "visible" }}
+      style={{ color: foregroundColor, padding: 0 }}
     >
-      {/* Section-level heading bleeds left over the team boundary when side-
-          scrolling; slides up with the overview layer in item view. */}
-      <div
-        aria-hidden
-        style={{
-          position: "absolute",
-          inset: 0,
-          zIndex: 20,
-          pointerEvents: "none",
-          overflow: "visible",
-          transform: headingSlideTransform,
-          transition: viewSlideTransition,
-          willChange: activeIndex > 0 ? "transform" : undefined,
-        }}
-      >
-        <TiltedHeading
-          lines={SECTION_BORDER_LINES}
-          sizeReferenceLines={SECTION_BORDER_SIZE_LINES}
-          color={SECTION_BORDER_TEXT}
-          parallaxFactor={0.18}
-          leftOffsetEm={0.2}
-          lineHeight={0.82}
-        />
-      </div>
-
       <style>{`
         @keyframes pubMarqueeUp {
           from { transform: translateY(0%); }
@@ -888,29 +853,51 @@ function OverviewPanel({
   return (
     <div className="relative h-full w-full">
       <div
-        className="relative z-10 flex h-full flex-col"
+        className="relative z-10 h-full"
         style={{
-          paddingTop: SECTION_BODY_CONTENT_TOP,
           paddingRight: "2rem",
           paddingBottom: "2rem",
           paddingLeft: PANEL_PADDING,
         }}
       >
         <div
+          className="relative min-w-0"
           style={{
-            maxWidth: PUBLICATIONS_VENTURES_BODY_MAX_WIDTH,
-            marginLeft: TEXT_BLOCK_OFFSET,
+            maxWidth: WHAT_WE_DO_BODY_MAX_WIDTH,
+            marginLeft: SECTION_TEXT_COLUMN_MARGIN_LEFT,
           }}
         >
-          {body && <SectionBodyText text={body} color={foregroundColor} />}
-          <button
+          {heading ? (
+            <SectionPanelHeading
+              snapId="publications"
+              color={foregroundColor}
+              style={{
+                position: "absolute",
+                top: PROJECT_TILE_SECTION_TOP,
+                left: 0,
+                zIndex: 10,
+              }}
+            >
+              {heading}
+            </SectionPanelHeading>
+          ) : null}
+          <div
+            className="w-full min-w-0"
+            style={{
+              paddingTop: heading
+                ? PROJECT_CONTENT_TOP_BELOW_PANEL_TITLE
+                : PROJECT_TILE_SECTION_TOP,
+            }}
+          >
+            {body ? <SectionBodyText text={body} color={foregroundColor} /> : null}
+            <button
             type="button"
             onClick={onBrowse}
             disabled={!hasBrowseTarget}
             aria-label={ui.publication.browse}
             className="inline-flex min-h-11 items-center gap-2 font-[family-name:var(--font-manrope)] text-base font-medium transition-[background-color,color,transform] duration-150 ease-out hover:bg-[var(--section-cta-hover-bg)] hover:text-[var(--section-cta-hover-fg)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-transparent disabled:hover:text-[var(--section-cta-fg)]"
             style={{
-              marginTop: body ? "2.5rem" : 0,
+              marginTop: body || heading ? "2.5rem" : 0,
               padding: "12px 24px",
               border: `1px solid ${foregroundColor}`,
               background: "transparent",
@@ -924,17 +911,7 @@ function OverviewPanel({
             Browse
             <ArrowDown size={16} strokeWidth={2} aria-hidden />
           </button>
-          {heading && (
-            <h2
-              className="font-[family-name:var(--font-manrope)] font-bold leading-tight"
-              style={{
-                fontSize: "clamp(1.5rem, 3vw, 2.5rem)",
-                marginTop: body ? "1.5rem" : 0,
-              }}
-            >
-              {heading}
-            </h2>
-          )}
+          </div>
         </div>
       </div>
 

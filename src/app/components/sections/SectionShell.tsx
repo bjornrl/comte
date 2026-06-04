@@ -19,8 +19,13 @@ export const SECTION_BODY_TOP_OFFSET = "clamp(5rem, 12vh, 8rem)";
 /** Body copy start Y when SectionShell uses padding: 0 on the section root. */
 export const SECTION_BODY_CONTENT_TOP = `calc(${CONTENT_TOP} + ${SECTION_BODY_TOP_OFFSET})`;
 
-/** Section title scale — shared by intro, contact, and hero alignment. */
+/** Section title scale — shared by intro blocks, contact, and hero alignment. */
 export const SECTION_TITLE_SIZE = "clamp(1.875rem, 2.5vw, 2.25rem)";
+
+/** Panel section heading — a step above body scale; weight matches SectionBodyText. */
+export const SECTION_PANEL_HEADING_SIZE = "clamp(1.75rem, 3.5vw, 2.875rem)";
+export const SECTION_PANEL_HEADING_WEIGHT = 500;
+export const SECTION_PANEL_HEADING_LINE_HEIGHT = 1.1;
 export const SECTION_TITLE_TO_BODY_GAP = "0.75rem";
 
 /** Body copy Y when a section title sits above it (contact block 1, intro textboxes). */
@@ -36,8 +41,13 @@ export const INTRO_TEXT_CLUSTER_TOP = `calc(${PANEL_PADDING} + max(0px, (100vh -
 export const PROJECT_TILE_VERTICAL_MARGIN = "clamp(1rem, 2vw, 1.5rem)";
 export const PROJECT_TILE_CARDS_TOP_EXTRA = "clamp(2rem, 5vh, 3.5rem)";
 export const PROJECT_TILE_SECTION_TOP = `calc(${CONTENT_TOP} - ${PANEL_PADDING} + ${PROJECT_TILE_VERTICAL_MARGIN})`;
+/** Reserved height for a panel title row (Projects, What we do, etc.). */
+export const PROJECT_TILE_HEADING_BLOCK = "clamp(1.9rem, 3.65vw, 3.2rem)";
+export const PROJECT_TILE_GAP_BELOW_HEADING = "8px";
 /** Top edge of the project card grid (no section heading). */
 export const PROJECT_CARD_AREA_TOP = `calc(${PROJECT_TILE_SECTION_TOP} + ${PROJECT_TILE_CARDS_TOP_EXTRA})`;
+/** Card grid / body text below a panel title — matches Projects with heading. */
+export const PROJECT_CONTENT_TOP_BELOW_PANEL_TITLE = `calc(${PROJECT_TILE_SECTION_TOP} + ${PROJECT_TILE_HEADING_BLOCK} + ${PROJECT_TILE_GAP_BELOW_HEADING} + ${PROJECT_TILE_CARDS_TOP_EXTRA})`;
 
 type SectionShellProps = {
   id: string;

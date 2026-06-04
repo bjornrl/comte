@@ -18,7 +18,14 @@ import SectionContact from "./sections/SectionContact";
 import { type CardItem } from "./sections/SectionCardGrid";
 import Interstitial, { type InterstitialData } from "./sections/Interstitial";
 import { type Project, type Connection, setProjectData } from "./projectNetworkData";
-import { HOME_PANEL_VW, LANDING_HOME_BG, MOTTO_DEFAULT_BG, MOTTO_PANEL_VW, WHAT_WE_DO_PANEL_VW, CONTACT_PANEL_VW } from "./homeLayout";
+import {
+  HOME_PANEL_VW,
+  LANDING_HOME_BG,
+  MOTTO_DEFAULT_BG,
+  MOTTO_PANEL_VW,
+  WHAT_WE_DO_PANEL_VW,
+  CONTACT_PANEL_VW,
+} from "./homeLayout";
 
 type WithInterstitial = { interstitial?: InterstitialData };
 
@@ -27,11 +34,11 @@ export type HomeData = {
     showInteractiveNetwork?: boolean;
   };
   motto: WithInterstitial & {
-    heroText?: string;
     backgroundColor?: string;
-    backgroundVideoUrl?: string;
   };
   aboutIntro: WithInterstitial & {
+    heading?: string;
+    videoUrl?: string;
     imageUrl?: string;
     imageAlt?: string;
     whoIsComteTitle?: string;
@@ -85,11 +92,6 @@ export default function HomePageClient({ data, projects, connections }: Props) {
   const scrollNavRef = useRef<HorizontalScrollNavApi | null>(null);
   const [activeSection, setActiveSection] = useState<string>("home");
   const [isScrolling, setIsScrolling] = useState(false);
-  const [landingEpoch, setLandingEpoch] = useState(1);
-  const bumpLandingEpoch = useCallback(() => {
-    setLandingEpoch((n) => n + 1);
-  }, []);
-
   // Track whether the publications section is currently in item-view mode
   // and (if so) the currently viewed item's title. BlobNav uses these to
   // render a pink-filled nav-row button beside the publications item.
@@ -120,8 +122,6 @@ export default function HomePageClient({ data, projects, connections }: Props) {
       id: "home",
       content: <LandingSpacer bgColor={LANDING_HOME_BG} />,
       interstitial: maybeInterstitial(data.home.interstitial),
-      // Wider home pushes the motto / lights panel toward the right edge at
-      // the landing snap (~32vw of motto visible).
       width: `${HOME_PANEL_VW}vw`,
     },
     {
@@ -131,11 +131,6 @@ export default function HomePageClient({ data, projects, connections }: Props) {
       ),
       interstitial: maybeInterstitial(data.motto.interstitial),
       width: `${MOTTO_PANEL_VW}vw`,
-    },
-    {
-      id: "about-intro",
-      content: <SectionAboutIntro {...data.aboutIntro} />,
-      interstitial: maybeInterstitial(data.aboutIntro.interstitial),
     },
     {
       id: "what-we-do",
@@ -148,6 +143,11 @@ export default function HomePageClient({ data, projects, connections }: Props) {
       id: "projects",
       content: <SectionProjects {...data.projects} projects={projects} />,
       interstitial: maybeInterstitial(data.projects.interstitial),
+    },
+    {
+      id: "about-intro",
+      content: <SectionAboutIntro {...data.aboutIntro} />,
+      interstitial: maybeInterstitial(data.aboutIntro.interstitial),
     },
     {
       id: "team",
@@ -205,13 +205,9 @@ export default function HomePageClient({ data, projects, connections }: Props) {
   return (
     <div id="main-content" tabIndex={-1} className="h-svh overflow-hidden">
       <LandingStage
-        landingEpoch={landingEpoch}
-        onLandingReturn={bumpLandingEpoch}
         showInteractiveNetwork={data.home.showInteractiveNetwork}
         motto={{
-          heroText: data.motto.heroText,
           backgroundColor: data.motto.backgroundColor ?? MOTTO_DEFAULT_BG,
-          backgroundVideoUrl: data.motto.backgroundVideoUrl,
         }}
       />
       <BlobNav

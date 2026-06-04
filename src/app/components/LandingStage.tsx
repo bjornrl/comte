@@ -1,19 +1,15 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import SectionHome from "./sections/SectionHome";
 import SectionMotto from "./sections/SectionMotto";
 import { HOME_PANEL_VW, MOTTO_PANEL_VW } from "./homeLayout";
 
 type MottoProps = {
-  heroText?: string;
   backgroundColor?: string;
-  backgroundVideoUrl?: string;
 };
 
 type Props = {
-  landingEpoch: number;
-  onLandingReturn: () => void;
   showInteractiveNetwork?: boolean;
   motto: MottoProps;
 };
@@ -55,9 +51,6 @@ function getLandingTranslateX(scroller: HTMLElement): number {
   if (cloneFirst) {
     const cr = cloneFirst.getBoundingClientRect();
     if (cr.right > sr.left + 1 && cr.left < sr.right - 1) {
-      // Overshooting clone-first (maxScroll past its snap target) yields
-      // negative left values — tracking them makes the landing layer jump
-      // right when the loop seam teleports back to real home.
       return Math.max(0, cr.left);
     }
   }
@@ -68,35 +61,21 @@ function getLandingTranslateX(scroller: HTMLElement): number {
 }
 
 /**
- * Single always-mounted home + motto layer, synced to horizontal scroll.
- * Prevents loop / clone seams from showing a duplicate landing that clips
- * or jumps into place. Animations pause while off-screen.
+ * Single always-mounted home + motto (lights) layer, synced to horizontal scroll.
  */
 export default function LandingStage({
-  landingEpoch,
-  onLandingReturn,
   showInteractiveNetwork = true,
   motto,
 }: Props) {
   const [translateX, setTranslateX] = useState(0);
   const [inView, setInView] = useState(true);
-  const wasInViewRef = useRef(false);
-  const initializedRef = useRef(false);
-
   const sync = useCallback(() => {
     const scroller = findScroller();
     if (!scroller) return;
 
-    const visible = isLandingInView(scroller);
     setTranslateX(getLandingTranslateX(scroller));
-    setInView(visible);
-
-    if (visible && initializedRef.current && !wasInViewRef.current) {
-      onLandingReturn();
-    }
-    if (visible) initializedRef.current = true;
-    wasInViewRef.current = visible;
-  }, [onLandingReturn]);
+    setInView(isLandingInView(scroller));
+  }, []);
 
   useEffect(() => {
     sync();
@@ -132,11 +111,7 @@ export default function LandingStage({
         className="pointer-events-none h-full flex-shrink-0 overflow-hidden"
         style={{ width: `${MOTTO_PANEL_VW}vw` }}
       >
-        <SectionMotto
-          {...motto}
-          animationsActive={inView}
-          landingEpoch={landingEpoch}
-        />
+        <SectionMotto {...motto} animationsActive={inView} />
       </div>
     </div>
   );

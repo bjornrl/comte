@@ -18,7 +18,18 @@ import type {
   Domain,
   Method,
 } from "./projectNetworkData";
-import { CONTENT_TOP, NAV_HEIGHT_TOTAL, PANEL_PADDING, PROJECT_CARD_AREA_TOP, PROJECT_TILE_CARDS_TOP_EXTRA, PROJECT_TILE_SECTION_TOP } from "./sections/SectionShell";
+import SectionPanelHeading from "./sections/SectionPanelHeading";
+import {
+  CONTENT_TOP,
+  NAV_HEIGHT_TOTAL,
+  PANEL_PADDING,
+  PROJECT_CARD_AREA_TOP,
+  PROJECT_CONTENT_TOP_BELOW_PANEL_TITLE,
+  PROJECT_TILE_CARDS_TOP_EXTRA,
+  PROJECT_TILE_GAP_BELOW_HEADING,
+  PROJECT_TILE_HEADING_BLOCK,
+  PROJECT_TILE_SECTION_TOP,
+} from "./sections/SectionShell";
 
 const VISIBLE_DOMAINS: Domain[] = [
   "education",
@@ -42,10 +53,10 @@ const BOTTOM_OFFSET = "clamp(16px, 3vh, 32px)";
 // Tile view — embedded detail cards fill viewport-sized grid rows.
 const TILE_CARDS_TOP_EXTRA = PROJECT_TILE_CARDS_TOP_EXTRA;
 const TILE_SECTION_TOP = PROJECT_TILE_SECTION_TOP;
-const TILE_HEADING_BLOCK = "clamp(1.65rem, 3.3vw, 2.75rem)";
-const TILE_GRID_GAP_BELOW_HEADING = "8px";
+const TILE_HEADING_BLOCK = PROJECT_TILE_HEADING_BLOCK;
+const TILE_GRID_GAP_BELOW_HEADING = PROJECT_TILE_GAP_BELOW_HEADING;
 const TILE_GRID_TOP = PROJECT_CARD_AREA_TOP;
-const TILE_GRID_TOP_WITH_HEADING = `calc(${TILE_SECTION_TOP} + ${TILE_HEADING_BLOCK} + ${TILE_GRID_GAP_BELOW_HEADING} + ${TILE_CARDS_TOP_EXTRA})`;
+const TILE_GRID_TOP_WITH_HEADING = PROJECT_CONTENT_TOP_BELOW_PANEL_TITLE;
 const TILE_FILTER_TRANSITION_S = 0.38;
 const TILE_FILTER_EASE = [0.25, 1, 0.5, 1] as const;
 /** Tile grid row count — cards and nav column share full block height. */
@@ -413,13 +424,11 @@ function TileProgressDots({
         <button
           type="button"
           key={`dot-row-${rowIndex}`}
+          className="focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1F3A32]"
           onClick={() => onSelectPage?.(rowIndex)}
           aria-label={`Show projects page ${rowIndex + 1} of ${dotRows.length}`}
           aria-current={rowIndex === pageIndex ? "true" : undefined}
           style={{
-            // Parent column is pointer-events:none (so it never steals clicks
-            // from the pagination button); re-enable it on the interactive rows.
-            pointerEvents: "auto",
             appearance: "none",
             background: "transparent",
             border: "none",
@@ -556,13 +565,9 @@ function TileProgressDotsColumn({
         position: "absolute",
         top,
         right: CLUSTER_STAGE_INSET,
-        zIndex: 20,
+        zIndex: 25,
         width: getTileNavColumnWidth(),
         minHeight: 0,
-        // Decorative progress indicator — must not intercept clicks. Its column
-        // overlaps the right-hand "next" pagination button, so leaving pointer
-        // events on here was swallowing clicks meant for that button.
-        pointerEvents: "none",
         boxSizing: "border-box",
       }}
     >
@@ -807,12 +812,31 @@ function TileProjectGrid({
     slideDirectionRef.current = 1;
   }, [tileProjects]);
 
+  const prevPageIndexRef = useRef(safePageIndex);
+  useEffect(() => {
+    const prev = prevPageIndexRef.current;
+    if (prev !== safePageIndex && pageCount > 1) {
+      const forwardSteps = (safePageIndex - prev + pageCount) % pageCount;
+      const backwardSteps = (prev - safePageIndex + pageCount) % pageCount;
+      slideDirectionRef.current = backwardSteps < forwardSteps ? -1 : 1;
+    }
+    prevPageIndexRef.current = safePageIndex;
+  }, [safePageIndex, pageCount]);
+
   useEffect(() => {
     onTilePageChange?.(safePageIndex);
   }, [safePageIndex, onTilePageChange]);
 
   return (
-    <div style={{ position: "absolute", inset: 0, zIndex: 5 }}>
+    <div
+      style={{
+        position: "absolute",
+        inset: 0,
+        zIndex: 5,
+        // Full stage footprint for %-based layout; only the card row captures clicks.
+        pointerEvents: "none",
+      }}
+    >
       <div
         style={{
           position: "relative",
@@ -830,6 +854,7 @@ function TileProjectGrid({
           <div
             ref={gridRef}
             style={{
+              pointerEvents: "auto",
               display: "grid",
               gridTemplateColumns: getTileCardRowGridTemplateColumns(showNavButtons),
               gridTemplateRows: `repeat(${TILE_VISIBLE_ROWS}, ${tileRowHeight})`,
@@ -1463,38 +1488,19 @@ export default function ProjectCluster({ projects, backgroundColor, heading }: P
     >
       {/* Section header */}
       {heading && (
-        <div
+        <SectionPanelHeading
+          snapId="projects"
+          color={FG_DARK}
           style={{
             position: "absolute",
             top: TILE_SECTION_TOP,
             left: CLUSTER_STAGE_INSET,
             zIndex: 10,
-            maxWidth: "20ch",
           }}
         >
-          <h2
-            style={{
-              fontFamily: "var(--font-manrope), system-ui, sans-serif",
-              fontWeight: 700,
-              fontSize: "clamp(1.5rem, 3vw, 2.5rem)",
-              color: FG_DARK,
-              margin: 0,
-              lineHeight: 1.1,
-            }}
-          >
-            {heading}
-          </h2>
-        </div>
+          {heading}
+        </SectionPanelHeading>
       )}
-
-      {/* Progress dots — col 8, aligned with card grid. */}
-      <TileProgressDotsColumn
-        projects={tileProjects}
-        pageIndex={safeTilePageIndex}
-        top={clusterStageTop}
-        onSelectPage={(p) => setTilePageIndex(wrapPageIndex(p, tilePageCount))}
-      />
-
 
       {/* Bottom bar: 8 domain filters — one row, prev + cards + next width. */}
       <div
@@ -1576,10 +1582,6 @@ export default function ProjectCluster({ projects, backgroundColor, heading }: P
           right: CLUSTER_STAGE_INSET,
           height: tileGridBlockHeight,
           overflow: "hidden",
-          // Sit above the decorative progress-dots column (zIndex 20). The
-          // right-hand "next" pagination button lives at the edge of this
-          // stage and visually overlaps the dots column; without this the
-          // dots layer painted on top and only the arrow area received clicks.
           zIndex: 21,
         }}
       >
@@ -1752,6 +1754,14 @@ export default function ProjectCluster({ projects, backgroundColor, heading }: P
         })}
       </div>
 
+      {/* Progress dots — col 8; after the stage so clicks hit rows, not the stage. */}
+      <TileProgressDotsColumn
+        projects={tileProjects}
+        pageIndex={safeTilePageIndex}
+        top={clusterStageTop}
+        onSelectPage={(p) => setTilePageIndex(wrapPageIndex(p, tilePageCount))}
+      />
+
       {/* Hover tooltip */}
       {NODE_VIEW_ENABLED && hoveredData && !activeProject && !isMobile && (
         <div
@@ -1819,7 +1829,7 @@ const EMBEDDED_SUMMARY_LINE_CLAMP = 9;
 // The card sets `container-type: inline-size` to anchor these units.
 const EMBEDDED_FONT = {
   title: "clamp(0.9rem, 5cqi, 1.5rem)",
-  summary: "clamp(0.78rem, 4cqi, 1.1rem)",
+  summary: "clamp(0.65rem, 3.2cqi, 0.8125rem)",
   meta: "clamp(0.78rem, 3.8cqi, 1.05rem)",
   small: "clamp(0.72rem, 3.5cqi, 0.95rem)",
   tag: "clamp(0.72rem, 3.5cqi, 0.95rem)",
@@ -2630,7 +2640,7 @@ function ExpandedProjectCard({
       <p
         style={{
           margin: "0 0 14px 0",
-          fontSize: "0.9rem",
+          fontSize: "0.8125rem",
           color: "rgba(255,255,255,0.78)",
           fontFamily: "var(--font-manrope), system-ui, sans-serif",
           lineHeight: 1.55,

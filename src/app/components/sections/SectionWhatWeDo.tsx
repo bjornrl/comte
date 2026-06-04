@@ -1,36 +1,35 @@
-import SectionShell, { PROJECT_CARD_AREA_TOP, PANEL_PADDING } from "./SectionShell";
-import TiltedHeading from "../TiltedHeading";
-import { WHAT_WE_DO_BODY_MAX_WIDTH, SectionBodyText } from "./sectionBodyText";
+"use client";
+
+import SectionShell, {
+  PANEL_PADDING,
+  PROJECT_CONTENT_TOP_BELOW_PANEL_TITLE,
+  PROJECT_TILE_SECTION_TOP,
+} from "./SectionShell";
+import {
+  SECTION_TEXT_COLUMN_MARGIN_LEFT,
+  WHAT_WE_DO_BODY_MAX_WIDTH,
+  SectionBodyText,
+} from "./sectionBodyText";
+import SectionPanelHeading from "./SectionPanelHeading";
+
+const WHAT_WE_DO_HEADING = "What do we do?";
 
 const BG = "#F5F5E9";
 const FG = "#FF5252";
-// Dark green from the brand palette — used as the outlined-circle stroke
-// and as the textbox + outline-circle text colour.
 const DARK_GREEN = "#1F3A32";
-// Off-white "beige" used for text on the filled red circle.
 const BEIGE = "#F5F5E9";
 
-// Two-line tilted heading at the section's left edge. First line gets
-// bisected by the office/what-we-do boundary, second line lives entirely on
-// the what-we-do side — same pattern as motto's "Design to / evolve".
-const TILT_LINES = ["What do", "we do?"];
-
-/** Scale factor for both datapoint blobs — keeps overlap + offset ratios intact. */
+const BLOB_INSET_RIGHT = "clamp(3rem, 8vw, 12rem)";
 const BLOB_LAYOUT_SCALE = 0.75;
 const SMALL_BLOB_DIAMETER = "clamp(7.5rem, 10.5vw, 10.5rem)";
 const LARGE_BLOB_DIAMETER = "clamp(12rem, 18vw, 18rem)";
-/** Small blob sits above the large one — scaled with BLOB_LAYOUT_SCALE. */
-const SMALL_BLOB_LIFT = "clamp(-7.5rem, -10.5vw, -5.25rem)";
-const SMALL_BLOB_SHIFT = "clamp(4rem, 8vw, 6.5rem)";
-const LARGE_BLOB_SHIFT = "clamp(-0.75rem, -1.5vw, -1rem)";
+const SMALL_ON_LARGE_RIGHT = "0";
+const SMALL_ON_LARGE_TOP = "clamp(-5.25rem, -9.5vw, -4.5rem)";
+const SMALL_ON_LARGE_NUDGE_X = "clamp(0.35rem, 1vw, 0.75rem)";
+const SMALL_ON_LARGE_NUDGE_Y = "clamp(-0.35rem, -0.75vw, -0.5rem)";
 
 type Datapoint = { value?: string; label?: string } | null | undefined;
 
-/**
- * Two-circle datapoint row: a smaller filled red circle on the left and a
- * larger dark-green outlined circle on the right. Used to visualize the
- * first two datapoints of what-we-do. Datapoint #3 is ignored.
- */
 function DatapointCircle({
   data,
   variant,
@@ -40,8 +39,6 @@ function DatapointCircle({
 }) {
   if (!data?.value && !data?.label) return null;
   const isSmall = variant === "small-filled";
-  // Diameter scales with viewport but stays within the row band of the
-  // section. Bigger circle is ~50% larger by diameter.
   const diameter = isSmall ? SMALL_BLOB_DIAMETER : LARGE_BLOB_DIAMETER;
   const fill = isSmall ? FG : "transparent";
   const stroke = isSmall ? "transparent" : DARK_GREEN;
@@ -103,60 +100,65 @@ export default function SectionWhatWeDo({
     <SectionShell
       id="what-we-do"
       bgColor={BG}
-      // overflow: visible so the tilted heading can bleed LEFT into the
-      // office panel (where it gets bisected by the section boundary).
-      style={{ color: FG, overflow: "visible", padding: 0 }}
+      style={{ color: FG, padding: 0, overflow: "hidden" }}
     >
-      {/* The 0.2em offset (vs the default 0.5em) shifts the heading's visual
-          centre toward the parent's left edge, so the office snap shows the
-          line-break around the viewport's right edge instead of inside it,
-          and at what-we-do snap the heading sits further left overall. */}
-      <TiltedHeading
-        lines={TILT_LINES}
-        color={FG}
-        parallaxFactor={0.18}
-        leftOffsetEm={0.2}
-      />
-      {/* Content is pushed further right so the textbox + circles land well
-          outside the viewport at the office snap — only the tilted heading
-          peeks past office's right edge. At what-we-do's own snap the
-          content sits in the right portion of the panel with the tilted
-          heading anchoring the left. */}
       <div
         className="relative h-full"
-        style={{ paddingLeft: "30vw" }}
+        style={{ paddingLeft: PANEL_PADDING, paddingRight: PANEL_PADDING }}
       >
-        {textbox && (
-          <div
-            className="w-full min-w-0"
-            style={{
-              maxWidth: WHAT_WE_DO_BODY_MAX_WIDTH,
-              paddingTop: PROJECT_CARD_AREA_TOP,
-            }}
-          >
-            <SectionBodyText text={textbox} color={FG} />
-          </div>
-        )}
-        {/* Blob row — large circle bottom sits on the project section bottom margin. */}
+        {/* Text column — title + body share the same left edge. */}
         <div
-          className="absolute flex w-full min-w-0 items-end justify-between"
+          className="relative min-w-0"
           style={{
-            bottom: PANEL_PADDING,
             maxWidth: WHAT_WE_DO_BODY_MAX_WIDTH,
+            marginLeft: SECTION_TEXT_COLUMN_MARGIN_LEFT,
           }}
         >
           <div
+            className="absolute left-0 right-0 max-w-full"
             style={{
-              transform: `translate(${SMALL_BLOB_SHIFT}, ${SMALL_BLOB_LIFT})`,
+              top: PROJECT_TILE_SECTION_TOP,
+              zIndex: 10,
             }}
           >
-            <DatapointCircle data={datapoint1} variant="small-filled" />
+            <SectionPanelHeading snapId="what-we-do" color={FG}>
+              {WHAT_WE_DO_HEADING}
+            </SectionPanelHeading>
           </div>
-          <div style={{ transform: `translateX(${LARGE_BLOB_SHIFT})` }}>
+
+          {textbox ? (
+            <div
+              className="w-full min-w-0"
+              style={{ paddingTop: PROJECT_CONTENT_TOP_BELOW_PANEL_TITLE }}
+            >
+              <SectionBodyText text={textbox} color={FG} />
+            </div>
+          ) : null}
+        </div>
+
+        <div
+          className="absolute"
+          style={{
+            right: BLOB_INSET_RIGHT,
+            bottom: PANEL_PADDING,
+          }}
+        >
+          <div className="relative inline-block">
             <DatapointCircle data={datapoint2} variant="large-outlined" />
+            <div
+              style={{
+                position: "absolute",
+                right: SMALL_ON_LARGE_RIGHT,
+                top: SMALL_ON_LARGE_TOP,
+                transform: `translate(${SMALL_ON_LARGE_NUDGE_X}, ${SMALL_ON_LARGE_NUDGE_Y})`,
+              }}
+            >
+              <DatapointCircle data={datapoint1} variant="small-filled" />
+            </div>
           </div>
         </div>
       </div>
+
     </SectionShell>
   );
 }

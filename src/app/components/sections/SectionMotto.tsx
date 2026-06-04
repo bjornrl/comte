@@ -1,63 +1,18 @@
-"use client";
-
-import { useEffect, useState } from "react";
 import SectionShell from "./SectionShell";
-import TiltedHeading from "../TiltedHeading";
-import {
-  HERO_FADE_DURATION_MS,
-  HERO_MATTERS_LINE_DELAY_MS,
-} from "../heroIntroTiming";
 
 const DEFAULT_BG = "#5A7482";
-const TILT_COLOR = "#F5F5E9";
-
-/** Fallback when Sanity has no heroText yet. */
-const DEFAULT_LINES = ["Design to", "evolve"];
-
-/** Split the Sanity heroText into display lines (one per newline). Falls back
- *  to the default motto when empty. */
-function heroTextToLines(heroText?: string): string[] {
-  const lines = (heroText ?? "")
-    .split(/\r?\n/)
-    .map((l) => l.trim())
-    .filter(Boolean);
-  return lines.length ? lines : DEFAULT_LINES;
-}
 
 type Props = {
-  heroText?: string;
   backgroundColor?: string;
-  backgroundVideoUrl?: string;
-  /** When false, unmount heavy background media to save CPU. */
+  /** When false, disable iframe pointer events while off-screen (animation keeps running). */
   animationsActive?: boolean;
-  /** Bumps when the user returns to landing — restarts lights + heading intro. */
-  landingEpoch?: number;
 };
 
 export default function SectionMotto({
-  heroText,
   backgroundColor,
-  backgroundVideoUrl,
   animationsActive = true,
-  landingEpoch = 1,
 }: Props) {
   const bg = backgroundColor ?? DEFAULT_BG;
-  const lines = heroTextToLines(heroText);
-  const [introSettled, setIntroSettled] = useState(false);
-
-  useEffect(() => {
-    const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    if (reduced) {
-      setIntroSettled(true);
-      return;
-    }
-    setIntroSettled(false);
-    const timer = window.setTimeout(
-      () => setIntroSettled(true),
-      HERO_MATTERS_LINE_DELAY_MS + HERO_FADE_DURATION_MS,
-    );
-    return () => window.clearTimeout(timer);
-  }, [landingEpoch]);
 
   return (
     <SectionShell
@@ -65,43 +20,12 @@ export default function SectionMotto({
       bgColor={bg}
       style={{ padding: 0, overflow: "visible", pointerEvents: "none" }}
     >
-      {/* Drifting lights — pointer-events on iframe only (section is none). */}
-      {!backgroundVideoUrl && animationsActive && (
-        <iframe
-          key={`motto-lights-${landingEpoch}`}
-          src="/lights.html"
-          title=""
-          aria-hidden="true"
-          className="absolute inset-0 z-[1] h-full w-full border-0"
-          style={{ pointerEvents: "auto" }}
-        />
-      )}
-
-      {backgroundVideoUrl && animationsActive && (
-        <>
-          <video
-            key={`motto-video-${landingEpoch}`}
-            src={backgroundVideoUrl}
-            autoPlay
-            loop
-            muted
-            playsInline
-            aria-hidden="true"
-            className="absolute inset-0 z-0 h-full w-full object-cover"
-          />
-          <div aria-hidden="true" className="absolute inset-0 z-0 bg-black/30" />
-        </>
-      )}
-
-      <TiltedHeading
-        key={`motto-heading-${landingEpoch}`}
-        lines={lines}
-        color={TILT_COLOR}
-        parallaxFactor={0.18}
-        blockAlignPanelXFraction={0.5}
-        parallaxResetWhenHiddenSnapId="home"
-        fadeIn={{ delayMs: HERO_MATTERS_LINE_DELAY_MS, durationMs: HERO_FADE_DURATION_MS }}
-        introSettled={introSettled}
+      <iframe
+        src="/lights.html"
+        title=""
+        aria-hidden="true"
+        className="absolute inset-0 z-[1] h-full w-full border-0"
+        style={{ pointerEvents: animationsActive ? "auto" : "none" }}
       />
     </SectionShell>
   );

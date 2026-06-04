@@ -17,6 +17,9 @@ export const MOTTO_DEFAULT_BG = "#5A7482";
 export const LANDING_HOME_BG = "#F4F4E8";
 export const LANDING_HERO_TEXT = "#5A7482";
 export const LANDING_HERO_ACCENT = "#FF5252";
+/** Hero h1 scale — dot uses 0.28em of this size (see LANDING_HERO_DOT_SIZE). */
+export const LANDING_HERO_FONT_SIZE = "clamp(2.85rem, 8.75vw, 7.25rem)";
+export const LANDING_HERO_DOT_SIZE = `calc(0.28 * ${LANDING_HERO_FONT_SIZE})`;
 
 /** Contact section palette — aligned with landing canvas + brand dark green type. */
 export const CONTACT_BG = "#F4F4E8";

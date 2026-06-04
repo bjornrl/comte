@@ -99,7 +99,6 @@ export const HOME_SECTION_QUERY = groq`
 
 export const MOTTO_SECTION_QUERY = groq`
   *[_type == "mottoSection"][0] {
-    ${t("heroText")},
     backgroundColor,
     "backgroundVideoUrl": backgroundVideo.asset->url,
     ${INTERSTITIAL_FIELDS}
@@ -108,10 +107,12 @@ export const MOTTO_SECTION_QUERY = groq`
 
 export const ABOUT_INTRO_QUERY = groq`
   *[_type == "aboutIntro"][0] {
+    ${t("heading")},
     ${t("whoIsComteTitle")},
     ${t("whoIsComte")},
     ${t("whoAreWeTitle")},
     ${t("whoAreWe")},
+    "videoUrl": video.asset->url,
     image {
       asset-> { _id, url },
       ${t("alt")},

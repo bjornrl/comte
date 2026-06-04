@@ -5,10 +5,9 @@ export const SECTION_BODY_MAX_CH = "64ch";
 /** Space between paragraphs — same across intro, what-we-do, ventures, publications. */
 export const SECTION_BODY_PARAGRAPH_GAP = "1rem";
 
-/** Logo column width in about-intro — used to match textbox width across sections. */
-const ABOUT_INTRO_LOGO_ASPECT = 71 / 247;
-
-const INTRO_TEXT_COL_INNER = `calc((100vw - 100svh * ${ABOUT_INTRO_LOGO_ASPECT} - 40vw) * 0.92 - clamp(2.5rem, 5vw, 5rem) - clamp(1.5rem, 4vw, 4rem))`;
+/** Intro text column inner width (40vw media + horizontal padding). */
+const INTRO_TEXT_COL_INNER =
+  "calc(100vw - 40vw - clamp(2.5rem, 5vw, 5rem) - clamp(1.5rem, 4vw, 4rem))";
 
 /**
  * Cap body width to the about-intro text column's inner measure so what-we-do
@@ -16,8 +15,11 @@ const INTRO_TEXT_COL_INNER = `calc((100vw - 100svh * ${ABOUT_INTRO_LOGO_ASPECT} 
  */
 export const SECTION_BODY_MAX_WIDTH = `min(${SECTION_BODY_MAX_CH}, ${INTRO_TEXT_COL_INNER})`;
 
-/** Slightly wider than intro — what-we-do text column. */
-export const WHAT_WE_DO_BODY_MAX_WIDTH = `min(${SECTION_BODY_MAX_CH}, calc(${INTRO_TEXT_COL_INNER} * 1.2))`;
+/** What-we-do textbox — narrower column on the right side of the panel. */
+export const WHAT_WE_DO_BODY_MAX_WIDTH = `min(42ch, calc(${INTRO_TEXT_COL_INNER} * 0.62))`;
+
+/** Left inset for what-we-do / publications overview text columns. */
+export const SECTION_TEXT_COLUMN_MARGIN_LEFT = "clamp(8vw, 12vw, 16vw)";
 
 /** Publications and ventures — a bit narrower than what-we-do. */
 export const PUBLICATIONS_VENTURES_BODY_MAX_WIDTH = `min(${SECTION_BODY_MAX_CH}, ${INTRO_TEXT_COL_INNER})`;
