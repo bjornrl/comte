@@ -8,18 +8,8 @@ import { DOMAIN_COLORS } from "./projectNetworkData";
 // too close to home's #1F3A32 background to be visible.
 const COLOR_LIST = Object.values({ ...DOMAIN_COLORS, health: "#88C9A6" });
 
-// Dot population split. Home gets the dense cluster anchored to the hero
-// white dot; motto gets a sparser "isolated" cluster in the band to the
-// right of the home panel on the canvas. As the user scrolls past the home→motto boundary, right-
-// leaning home dots one by one drop their hero-anchor line and snap a new
-// line to a randomly assigned motto dot.
+// Dot field for the home panel only (motto uses /lights.html or CMS video).
 const HOME_DOT_COUNT = 60;
-const MOTTO_DOT_COUNT = 25;
-
-/** Canvas spans home + motto snap panels (must match HorizontalScroll widths). */
-const HOME_PANEL_VW = 100;
-const MOTTO_PANEL_VW = 50;
-const HOME_MOTTO_CANVAS_VW = HOME_PANEL_VW + MOTTO_PANEL_VW;
 
 // ── Cursor interaction ─────────────────────────────────────────────────
 // Each dot has a threshold field of THRESHOLD_RADIUS that initially follows
@@ -66,10 +56,7 @@ const DOT_APPEAR_DURATION = 400;
 const LINES_APPEAR_DELAY = 1800;
 const LINES_APPEAR_DURATION = 600;
 
-type DotKind = "home" | "motto";
-
 type Dot = {
-  kind: DotKind;
   ox: number;
   oy: number;
   x: number;
@@ -79,13 +66,6 @@ type Dot = {
   color: string;
   size: number;
   phase: number;
-  /** 0 at the left of the home half → 1 at the right. Home only. */
-  rightAffinity: number;
-  /** Scroll-progress threshold at which a home dot drops its hero line and
-   *  reconnects to a motto dot. Higher = breaks later. Motto dots: unused. */
-  breakThreshold: number;
-  /** Index of the motto dot this home dot reconnects to after breaking. */
-  reconnectIdx: number;
   /** Entry-animation offset (ms after canvas mount) at which this dot starts
    *  fading in. Each dot rolls its own so they appear staggered. */
   appearDelay: number;
@@ -106,30 +86,23 @@ type Dot = {
 };
 
 /**
- * Single canvas spanning the home + motto panels ((100+50)vw wide). The canvas
- * is positioned inside the home section, extending past its right edge into
- * motto's visual area. Home section uses `overflow: visible` so the canvas
- * is visible there; TiltedHeading and hero text wrappers carry z-10 so they
- * paint above the canvas's z-1 stacking context.
- *
- * Behaviour layers:
- *   - Wobble + spring + cursor repulsion: same as before.
- *   - Scroll stretch: right-side home dots get yanked in scroll direction.
- *   - Break-off & reconnect: when scroll progress past home > a dot's
- *     `breakThreshold`, the dot drops its line to the hero white dot and
- *     instead draws a line to its assigned motto dot.
- *
- * Pointer-events disabled.
+ * Canvas for the home panel only (100vw). Motto has its own background
+ * (lights.html or CMS video). Pointer-events disabled.
  */
-export default function HomeBackgroundNetwork() {
+export default function HomeBackgroundNetwork({ active = true }: { active?: boolean }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const dotsRef = useRef<Dot[]>([]);
+  /** Entry animation runs once per page load; navbar returns skip it. */
+  const entryAnimationDoneRef = useRef(false);
+  const activeRef = useRef(active);
+  activeRef.current = active;
   const mouseRef = useRef<{ x: number; y: number; lastMoveT: number }>({
     x: -9999,
     y: -9999,
     lastMoveT: 0,
   });
   const rafRef = useRef<number | null>(null);
+  const tickRef = useRef<((t: number) => void) | null>(null);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -139,79 +112,32 @@ export default function HomeBackgroundNetwork() {
 
     let widthCss = 0;
     let heightCss = 0;
-    /** Left edge of the motto region in canvas-local px (right of home panel). */
-    let homeWidthCss = 0;
 
     const resize = () => {
       const dpr = window.devicePixelRatio || 1;
       const rect = canvas.getBoundingClientRect();
       widthCss = rect.width;
       heightCss = rect.height;
-      homeWidthCss = widthCss * (HOME_PANEL_VW / HOME_MOTTO_CANVAS_VW);
       canvas.width = Math.max(1, Math.floor(widthCss * dpr));
       canvas.height = Math.max(1, Math.floor(heightCss * dpr));
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     };
     resize();
 
-    // Find the horizontal scroll container once for velocity + progress.
-    let scroller: HTMLElement | null = canvas.parentElement;
-    while (scroller && scroller.dataset.horizontalScroll !== "true") {
-      scroller = scroller.parentElement;
-    }
-
-    // ── Initialise motto dots first so home dots can reference them ──────
-    const mottoDots: Dot[] = Array.from({ length: MOTTO_DOT_COUNT }, () => {
-      const x = homeWidthCss + Math.random() * (widthCss - homeWidthCss);
-      const y = Math.random() * heightCss;
-      const sizeRoll = Math.random();
-      const size =
-        sizeRoll > 0.9 ? 3.5 + Math.random() * 1.5 :
-        sizeRoll > 0.6 ? 2 + Math.random() * 1.5 :
-                         1 + Math.random() * 1.2;
-      return {
-        kind: "motto" as const,
-        ox: x, oy: y, x, y,
-        vx: 0, vy: 0,
-        color: COLOR_LIST[Math.floor(Math.random() * COLOR_LIST.length)],
-        size,
-        phase: Math.random() * Math.PI * 2,
-        rightAffinity: 0,
-        breakThreshold: 0,
-        reconnectIdx: -1,
-        appearDelay: Math.random() * DOT_APPEAR_MAX_DELAY,
-        captured: false,
-        frozen: false,
-        frozenX: 0,
-        frozenY: 0,
-        clusterOffsetX: (Math.random() - 0.5) * 28,
-        clusterOffsetY: (Math.random() - 0.5) * 28,
-      };
-    });
-
-    // ── Home dots, each assigned a motto dot to reconnect with ───────────
     const homeDots: Dot[] = Array.from({ length: HOME_DOT_COUNT }, () => {
-      const x = Math.random() * homeWidthCss;
+      const x = Math.random() * widthCss;
       const y = Math.random() * heightCss;
       const sizeRoll = Math.random();
       const size =
         sizeRoll > 0.95 ? 4 + Math.random() * 2 :
         sizeRoll > 0.7  ? 2 + Math.random() * 2 :
                           1 + Math.random() * 1.2;
-      const rightAffinity = homeWidthCss > 0 ? x / homeWidthCss : 0;
-      // Right-side dots break first; left-side basically never break.
-      const breakThreshold =
-        Math.pow(1 - rightAffinity, 1.4) * 1.4 + Math.random() * 0.2 + 0.05;
       return {
-        kind: "home" as const,
         ox: x, oy: y, x, y,
         vx: 0, vy: 0,
         color: COLOR_LIST[Math.floor(Math.random() * COLOR_LIST.length)],
         size,
         phase: Math.random() * Math.PI * 2,
-        rightAffinity,
-        breakThreshold,
-        reconnectIdx: Math.floor(Math.random() * MOTTO_DOT_COUNT),
         appearDelay: Math.random() * DOT_APPEAR_MAX_DELAY,
         captured: false,
         frozen: false,
@@ -222,7 +148,7 @@ export default function HomeBackgroundNetwork() {
       };
     });
 
-    dotsRef.current = [...homeDots, ...mottoDots];
+    dotsRef.current = homeDots;
 
     const onMouseMove = (e: MouseEvent) => {
       const rect = canvas.getBoundingClientRect();
@@ -239,8 +165,6 @@ export default function HomeBackgroundNetwork() {
     document.addEventListener("mouseleave", onMouseLeave);
     window.addEventListener("resize", resize);
 
-    let prevScrollLeft = scroller?.scrollLeft ?? 0;
-    let smoothedScrollVel = 0;
     /** Timestamp of the first rAF callback; the entry animation is measured
      *  in `elapsed = t - mountTime`. */
     let mountTime = 0;
@@ -254,36 +178,25 @@ export default function HomeBackgroundNetwork() {
       a < b ? `${a}-${b}` : `${b}-${a}`;
 
     const tick = (t: number) => {
-      if (mountTime === 0) mountTime = t;
-      const elapsed = t - mountTime;
-      // 0 → 1 fade for the connection lines, gated until LINES_APPEAR_DELAY.
-      const linesAlphaScale = Math.max(
-        0,
-        Math.min(1, (elapsed - LINES_APPEAR_DELAY) / LINES_APPEAR_DURATION),
-      );
-      const canvasRect = canvas.getBoundingClientRect();
-
-      // ── Scroll-derived state ────────────────────────────────────────────
-      let scrollVelocity = 0;
-      let homeToMottoProgress = 0;
-      if (scroller) {
-        const curScroll = scroller.scrollLeft;
-        const rawVel = curScroll - prevScrollLeft;
-        smoothedScrollVel = smoothedScrollVel * 0.75 + rawVel * 0.25;
-        scrollVelocity = smoothedScrollVel;
-        prevScrollLeft = curScroll;
-
-        const homePanel = scroller.querySelector<HTMLElement>(
-          '[data-snap-id="home"]',
-        );
-        if (homePanel) {
-          const homeOffset = homePanel.offsetLeft;
-          const homeWidth = homePanel.offsetWidth;
-          if (homeWidth > 0) {
-            homeToMottoProgress = (curScroll - homeOffset) / homeWidth;
-          }
-        }
+      if (!activeRef.current) {
+        rafRef.current = null;
+        return;
       }
+      if (mountTime === 0 && !entryAnimationDoneRef.current) mountTime = t;
+      const elapsed = entryAnimationDoneRef.current
+        ? LINES_APPEAR_DELAY + LINES_APPEAR_DURATION
+        : t - mountTime;
+      // 0 → 1 fade for the connection lines, gated until LINES_APPEAR_DELAY.
+      const linesAlphaScale = entryAnimationDoneRef.current
+        ? 1
+        : Math.max(
+            0,
+            Math.min(1, (elapsed - LINES_APPEAR_DELAY) / LINES_APPEAR_DURATION),
+          );
+      if (!entryAnimationDoneRef.current && linesAlphaScale >= 1) {
+        entryAnimationDoneRef.current = true;
+      }
+      const canvasRect = canvas.getBoundingClientRect();
 
       // ── Anchor (hero white dot) in canvas-local coords ──────────────────
       const anchorEl = document.querySelector<HTMLElement>(ANCHOR_SELECTOR);
@@ -389,27 +302,14 @@ export default function HomeBackgroundNetwork() {
         }
       }
 
-      // ── Draw lines: hero / motto anchors ────────────────────────────────
-      // Lines hold at 0 alpha until LINES_APPEAR_DELAY, then fade in.
-      if (linesAlphaScale > 0) {
+      // ── Draw lines to hero anchor ───────────────────────────────────────
+      if (linesAlphaScale > 0 && cx > -9000) {
         ctx.lineWidth = 0.5;
         ctx.strokeStyle = `rgba(255,255,255,${0.06 * linesAlphaScale})`;
         ctx.beginPath();
         for (const dot of dots) {
-          if (dot.kind !== "home") continue;
-          const isBroken = homeToMottoProgress > dot.breakThreshold;
-          if (!isBroken) {
-            if (cx > -9000) {
-              ctx.moveTo(dot.x, dot.y);
-              ctx.lineTo(cx, cy);
-            }
-          } else {
-            const target = mottoDots[dot.reconnectIdx];
-            if (target) {
-              ctx.moveTo(dot.x, dot.y);
-              ctx.lineTo(target.x, target.y);
-            }
-          }
+          ctx.moveTo(dot.x, dot.y);
+          ctx.lineTo(cx, cy);
         }
         ctx.stroke();
 
@@ -457,7 +357,9 @@ export default function HomeBackgroundNetwork() {
       // Each dot fades + scales in once `elapsed > dot.appearDelay`, ramping
       // up over DOT_APPEAR_DURATION with an ease-out curve.
       for (const dot of dots) {
-        const raw = (elapsed - dot.appearDelay) / DOT_APPEAR_DURATION;
+        const raw = entryAnimationDoneRef.current
+          ? 1
+          : (elapsed - dot.appearDelay) / DOT_APPEAR_DURATION;
         const t01 = Math.max(0, Math.min(1, raw));
         if (t01 <= 0) continue;
         const eased = 1 - Math.pow(1 - t01, 2);
@@ -472,26 +374,39 @@ export default function HomeBackgroundNetwork() {
       rafRef.current = requestAnimationFrame(tick);
     };
 
-    rafRef.current = requestAnimationFrame(tick);
+    tickRef.current = tick;
+    if (activeRef.current) {
+      rafRef.current = requestAnimationFrame(tick);
+    }
 
     return () => {
       window.removeEventListener("mousemove", onMouseMove);
       document.removeEventListener("mouseleave", onMouseLeave);
       window.removeEventListener("resize", resize);
       if (rafRef.current != null) cancelAnimationFrame(rafRef.current);
+      tickRef.current = null;
     };
   }, []);
+
+  useEffect(() => {
+    if (!active) {
+      if (rafRef.current != null) {
+        cancelAnimationFrame(rafRef.current);
+        rafRef.current = null;
+      }
+      return;
+    }
+    if (rafRef.current == null && tickRef.current) {
+      rafRef.current = requestAnimationFrame(tickRef.current);
+    }
+  }, [active]);
 
   return (
     <canvas
       ref={canvasRef}
       aria-hidden="true"
-      // (100+50)vw so the canvas spans home AND motto. z-index:1 puts it in
-      // CSS step-7 (positive stack levels) — painted AFTER step-6 where
-      // motto's section bg lives. Below z-10 wrappers (hero text, tilted
-      // heading) so those still cover the network where they overlap.
-      className="pointer-events-none absolute left-0 top-0 h-full"
-      style={{ width: `${HOME_MOTTO_CANVAS_VW}vw`, zIndex: 1 }}
+      className="pointer-events-none absolute left-0 top-0 h-full w-full"
+      style={{ zIndex: 1 }}
     />
   );
 }

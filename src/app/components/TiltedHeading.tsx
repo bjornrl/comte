@@ -27,6 +27,28 @@ type Props = {
    * section's snap when this heading lives in a forward-snap-aware panel.
    */
   leftOffsetEm?: number;
+  /**
+   * When set (0–1), keep default vertical centre + rotation but shift
+   * horizontally so the rotated block's horizontal centre sits at this
+   * fraction across the parent panel width. Use 0.5 to centre over the panel
+   * (e.g. motto lights frame).
+   */
+  blockAlignPanelXFraction?: number;
+  /** When this snap panel has fully left the viewport, parallax offset resets
+   *  to 0 until the panel re-enters view (e.g. motto heading vs home panel). */
+  parallaxResetWhenHiddenSnapId?: string;
+  /** Initial-load fade-in synced with another intro element (e.g. hero line). */
+  fadeIn?: { delayMs: number; durationMs?: number };
+  /** When true, show fully visible without replaying the fade-in. */
+  introSettled?: boolean;
+  /**
+   * Optional lines used only for font-size measurement. When set, the
+   * rendered `lines` can differ (e.g. a custom line break) while matching
+   * another heading's scale.
+   */
+  sizeReferenceLines?: string[];
+  /** Line height for multi-line blocks. Defaults to 1. */
+  lineHeight?: number;
 };
 
 // Provisional font-size used for the first paint before the layout effect
@@ -42,6 +64,8 @@ const PROBE_FS_PX = 100;
 // makes the visible glyphs land closer to the viewport bottom edge.
 const TOP_BLEED_PX = 16;
 const BOTTOM_BLEED_PX = 28;
+/** Keep the post-rotation horizontal footprint inside the parent. */
+const HORIZONTAL_MARGIN_PX = 16;
 
 /**
  * Oversized text rotated 90° counter-clockwise. The widest line is sized so
@@ -61,6 +85,12 @@ export default function TiltedHeading({
   className,
   parallaxFactor = 0,
   leftOffsetEm = 0.5,
+  blockAlignPanelXFraction,
+  parallaxResetWhenHiddenSnapId,
+  fadeIn,
+  introSettled = false,
+  sizeReferenceLines,
+  lineHeight = 1,
 }: Props) {
   // Wrapper handles parallax translateX. Inner handles the rotation + font
   // sizing. Splitting them avoids fighting the composed `translate(-50%, -50%)
@@ -68,34 +98,72 @@ export default function TiltedHeading({
   // the wrapper's own transform.
   const wrapperRef = useRef<HTMLDivElement>(null);
   const innerRef = useRef<HTMLDivElement>(null);
+  const measureRef = useRef<HTMLDivElement>(null);
   const [fontSize, setFontSize] = useState<number>(PROBE_FS_PX);
+  /** Extra left shift (px) for block horizontal alignment in the panel. */
+  const [blockAlignShiftPx, setBlockAlignShiftPx] = useState(0);
 
   useLayoutEffect(() => {
     const el = innerRef.current;
+    const measureEl = measureRef.current;
+    const wrapper = wrapperRef.current;
     if (!el) return;
 
+    const sizingLines = sizeReferenceLines ?? lines;
+    const measureTarget = sizeReferenceLines && measureEl ? measureEl : el;
+
     const recompute = () => {
-      // Measure the widest line at the probe size, then scale font-size so
-      // that the widest line's rendered width equals viewport height plus
-      // the top + bottom bleed. After rotation, the rendered width becomes
-      // the visual height, so this overflows the viewport by the configured
-      // bleed amounts.
-      el.style.fontSize = `${PROBE_FS_PX}px`;
+      // Measure at probe size. Pre-rotation width becomes vertical span
+      // after -90°; pre-rotation height becomes horizontal span — cap both.
+      measureTarget.style.fontSize = `${PROBE_FS_PX}px`;
       let maxWidth = 0;
-      for (const child of Array.from(el.children)) {
+      let blockHeight = 0;
+      for (const child of Array.from(measureTarget.children)) {
         if (child instanceof HTMLElement) {
           maxWidth = Math.max(maxWidth, child.scrollWidth);
+          blockHeight += child.offsetHeight;
         }
       }
       if (maxWidth <= 0) return;
-      const target = window.innerHeight + TOP_BLEED_PX + BOTTOM_BLEED_PX;
-      setFontSize(PROBE_FS_PX * (target / maxWidth));
+
+      const targetVertical = window.innerHeight + TOP_BLEED_PX + BOTTOM_BLEED_PX;
+      const containerWidth =
+        wrapper?.parentElement?.getBoundingClientRect().width ??
+        wrapper?.getBoundingClientRect().width ??
+        window.innerWidth;
+      const targetHorizontal = Math.max(
+        0,
+        containerWidth - HORIZONTAL_MARGIN_PX,
+      );
+
+      const fsFromVertical = PROBE_FS_PX * (targetVertical / maxWidth);
+      const fsFromHorizontal =
+        blockHeight > 0
+          ? PROBE_FS_PX * (targetHorizontal / blockHeight)
+          : fsFromVertical;
+      const fs = Math.min(fsFromVertical, fsFromHorizontal);
+
+      el.style.fontSize = `${fs}px`;
+      setFontSize(fs);
+
+      if (blockAlignPanelXFraction != null && wrapper) {
+        const panelRect = wrapper.getBoundingClientRect();
+        const blockRect = el.getBoundingClientRect();
+        const targetX =
+          panelRect.width *
+          Math.max(0, Math.min(1, blockAlignPanelXFraction));
+        const blockCenterRel =
+          (blockRect.left + blockRect.right) / 2 - panelRect.left;
+        setBlockAlignShiftPx(targetX - blockCenterRel);
+      } else {
+        setBlockAlignShiftPx(0);
+      }
     };
 
     recompute();
     window.addEventListener("resize", recompute);
     return () => window.removeEventListener("resize", recompute);
-  }, [lines]);
+  }, [lines, sizeReferenceLines, blockAlignPanelXFraction]);
 
   useEffect(() => {
     if (parallaxFactor <= 0) return;
@@ -105,6 +173,9 @@ export default function TiltedHeading({
     let scroller: HTMLElement | null = wrapper.parentElement;
     while (scroller && scroller.dataset.horizontalScroll !== "true") {
       scroller = scroller.parentElement;
+    }
+    if (!scroller) {
+      scroller = document.querySelector<HTMLElement>('[data-horizontal-scroll="true"]');
     }
     if (!scroller) return;
 
@@ -118,6 +189,22 @@ export default function TiltedHeading({
 
     const update = () => {
       const sr = scroller!.getBoundingClientRect();
+
+      // Reset when the reference panel (e.g. home) has fully scrolled off
+      // left — prevents stale parallax drift when navigating back to landing.
+      if (parallaxResetWhenHiddenSnapId) {
+        const resetPanel = scroller!.querySelector<HTMLElement>(
+          `[data-snap-id="${parallaxResetWhenHiddenSnapId}"]`,
+        );
+        if (resetPanel) {
+          const resetRect = resetPanel.getBoundingClientRect();
+          if (resetRect.right <= sr.left + 1) {
+            wrapper.style.transform = "translateX(0px)";
+            return;
+          }
+        }
+      }
+
       const refRect = reference.getBoundingClientRect();
       // scrollDelta: how far past the panel's snap point we've scrolled.
       // Positive = scrolled forward past snap; negative = before snap.
@@ -136,12 +223,17 @@ export default function TiltedHeading({
       scroller!.removeEventListener("scroll", update);
       window.removeEventListener("resize", update);
     };
-  }, [parallaxFactor]);
+  }, [parallaxFactor, parallaxResetWhenHiddenSnapId]);
+
+  const fadeDurationMs = fadeIn?.durationMs ?? 700;
+  const showFadeIn = fadeIn && !introSettled;
 
   return (
+    <>
     <div
       ref={wrapperRef}
       aria-hidden="true"
+      data-tilted-heading-fade={showFadeIn ? "" : undefined}
       className={className}
       style={{
         position: "absolute",
@@ -152,6 +244,13 @@ export default function TiltedHeading({
         zIndex: 10,
         pointerEvents: "none",
         willChange: parallaxFactor > 0 ? "transform" : undefined,
+        opacity: showFadeIn ? 0 : 1,
+        ...(showFadeIn
+          ? {
+              animation: `tiltedHeadingFadeIn ${fadeDurationMs}ms cubic-bezier(0.25, 1, 0.5, 1) forwards`,
+              animationDelay: `${fadeIn.delayMs}ms`,
+            }
+          : {}),
       }}
     >
       <div
@@ -161,12 +260,12 @@ export default function TiltedHeading({
           // Bias the visual centre down by half the difference between bottom
           // and top bleeds so the bottom overflows more than the top.
           top: `calc(50% + ${(BOTTOM_BLEED_PX - TOP_BLEED_PX) / 2}px)`,
-          left: `${leftOffsetEm}em`,
+          left: `calc(${leftOffsetEm}em + ${blockAlignShiftPx}px)`,
           fontSize: `${fontSize}px`,
           fontFamily: "var(--font-manrope), system-ui, sans-serif",
           fontWeight: 800,
           color,
-          lineHeight: 1,
+          lineHeight,
           letterSpacing: "-0.03em",
           whiteSpace: "nowrap",
           textAlign: "left",
@@ -179,6 +278,41 @@ export default function TiltedHeading({
           <div key={i}>{line}</div>
         ))}
       </div>
+      {sizeReferenceLines ? (
+        <div
+          ref={measureRef}
+          aria-hidden
+          style={{
+            position: "absolute",
+            visibility: "hidden",
+            pointerEvents: "none",
+            fontFamily: "var(--font-manrope), system-ui, sans-serif",
+            fontWeight: 800,
+            lineHeight: 1,
+            letterSpacing: "-0.03em",
+            whiteSpace: "nowrap",
+          }}
+        >
+          {sizeReferenceLines.map((line, i) => (
+            <div key={i}>{line}</div>
+          ))}
+        </div>
+      ) : null}
     </div>
+    {showFadeIn && (
+      <style>{`
+        @keyframes tiltedHeadingFadeIn {
+          from { opacity: 0; }
+          to   { opacity: 1; }
+        }
+        @media (prefers-reduced-motion: reduce) {
+          [data-tilted-heading-fade] {
+            animation-duration: 1ms !important;
+            animation-delay: 0ms !important;
+          }
+        }
+      `}</style>
+    )}
+    </>
   );
 }

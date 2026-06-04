@@ -18,15 +18,14 @@ export const interstitial = defineType({
     defineField({
       name: "text",
       title: "Text",
-      type: "text",
-      rows: 3,
+      type: "localeText",
     }),
     defineField({
       name: "image",
       title: "Image",
       type: "image",
       options: { hotspot: true },
-      fields: [defineField({ name: "alt", title: "Alt Text", type: "string" })],
+      fields: [defineField({ name: "alt", title: "Alt Text", type: "localeString" })],
     }),
     defineField({
       name: "video",

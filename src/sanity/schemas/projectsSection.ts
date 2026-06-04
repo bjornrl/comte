@@ -14,7 +14,7 @@ export const projectsSection = defineType({
     defineField({
       name: "heading",
       title: "Section Heading",
-      type: "string",
+      type: "localeString",
     }),
     defineField({
       name: "interstitial",

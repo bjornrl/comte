@@ -14,14 +14,13 @@ export const teamMember = defineType({
     defineField({
       name: "role",
       title: "Role",
-      type: "string",
+      type: "localeString",
       validation: (Rule) => Rule.required(),
     }),
     defineField({
       name: "bio",
       title: "Bio",
-      type: "array",
-      of: [{ type: "block" }],
+      type: "localeBlockContent",
     }),
     defineField({
       name: "photo",
@@ -41,6 +40,12 @@ export const teamMember = defineType({
       description: "Phone number shown alongside email on the responsible block of project cards.",
     }),
     defineField({
+      name: "linkedin",
+      title: "LinkedIn URL",
+      type: "url",
+      description: "Link to this person's LinkedIn profile. Shows a LinkedIn icon on their team card.",
+    }),
+    defineField({
       name: "order",
       title: "Sort Order",
       type: "number",
@@ -50,6 +55,11 @@ export const teamMember = defineType({
     { title: "Manual Order", name: "order", by: [{ field: "order", direction: "asc" }] },
   ],
   preview: {
-    select: { title: "name", subtitle: "role", media: "photo" },
+    select: { title: "name", roleEn: "role.en", roleNo: "role.no", media: "photo" },
+    prepare: ({ title, roleEn, roleNo, media }) => ({
+      title: title || "Untitled",
+      subtitle: roleEn || roleNo || "",
+      media,
+    }),
   },
 });

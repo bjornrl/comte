@@ -1,41 +1,35 @@
 "use client";
 
-import { useRef, useEffect, useState, useCallback, useMemo } from "react";
+import { useRef, useEffect, useState, useCallback, useMemo, useLayoutEffect, type CSSProperties, type RefObject } from "react";
 import Image from "next/image";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight, ArrowLeft, ArrowRight } from "lucide-react";
+import { AnimatePresence, motion, useReducedMotion, type Variants } from "framer-motion";
+import { projectsSectionCategoryColor, projectsSectionDomainColor } from "./projectNetworkData";
+import {
+  DEFAULT_METHOD_LABELS_EN,
+  getCategoryLabel,
+  getCategoryLabelMap,
+  getMethodLabel,
+} from "@/lib/projectLabels";
+import { localeFromPathname } from "@/lib/locale";
+import { usePathname } from "next/navigation";
 import type {
   Project as NetProject,
   Domain,
   Method,
-  Scale,
 } from "./projectNetworkData";
-import { METHOD_LABELS, SCALE_LABELS } from "./projectNetworkData";
-
-// Domains rendered in the cluster view. The palette is tuned for the beige
-// (#F5F5E9) panel background — each colour clears WCAG AA 4.5:1 on beige so
-// the filter pill labels and small node labels stay readable, and the hues
-// are spread far enough apart that all eight remain visually distinct.
-const DOMAIN_COLORS: Record<Domain, string> = {
-  health: "#2E7855",      // forest green
-  education: "#C73D74",   // magenta
-  integration: "#C04B1F", // burnt orange
-  urban: "#3D5C75",       // slate blue
-  climate: "#4F6F33",     // olive moss
-  digital: "#CC4444",     // deep red
-  culture: "#7A3D8A",     // deep purple
-  policy: "#555E70",      // gray-blue
-};
-
-const DOMAIN_LABELS: Record<Domain, string> = {
-  health: "Health & Care",
-  education: "Childhood & Education",
-  integration: "Inclusion & Participation",
-  urban: "Urban Development",
-  climate: "Climate & Sustainability",
-  digital: "Digital Transformation",
-  culture: "Culture",
-  policy: "Policy",
-};
+import SectionPanelHeading from "./sections/SectionPanelHeading";
+import {
+  CONTENT_TOP,
+  NAV_HEIGHT_TOTAL,
+  PANEL_PADDING,
+  PROJECT_CARD_AREA_TOP,
+  PROJECT_CONTENT_TOP_BELOW_PANEL_TITLE,
+  PROJECT_TILE_CARDS_TOP_EXTRA,
+  PROJECT_TILE_GAP_BELOW_HEADING,
+  PROJECT_TILE_HEADING_BLOCK,
+  PROJECT_TILE_SECTION_TOP,
+} from "./sections/SectionShell";
 
 const VISIBLE_DOMAINS: Domain[] = [
   "education",
@@ -48,10 +42,899 @@ const VISIBLE_DOMAINS: Domain[] = [
   "policy",
 ];
 
-// Brand colours used by the cluster chrome on the beige background.
+type ViewMode = "node" | "tile";
+
+/** Node constellation view — disabled; tile view only. */
+const NODE_VIEW_ENABLED = false;
+
+const BOTTOM_TAG_ROW_GAP = 4;
+const BOTTOM_OFFSET = "clamp(16px, 3vh, 32px)";
+
+// Tile view — embedded detail cards fill viewport-sized grid rows.
+const TILE_CARDS_TOP_EXTRA = PROJECT_TILE_CARDS_TOP_EXTRA;
+const TILE_SECTION_TOP = PROJECT_TILE_SECTION_TOP;
+const TILE_HEADING_BLOCK = PROJECT_TILE_HEADING_BLOCK;
+const TILE_GRID_GAP_BELOW_HEADING = PROJECT_TILE_GAP_BELOW_HEADING;
+const TILE_GRID_TOP = PROJECT_CARD_AREA_TOP;
+const TILE_GRID_TOP_WITH_HEADING = PROJECT_CONTENT_TOP_BELOW_PANEL_TITLE;
+const TILE_FILTER_TRANSITION_S = 0.38;
+const TILE_FILTER_EASE = [0.25, 1, 0.5, 1] as const;
+/** Tile grid row count — cards and nav column share full block height. */
+const TILE_VISIBLE_ROWS = 4;
+/** Horizontal inset for tile/node stage — matches nav and section content margins. */
+const CLUSTER_STAGE_INSET = PANEL_PADDING;
+const CLUSTER_PAD_X = 8;
+const CLUSTER_PAD_Y = 8;
+
 const FG_DARK = "#1F3A32";
 const BG_CREAM = "#F5F5E9";
+const TILE_GRID_GAP = 4;
+const TILE_MIN_COL_WIDTH = 148;
+const TILE_PAGINATION_COLOR = "#242423";
+/** Embedded tile card surface — prev/next buttons match this. */
+const TILE_CARD_BG = "#2a2a2a";
+/** Corner radius for project cards (8pt grid). */
+const PROJECT_CARD_BORDER_RADIUS = 8;
+const TILE_PAGINATION_HOVER_BG = "#5A7482";
+/** Fixed tile grid width — was ~9 cols at desktop; now 8 with hybrid page-1 layout. */
+const TILE_GRID_COLUMNS = 8;
+/** Projects visible per page in tile view. */
+const TILE_GROUP_SIZE = 3;
+/** Match BlobNav BOX_HEIGHT — shared control height for category row. */
+const NAV_BOX_HEIGHT = 42;
+/** Taller than NAV_BOX_HEIGHT so domain labels can wrap to two lines; bottom edge stays fixed via layout math. */
+const CATEGORY_TAG_BOX_HEIGHT = 56;
+const TILE_CONTROL_FONT_SIZE = "1rem";
+/** Matches domain/sub-category chips on embedded project cards. */
+const TILE_TAG_FONT_SIZE = "clamp(0.75rem, 0.95vw, 0.875rem)";
+const TILE_PROGRESS_DOT_SIZE = 14;
+/** Dots per row in the progress grid (left → right, then next row down).
+ *  Kept in sync with TILE_GROUP_SIZE so one dot row == one card page. */
+const TILE_PROGRESS_DOTS_PER_ROW = TILE_GROUP_SIZE;
+const TILE_CARD_SLIDE_S = 0.45;
+const TILE_CARD_SLIDE_STAGGER_S = 0.065;
+const TILE_CARD_SLIDE_EASE: [number, number, number, number] = [0.25, 1, 0.5, 1];
+/** Dot page-turn timing — stagger + duration matched to card slide (1-2-3-4 sequence preserved). */
+const TILE_DOT_STAGGER_S = TILE_CARD_SLIDE_STAGGER_S;
+const TILE_DOT_FADE_S = TILE_CARD_SLIDE_S;
+const TILE_DOT_FADE_EASE_OUT: [number, number, number, number] = [0.55, 0, 1, 0.45];
+const TILE_DOT_FADE_EASE_IN: [number, number, number, number] = TILE_CARD_SLIDE_EASE;
+/** Minimum travel so content starts fully outside the clipped card frame (+ subpixel margin). */
+const TILE_CARD_SLIDE_OUTSIDE = 1.02;
+/** Image layer travels farther than body for in-card parallax (added on top of SLIDE_OUTSIDE). */
+const TILE_CARD_PARALLAX_IMAGE_EXTRA = 0.12;
+const TILE_CARD_PARALLAX_BODY_EXTRA = 0;
 
+/** Same domain order as the bottom tag menu (left → right), then title A–Z. */
+function sortProjectsForTileGrid(projects: NetProject[]): NetProject[] {
+  return [...projects].sort((a, b) => {
+    const ai = VISIBLE_DOMAINS.indexOf(a.domain);
+    const bi = VISIBLE_DOMAINS.indexOf(b.domain);
+    if (ai !== bi) return ai - bi;
+    return a.name.localeCompare(b.name);
+  });
+}
+
+type TileGridLayout = {
+  columns: number;
+  rows: number;
+  tileHeightPx: number;
+  paginationWidth: number;
+  colWidth: number;
+};
+
+/** Match default tile row height at 16px root — approximate for layout helpers. */
+function getTileHeightPx(rootFontSize = 16, stageHeight = 0): number {
+  if (stageHeight > 0) {
+    const clusterTopPx = rootFontSize * 5;
+    const gapPx = rootFontSize * 1.25;
+    const panelPadPx = rootFontSize * 2.5;
+    const blockPx = stageHeight - clusterTopPx - gapPx - CATEGORY_TAG_BOX_HEIGHT - panelPadPx;
+    return Math.max(120, (blockPx - (TILE_VISIBLE_ROWS - 1) * TILE_GRID_GAP) / TILE_VISIBLE_ROWS);
+  }
+  return 120;
+}
+
+/** Card grid height — fills viewport so tag bar bottom matches team section inset. */
+function getTileGridBlockHeight(clusterStageTop: string, navToTileAreaGap: string): string {
+  return `calc(100vh - ${clusterStageTop} - ${navToTileAreaGap} - ${CATEGORY_TAG_BOX_HEIGHT}px - ${PANEL_PADDING})`;
+}
+
+function getTileRowHeight(clusterStageTop: string, navToTileAreaGap: string): string {
+  const block = getTileGridBlockHeight(clusterStageTop, navToTileAreaGap);
+  return `calc((${block} - ${(TILE_VISIBLE_ROWS - 1) * TILE_GRID_GAP}px) / ${TILE_VISIBLE_ROWS})`;
+}
+
+/** Inner width of the tile stage (between horizontal insets, minus column gaps). */
+function getTileStageWidthExpr(): string {
+  return `(100% - 2 * ${CLUSTER_STAGE_INSET} - ${(TILE_GRID_COLUMNS - 1) * TILE_GRID_GAP}px)`;
+}
+
+function getTileGridColumnWidthExpr(): string {
+  return `${getTileStageWidthExpr()} / ${TILE_GRID_COLUMNS}`;
+}
+
+/** Column width inside the cluster stage (`100%` = stage, not section). */
+function getTileStageColumnWidthExpr(): string {
+  return `(100% - ${(TILE_GRID_COLUMNS - 1) * TILE_GRID_GAP}px) / ${TILE_GRID_COLUMNS}`;
+}
+
+/** Flanking prev/next width in grid-column units (narrower = wider cards). */
+const TILE_FLANKING_NAV_COLS = 0.375;
+/** Prev + cards + next row width in grid-column units (extends toward the dots column). */
+const TILE_CONTROL_ROW_COLS = 7.5;
+const TILE_CONTROL_ROW_GAPS = 6;
+
+/** Width of prev, cards, and next — matches tag menu row. */
+function getTileControlRowWidth(): string {
+  return `calc(${getTileGridColumnWidthExpr()} * ${TILE_CONTROL_ROW_COLS} + ${TILE_CONTROL_ROW_GAPS * TILE_GRID_GAP}px)`;
+}
+
+/** Same as control row width, inside the cluster stage (`100%` = stage). */
+function getTileControlRowWidthInStage(): string {
+  return `calc(${getTileStageColumnWidthExpr()} * ${TILE_CONTROL_ROW_COLS} + ${TILE_CONTROL_ROW_GAPS * TILE_GRID_GAP}px)`;
+}
+
+function getTileFlankingNavButtonWidthInStage(): string {
+  return `calc(${getTileStageColumnWidthExpr()} * ${TILE_FLANKING_NAV_COLS})`;
+}
+
+/** Card row: flanking nav | N cards | flanking nav — fits control row width exactly. */
+function getTileCardRowGridTemplateColumns(showNavButtons: boolean): string {
+  if (showNavButtons) {
+    const navW = getTileFlankingNavButtonWidthInStage();
+    return `${navW} repeat(${TILE_GROUP_SIZE}, minmax(0, 1fr)) ${navW}`;
+  }
+  return `repeat(${TILE_GROUP_SIZE}, minmax(0, 1fr))`;
+}
+
+const TILE_FLANKING_NAV_ICON_SIZE = 24;
+
+/** Section-level `right` offset — start of grid col 8 (after the card row). */
+function getTileCardRowRightOffset(): string {
+  return `calc(${CLUSTER_STAGE_INSET} + (${getTileStageWidthExpr()} + ${TILE_GRID_GAP}px) / ${TILE_GRID_COLUMNS})`;
+}
+
+/** Width of grid column 8 — right-side nav/dots strip. */
+function getTileNavColumnWidth(): string {
+  return `calc(${getTileGridColumnWidthExpr()})`;
+}
+
+function computeTileGridLayout(width: number, height = 0): TileGridLayout {
+  const gap = TILE_GRID_GAP;
+  const columns = TILE_GRID_COLUMNS;
+  const tileHeightPx = getTileHeightPx(16, height);
+  const rows = TILE_VISIBLE_ROWS;
+  const colWidth = (width - (columns - 1) * gap) / columns;
+  const paginationWidth = colWidth;
+  return {
+    columns,
+    rows,
+    tileHeightPx,
+    paginationWidth,
+    colWidth,
+  };
+}
+
+function getFeaturedPageCount(projectCount: number): number {
+  return Math.max(1, Math.ceil(projectCount / TILE_GROUP_SIZE));
+}
+
+function wrapPageIndex(index: number, pageCount: number): number {
+  if (pageCount <= 0) return 0;
+  return ((index % pageCount) + pageCount) % pageCount;
+}
+
+/** Shortest path on the wrapped page ring — used to stagger dots forward vs backward. */
+function getPageTransitionReversed(
+  fromPage: number,
+  toPage: number,
+  pageCount: number,
+): boolean {
+  if (pageCount <= 1 || fromPage === toPage) return false;
+  const forwardSteps = (toPage - fromPage + pageCount) % pageCount;
+  const backwardSteps = (fromPage - toPage + pageCount) % pageCount;
+  return backwardSteps < forwardSteps;
+}
+
+function getFeaturedPageIndices(pageIndex: number, projectCount: number): number[] {
+  if (projectCount === 0) return [];
+  const start = pageIndex * TILE_GROUP_SIZE;
+  return Array.from({ length: TILE_GROUP_SIZE }, (_, slot) => (start + slot) % projectCount);
+}
+
+function getFeaturedSlice(projects: NetProject[], pageIndex: number): NetProject[] {
+  return getFeaturedPageIndices(pageIndex, projects.length).map((index) => projects[index]);
+}
+
+function getProjectGalleryUrls(project: NetProject): string[] {
+  const g = project.galleryUrls?.filter(Boolean);
+  if (g && g.length > 0) return g;
+  if (project.heroImageUrl) return [project.heroImageUrl];
+  return [];
+}
+
+type DotGridCell = { project: NetProject; index: number };
+
+/** Lay out dots in rows of four, left → right then downward. Incomplete rows
+ *  are padded on the left so dots sit flush to the right edge. */
+function chunkDotsIntoRows(
+  projects: NetProject[],
+  dotsPerRow = TILE_PROGRESS_DOTS_PER_ROW,
+): Array<Array<DotGridCell | null>> {
+  if (projects.length === 0) return [];
+
+  const rows: Array<Array<DotGridCell | null>> = [];
+  for (let start = 0; start < projects.length; start += dotsPerRow) {
+    const slice = projects.slice(start, start + dotsPerRow).map((project, offset) => ({
+      project,
+      index: start + offset,
+    }));
+    const padCount = dotsPerRow - slice.length;
+    rows.push([...Array<null>(padCount).fill(null), ...slice]);
+  }
+  return rows;
+}
+
+function getDotGridRowCount(projectCount: number): number {
+  if (projectCount <= 0) return 0;
+  return Math.ceil(projectCount / TILE_PROGRESS_DOTS_PER_ROW);
+}
+
+function getDotGridHeightPx(rowCount: number): number {
+  if (rowCount <= 0) return 0;
+  return rowCount * TILE_PROGRESS_DOT_SIZE + (rowCount - 1) * TILE_GRID_GAP;
+}
+
+function getDotStaggerSlot(slot: number, reversed: boolean): number {
+  return reversed ? TILE_GROUP_SIZE - 1 - slot : slot;
+}
+
+function getDotTransitionDelay(
+  animateStagger: boolean,
+  prevSlot: number,
+  currSlot: number,
+  reversed: boolean,
+): number {
+  if (!animateStagger) return 0;
+  if (prevSlot >= 0) return getDotStaggerSlot(prevSlot, reversed) * TILE_DOT_STAGGER_S;
+  if (currSlot >= 0) return getDotStaggerSlot(currSlot, reversed) * TILE_DOT_STAGGER_S;
+  return 0;
+}
+
+function getDotTransitionDuration(): number {
+  return TILE_DOT_STAGGER_S * (TILE_GROUP_SIZE - 1) + TILE_DOT_FADE_S;
+}
+
+function getTileCardParallaxVariants(extraTravel: number): Variants {
+  const outside = TILE_CARD_SLIDE_OUTSIDE + extraTravel;
+  return {
+    enter: (direction: number) => ({
+      x: direction > 0 ? `${outside * 100}%` : `${-outside * 100}%`,
+    }),
+    center: { x: "0%" },
+    exit: (direction: number) => ({
+      x: direction > 0 ? `${-outside * 100}%` : `${outside * 100}%`,
+    }),
+  };
+}
+
+const TILE_CARD_IMAGE_VARIANTS = getTileCardParallaxVariants(TILE_CARD_PARALLAX_IMAGE_EXTRA);
+const TILE_CARD_BODY_VARIANTS = getTileCardParallaxVariants(TILE_CARD_PARALLAX_BODY_EXTRA);
+
+function TileProgressDots({
+  projects,
+  pageIndex,
+  onSelectPage,
+}: {
+  projects: NetProject[];
+  pageIndex: number;
+  onSelectPage?: (pageIndex: number) => void;
+}) {
+  const [outgoingIndices, setOutgoingIndices] = useState<number[] | null>(null);
+  const [transitionReversed, setTransitionReversed] = useState(false);
+  const prevPageRef = useRef(pageIndex);
+  const clearTransitionRef = useRef<ReturnType<typeof setTimeout>>(undefined);
+  const reduceMotion = useReducedMotion();
+
+  const pageCount = getFeaturedPageCount(projects.length);
+  const pageJustChanged =
+    prevPageRef.current !== pageIndex && projects.length > 0;
+  const activeReversed =
+    pageJustChanged
+      ? getPageTransitionReversed(prevPageRef.current, pageIndex, pageCount)
+      : transitionReversed;
+  const activeOutgoingIndices =
+    outgoingIndices ??
+    (pageJustChanged
+      ? getFeaturedPageIndices(prevPageRef.current, projects.length)
+      : null);
+  const animateStagger = activeOutgoingIndices !== null;
+
+  useLayoutEffect(() => {
+    if (!pageJustChanged) return;
+
+    const prevIndices = getFeaturedPageIndices(prevPageRef.current, projects.length);
+    const reversed = getPageTransitionReversed(
+      prevPageRef.current,
+      pageIndex,
+      pageCount,
+    );
+    setOutgoingIndices(prevIndices);
+    setTransitionReversed(reversed);
+    if (clearTransitionRef.current) clearTimeout(clearTransitionRef.current);
+    const durationMs = reduceMotion ? 0 : getDotTransitionDuration() * 1000 + 50;
+    clearTransitionRef.current = setTimeout(() => {
+      setOutgoingIndices(null);
+      setTransitionReversed(false);
+    }, durationMs);
+    prevPageRef.current = pageIndex;
+  }, [pageIndex, projects.length, pageCount, pageJustChanged, reduceMotion]);
+
+  useEffect(() => {
+    setOutgoingIndices(null);
+    setTransitionReversed(false);
+    prevPageRef.current = pageIndex;
+    if (clearTransitionRef.current) clearTimeout(clearTransitionRef.current);
+  }, [projects]);
+
+  useEffect(
+    () => () => {
+      if (clearTransitionRef.current) clearTimeout(clearTransitionRef.current);
+    },
+    [],
+  );
+
+  const currVisibleIndices = useMemo(
+    () => getFeaturedPageIndices(pageIndex, projects.length),
+    [pageIndex, projects.length],
+  );
+
+  const visibleIndices = useMemo(
+    () => new Set(currVisibleIndices),
+    [currVisibleIndices],
+  );
+
+  const visibleLabels = useMemo(
+    () => currVisibleIndices.map((index) => index + 1),
+    [currVisibleIndices],
+  );
+
+  const dotRows = useMemo(() => chunkDotsIntoRows(projects), [projects]);
+
+  if (projects.length === 0) return null;
+
+  return (
+    <div
+      role="group"
+      aria-label={`Projects ${visibleLabels.join(", ")} of ${projects.length}`}
+      style={{
+        width: "100%",
+        minHeight: 0,
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "flex-end",
+        justifyContent: "flex-start",
+        gap: TILE_GRID_GAP,
+        overflow: "hidden",
+        boxSizing: "border-box",
+      }}
+    >
+      {dotRows.map((row, rowIndex) => (
+        <button
+          type="button"
+          key={`dot-row-${rowIndex}`}
+          className="focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1F3A32]"
+          onClick={() => onSelectPage?.(rowIndex)}
+          aria-label={`Show projects page ${rowIndex + 1} of ${dotRows.length}`}
+          aria-current={rowIndex === pageIndex ? "true" : undefined}
+          style={{
+            appearance: "none",
+            background: "transparent",
+            border: "none",
+            padding: "2px 0",
+            margin: 0,
+            cursor: "pointer",
+            display: "flex",
+            flexDirection: "row",
+            justifyContent: "flex-end",
+            gap: TILE_GRID_GAP,
+          }}
+        >
+          {row.map((cell, cellIndex) => {
+            if (!cell) {
+              return (
+                <span
+                  key={`pad-${rowIndex}-${cellIndex}`}
+                  aria-hidden
+                  style={{
+                    width: TILE_PROGRESS_DOT_SIZE,
+                    height: TILE_PROGRESS_DOT_SIZE,
+                    flexShrink: 0,
+                  }}
+                />
+              );
+            }
+            const { project, index } = cell;
+            const isVisible = visibleIndices.has(index);
+            const prevSlot = activeOutgoingIndices?.indexOf(index) ?? -1;
+            const currSlot = currVisibleIndices.indexOf(index);
+            const delay = getDotTransitionDelay(
+              animateStagger,
+              prevSlot,
+              currSlot,
+              activeReversed,
+            );
+            const fadingOut = animateStagger && prevSlot >= 0 && currSlot < 0;
+            const accent = projectsSectionDomainColor(project.domain);
+            return (
+              <span
+                key={project.id}
+                title={project.name}
+                style={{
+                  position: "relative",
+                  width: TILE_PROGRESS_DOT_SIZE,
+                  height: TILE_PROGRESS_DOT_SIZE,
+                  flexShrink: 0,
+                  borderRadius: "50%",
+                  border: `1px solid ${accent}`,
+                  boxSizing: "border-box",
+                }}
+              >
+                <motion.span
+                  aria-hidden
+                  initial={false}
+                  animate={{ opacity: isVisible ? 1 : 0 }}
+                  transition={{
+                    duration: reduceMotion ? 0.01 : TILE_DOT_FADE_S,
+                    delay: reduceMotion ? 0 : delay,
+                    ease: fadingOut ? TILE_DOT_FADE_EASE_OUT : TILE_DOT_FADE_EASE_IN,
+                  }}
+                  style={{
+                    position: "absolute",
+                    inset: 0,
+                    borderRadius: "50%",
+                    backgroundColor: accent,
+                  }}
+                />
+              </span>
+            );
+          })}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function TileDotGridMeasure({
+  measureRef,
+}: {
+  measureRef: RefObject<HTMLDivElement | null>;
+}) {
+  return (
+    <div
+      ref={measureRef}
+      aria-hidden
+      data-tile-dot-grid-measure
+      style={{
+        position: "absolute",
+        top: 0,
+        right: 0,
+        display: "flex",
+        flexDirection: "row",
+        gap: TILE_GRID_GAP,
+        visibility: "hidden",
+        pointerEvents: "none",
+      }}
+    >
+      {Array.from({ length: TILE_PROGRESS_DOTS_PER_ROW }, (_, index) => (
+        <span
+          key={index}
+          style={{
+            width: TILE_PROGRESS_DOT_SIZE,
+            height: TILE_PROGRESS_DOT_SIZE,
+            flexShrink: 0,
+          }}
+        />
+      ))}
+    </div>
+  );
+}
+
+type TilePaginationMode = "next" | "previous";
+
+function TileProgressDotsColumn({
+  projects,
+  pageIndex,
+  top,
+  onSelectPage,
+}: {
+  projects: NetProject[];
+  pageIndex: number;
+  top: string;
+  onSelectPage?: (pageIndex: number) => void;
+}) {
+  const gridMeasureRef = useRef<HTMLDivElement>(null);
+
+  if (projects.length === 0) return null;
+
+  return (
+    <div
+      className="select-none"
+      style={{
+        position: "absolute",
+        top,
+        right: CLUSTER_STAGE_INSET,
+        zIndex: 25,
+        width: getTileNavColumnWidth(),
+        minHeight: 0,
+        boxSizing: "border-box",
+      }}
+    >
+      <div
+        style={{
+          position: "relative",
+          width: "100%",
+          overflow: "hidden",
+        }}
+      >
+        <TileDotGridMeasure measureRef={gridMeasureRef} />
+        <TileProgressDots projects={projects} pageIndex={pageIndex} onSelectPage={onSelectPage} />
+      </div>
+    </div>
+  );
+}
+
+function TilePaginationButton({
+  mode,
+  width,
+  height,
+  onClick,
+  inline = false,
+  compact = false,
+  tall = false,
+  navSlot = false,
+  navBar = false,
+  navColumn = false,
+  navFlankIconOnly = false,
+  disabled = false,
+  style,
+}: {
+  mode: TilePaginationMode;
+  width?: number | string;
+  height?: number | string;
+  onClick: () => void;
+  inline?: boolean;
+  compact?: boolean;
+  tall?: boolean;
+  navSlot?: boolean;
+  navBar?: boolean;
+  navColumn?: boolean;
+  navFlankIconOnly?: boolean;
+  disabled?: boolean;
+  style?: CSSProperties;
+}) {
+  const [hovered, setHovered] = useState(false);
+  const navChrome = navBar || navColumn || navFlankIconOnly;
+  const label =
+    mode === "next"
+      ? compact || tall || navSlot || navChrome
+        ? "Next"
+        : "Next page"
+      : compact || tall || navSlot || navChrome
+        ? "Prev"
+        : "Previous page";
+  const Icon = mode === "next" ? ArrowRight : ArrowLeft;
+  const active = !disabled && hovered;
+  const filled = navChrome || active;
+  const foreground = filled ? BG_CREAM : TILE_PAGINATION_COLOR;
+  const background = navChrome
+    ? active
+      ? TILE_CARD_BG
+      : TILE_PAGINATION_HOVER_BG
+    : active
+      ? TILE_PAGINATION_COLOR
+      : "transparent";
+  const borderColor = navChrome
+    ? active
+      ? TILE_CARD_BG
+      : TILE_PAGINATION_HOVER_BG
+    : TILE_PAGINATION_COLOR;
+  const iconSize = navFlankIconOnly
+    ? TILE_FLANKING_NAV_ICON_SIZE
+    : navChrome
+      ? 16
+      : navSlot
+        ? 16
+        : tall
+          ? 22
+          : compact
+            ? 14
+            : 18;
+
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      aria-label={mode === "next" ? "Next page" : "Previous page"}
+      style={{
+        position: inline || tall || navSlot || navChrome ? "relative" : "absolute",
+        ...(inline || tall || navSlot || navChrome ? {} : { bottom: 0, right: 0 }),
+        flex: inline && compact ? 1 : navBar ? "1 1 0" : undefined,
+        width: navColumn || navFlankIconOnly ? "100%" : navBar ? "100%" : navSlot ? undefined : tall ? "100%" : width,
+        height: navColumn || navFlankIconOnly ? "100%" : navBar ? NAV_BOX_HEIGHT : navSlot ? undefined : tall ? "100%" : height,
+        boxSizing: "border-box",
+        border: `1px solid ${borderColor}`,
+        borderRadius: navFlankIconOnly ? PROJECT_CARD_BORDER_RADIUS : 0,
+        background,
+        color: foreground,
+        cursor: disabled ? "not-allowed" : "pointer",
+        opacity: disabled ? 0.35 : 1,
+        display: "flex",
+        flexDirection: navChrome || (!tall && !navSlot) ? "row" : "column",
+        alignItems: "center",
+        justifyContent: "center",
+        gap: navFlankIconOnly ? 0 : navChrome ? 8 : navSlot ? 6 : tall ? 12 : compact ? 4 : 8,
+        padding: navFlankIconOnly ? 0 : navChrome ? "0 12px" : navSlot ? "8px 4px" : tall ? "16px 8px" : compact ? "0 4px" : "0 12px",
+        fontFamily: "var(--font-work-sans), system-ui, sans-serif",
+        fontSize: navChrome ? TILE_CONTROL_FONT_SIZE : navSlot ? "0.7rem" : tall ? "1rem" : compact ? "0.75rem" : "1rem",
+        fontWeight: 400,
+        letterSpacing: "0.01em",
+        lineHeight: 1,
+        whiteSpace: "nowrap",
+        zIndex: 6,
+        minHeight: navBar ? NAV_BOX_HEIGHT : 0,
+        minWidth: navChrome || navSlot ? 0 : undefined,
+        transition: "background 0.2s ease-out, color 0.2s ease-out, border-color 0.2s ease-out, opacity 0.2s ease-out",
+        ...style,
+      }}
+    >
+      {navFlankIconOnly ? (
+        <Icon size={iconSize} strokeWidth={2.25} aria-hidden />
+      ) : navChrome ? (
+        mode === "previous" ? (
+          <>
+            <Icon size={iconSize} strokeWidth={2} aria-hidden />
+            <span>{label}</span>
+          </>
+        ) : (
+          <>
+            <span>{label}</span>
+            <Icon size={iconSize} strokeWidth={2} aria-hidden />
+          </>
+        )
+      ) : tall || navSlot ? (
+        <>
+          <Icon size={iconSize} strokeWidth={2} aria-hidden />
+          <span>{label}</span>
+        </>
+      ) : (
+        <>
+          <span>{label}</span>
+          <Icon size={iconSize} strokeWidth={2} aria-hidden />
+        </>
+      )}
+    </button>
+  );
+}
+
+type TileProjectGridProps = {
+  tileProjects: NetProject[];
+  stageWidth: number;
+  stageHeight: number;
+  gridBlockHeight: string;
+  tileRowHeight: string;
+  activeProject: string | null;
+  hoveredProject: string | null;
+  onProjectClick: (id: string) => void;
+  onTileHover: (id: string) => void;
+  onGridLeave: () => void;
+  pageIndex: number;
+  onTilePageChange?: (page: number) => void;
+  showNavButtons: boolean;
+  onPrev: () => void;
+  onNext: () => void;
+};
+
+function TileProjectGrid({
+  tileProjects,
+  stageWidth,
+  stageHeight,
+  gridBlockHeight,
+  tileRowHeight,
+  activeProject,
+  hoveredProject,
+  onProjectClick,
+  onTileHover,
+  onGridLeave,
+  pageIndex,
+  onTilePageChange,
+  showNavButtons,
+  onPrev,
+  onNext,
+}: TileProjectGridProps) {
+  const gridRef = useRef<HTMLDivElement>(null);
+  const onTileHoverRef = useRef(onTileHover);
+  const onGridLeaveRef = useRef(onGridLeave);
+
+  useEffect(() => {
+    onTileHoverRef.current = onTileHover;
+  }, [onTileHover]);
+  useEffect(() => {
+    onGridLeaveRef.current = onGridLeave;
+  }, [onGridLeave]);
+
+  useEffect(() => {
+    const el = gridRef.current;
+    if (!el) return;
+    const onMove = (e: PointerEvent) => {
+      const target = e.target as HTMLElement | null;
+      const tile = target?.closest("[data-project-tile]");
+      if (tile instanceof HTMLElement && tile.dataset.projectId) {
+        onTileHoverRef.current(tile.dataset.projectId);
+      }
+    };
+    const onLeave = () => onGridLeaveRef.current();
+    el.addEventListener("pointermove", onMove, { passive: true });
+    el.addEventListener("pointerleave", onLeave);
+    el.addEventListener("pointercancel", onLeave);
+    return () => {
+      el.removeEventListener("pointermove", onMove);
+      el.removeEventListener("pointerleave", onLeave);
+      el.removeEventListener("pointercancel", onLeave);
+    };
+  }, []);
+
+  useMemo(() => computeTileGridLayout(stageWidth, stageHeight), [stageWidth, stageHeight]);
+
+  const pageCount = getFeaturedPageCount(tileProjects.length);
+  const safePageIndex = wrapPageIndex(pageIndex, pageCount);
+  const featured = getFeaturedSlice(tileProjects, safePageIndex);
+  const reduceMotion = useReducedMotion();
+  /** Set synchronously in nav handlers so AnimatePresence gets direction on the same render as the new page. */
+  const slideDirectionRef = useRef<1 | -1>(1);
+  const slideDirection = slideDirectionRef.current;
+
+  const handlePrev = useCallback(() => {
+    slideDirectionRef.current = -1;
+    onPrev();
+  }, [onPrev]);
+
+  const handleNext = useCallback(() => {
+    slideDirectionRef.current = 1;
+    onNext();
+  }, [onNext]);
+
+  useEffect(() => {
+    slideDirectionRef.current = 1;
+  }, [tileProjects]);
+
+  const prevPageIndexRef = useRef(safePageIndex);
+  useEffect(() => {
+    const prev = prevPageIndexRef.current;
+    if (prev !== safePageIndex && pageCount > 1) {
+      const forwardSteps = (safePageIndex - prev + pageCount) % pageCount;
+      const backwardSteps = (prev - safePageIndex + pageCount) % pageCount;
+      slideDirectionRef.current = backwardSteps < forwardSteps ? -1 : 1;
+    }
+    prevPageIndexRef.current = safePageIndex;
+  }, [safePageIndex, pageCount]);
+
+  useEffect(() => {
+    onTilePageChange?.(safePageIndex);
+  }, [safePageIndex, onTilePageChange]);
+
+  return (
+    <div
+      style={{
+        position: "absolute",
+        inset: 0,
+        zIndex: 5,
+        // Full stage footprint for %-based layout; only the card row captures clicks.
+        pointerEvents: "none",
+      }}
+    >
+      <div
+        style={{
+          position: "relative",
+          height: gridBlockHeight,
+          maxHeight: gridBlockHeight,
+        }}
+      >
+        <div
+          style={{
+            height: "100%",
+            overflow: "hidden",
+            boxSizing: "border-box",
+          }}
+        >
+          <div
+            ref={gridRef}
+            style={{
+              pointerEvents: "auto",
+              display: "grid",
+              gridTemplateColumns: getTileCardRowGridTemplateColumns(showNavButtons),
+              gridTemplateRows: `repeat(${TILE_VISIBLE_ROWS}, ${tileRowHeight})`,
+              gap: TILE_GRID_GAP,
+              alignContent: "start",
+              width: getTileControlRowWidthInStage(),
+              maxWidth: "100%",
+              height: "100%",
+              boxSizing: "border-box",
+            }}
+          >
+            {showNavButtons ? (
+              <div
+                className="select-none"
+                data-tile-pagination
+                style={{
+                  gridColumn: 1,
+                  gridRow: `1 / span ${TILE_VISIBLE_ROWS}`,
+                  minHeight: 0,
+                  zIndex: 6,
+                  borderRadius: PROJECT_CARD_BORDER_RADIUS,
+                  overflow: "hidden",
+                }}
+              >
+                <TilePaginationButton mode="previous" navFlankIconOnly onClick={handlePrev} />
+              </div>
+            ) : null}
+
+            {featured.map((project, slot) => (
+              <div
+                key={`tile-slot-${slot}`}
+                data-project-tile
+                data-project-id={project.id}
+                style={{
+                  gridColumn: showNavButtons ? slot + 2 : slot + 1,
+                  gridRow: `1 / span ${TILE_VISIBLE_ROWS}`,
+                  position: "relative",
+                  minHeight: 0,
+                  height: "100%",
+                  overflow: "hidden",
+                  isolation: "isolate",
+                  borderRadius: PROJECT_CARD_BORDER_RADIUS,
+                  contain: "layout paint",
+                }}
+              >
+                <EmbeddedTileProjectCard
+                  project={project}
+                  slideDirection={slideDirection}
+                  slideSlot={slot}
+                  reduceMotion={reduceMotion ?? false}
+                />
+                <EmbeddedCardFrameOverlay accent={projectsSectionDomainColor(project.domain)} />
+              </div>
+            ))}
+
+            {showNavButtons ? (
+              <div
+                className="select-none"
+                data-tile-pagination
+                style={{
+                  // Last column: 1 flank + N cards (so the flank sits after them).
+                  gridColumn: TILE_GROUP_SIZE + 2,
+                  gridRow: `1 / span ${TILE_VISIBLE_ROWS}`,
+                  minHeight: 0,
+                  zIndex: 6,
+                  borderRadius: PROJECT_CARD_BORDER_RADIUS,
+                  overflow: "hidden",
+                }}
+              >
+                <TilePaginationButton mode="next" navFlankIconOnly onClick={handleNext} />
+              </div>
+            ) : null}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Brand colours used by the cluster chrome on the beige background.
 // Stable seed for the random scatter so the dot layout doesn't reshuffle on
 // every render (which would jitter the constellation as projects load in).
 const SCATTER_SEED = "comte-projects-scatter";
@@ -128,6 +1011,10 @@ type ProjectClusterProps = {
 };
 
 export default function ProjectCluster({ projects, backgroundColor, heading }: ProjectClusterProps) {
+  const pathname = usePathname();
+  const locale = localeFromPathname(pathname ?? "/");
+  const domainLabels = useMemo(() => getCategoryLabelMap(locale), [locale]);
+
   // Only include projects whose domain is visible in this view.
   const incoming = projects?.length ? projects : FALLBACK_NET_PROJECTS;
   const activeProjects = useMemo(
@@ -136,18 +1023,37 @@ export default function ProjectCluster({ projects, backgroundColor, heading }: P
   );
 
   const containerRef = useRef<HTMLDivElement>(null);
-  const [containerSize, setContainerSize] = useState({ w: 0, h: 0 });
+  const clusterStageRef = useRef<HTMLDivElement>(null);
+  const [stageSize, setStageSize] = useState({ w: 0, h: 0 });
   const [activeProject, setActiveProject] = useState<string | null>(null);
   const [hoveredProject, setHoveredProject] = useState<string | null>(null);
   const [activeFilter, setActiveFilter] = useState<Domain | null>(null);
+  const [hoveredFilter, setHoveredFilter] = useState<Domain | null>(null);
+  const viewMode: ViewMode = NODE_VIEW_ENABLED ? "node" : "tile";
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
   const [photoIdx, setPhotoIdx] = useState(0);
+  const [tilePageIndex, setTilePageIndex] = useState(0);
+
+  const tileProjects = useMemo(() => {
+    const pool = activeFilter
+      ? activeProjects.filter((p) => p.domain === activeFilter)
+      : activeProjects;
+    return sortProjectsForTileGrid(pool);
+  }, [activeProjects, activeFilter]);
+
+  const tilePageCount = getFeaturedPageCount(tileProjects.length);
+  const safeTilePageIndex = wrapPageIndex(tilePageIndex, tilePageCount);
+  const showTileNavButtons = tilePageCount > 1;
+
+  useEffect(() => {
+    setTilePageIndex(0);
+  }, [tileProjects]);
 
   // Refs used by the rAF loop that drives the per-dot drift and cursor-snap
   // motion. Keeping these out of React state means the animation never
   // triggers a re-render — we mutate DOM `transform`s and line endpoint
   // attributes directly each frame.
-  const dotWrappersRef = useRef<Map<string, HTMLDivElement | null>>(new Map());
+  const dotWrappersRef = useRef<Map<string, HTMLElement>>(new Map());
   const lineRefsRef = useRef<Map<string, SVGLineElement | null>>(new Map());
   const offsetsRef = useRef<Map<string, { x: number; y: number }>>(new Map());
   // Mouse position mirrored into a ref so the rAF closure doesn't have to
@@ -159,11 +1065,16 @@ export default function ProjectCluster({ projects, backgroundColor, heading }: P
   // avoid calling setHoveredProject every frame, only on actual transitions.
   const lastHoverIdRef = useRef<string | null>(null);
 
-  // Measure container
   useEffect(() => {
-    const el = containerRef.current;
+    lastHoverIdRef.current = null;
+    setHoveredProject(null);
+  }, [activeFilter]);
+
+  // Measure the inset tile/node stage (page margins on left and right).
+  useEffect(() => {
+    const el = clusterStageRef.current;
     if (!el) return;
-    const measure = () => setContainerSize({ w: el.clientWidth, h: el.clientHeight });
+    const measure = () => setStageSize({ w: el.clientWidth, h: el.clientHeight });
     measure();
     const ro = new ResizeObserver(measure);
     ro.observe(el);
@@ -177,18 +1088,12 @@ export default function ProjectCluster({ projects, backgroundColor, heading }: P
   // clears the bar within the budget, the dot is placed at the last
   // candidate (so we never infinite-loop on dense layouts).
   const dotPositions = useMemo(() => {
-    if (containerSize.w === 0) return new Map<string, { x: number; y: number }>();
-    const isMobile = containerSize.w < 768;
-    // Reserve generous top room for the section heading and bottom room for
-    // the (navbar-sized) filter bar. The bottom budget covers the filter
-    // pills (48 px tall) + their bottom offset (clamp 16–32 px) + a
-    // breathing gap, doubled-up so wrapped pill rows on narrower viewports
-    // still don't touch any dots.
-    const padX = isMobile ? 24 : 80;
-    const padTop = isMobile ? 140 : 180;
-    const padBottom = isMobile ? 200 : 200;
-    const usableW = Math.max(0, containerSize.w - padX * 2);
-    const usableH = Math.max(0, containerSize.h - padTop - padBottom);
+    if (stageSize.w === 0) return new Map<string, { x: number; y: number }>();
+    const padX = CLUSTER_PAD_X;
+    const padTop = CLUSTER_PAD_Y;
+    const padBottom = CLUSTER_PAD_Y;
+    const usableW = Math.max(0, stageSize.w - padX * 2);
+    const usableH = Math.max(0, stageSize.h - padTop - padBottom);
     if (usableW === 0 || usableH === 0)
       return new Map<string, { x: number; y: number }>();
 
@@ -230,7 +1135,7 @@ export default function ProjectCluster({ projects, backgroundColor, heading }: P
       }
     }
     return positions;
-  }, [containerSize, activeProjects]);
+  }, [stageSize, activeProjects]);
 
   // Constellation lines — every node ends up with at most MAX_DEGREE edges.
   // For each project we shuffle its NEAREST_POOL closest neighbours and walk
@@ -333,8 +1238,9 @@ export default function ProjectCluster({ projects, backgroundColor, heading }: P
   // the web breathes with the dots. All updates go straight to the DOM —
   // no setState, no re-renders.
   useEffect(() => {
-    const section = containerRef.current;
-    if (!section || dotPositions.size === 0) return;
+    if (!NODE_VIEW_ENABLED) return;
+    const stage = clusterStageRef.current;
+    if (!stage || dotPositions.size === 0) return;
 
     // Per-project drift phases/frequencies, seeded from the project ID so
     // the assignments are stable across mounts and every dot wobbles on
@@ -373,18 +1279,24 @@ export default function ProjectCluster({ projects, backgroundColor, heading }: P
 
     const tick = (now: number) => {
       const t = (now - t0) / 1000;
-      const rect = section.getBoundingClientRect();
+      const rect = stage.getBoundingClientRect();
+      const W = rect.width;
+      const H = rect.height;
       const mx = mousePosRef.current.x - rect.left;
       const my = mousePosRef.current.y - rect.top;
 
-      // Single pass to find the project whose anchor is nearest the cursor.
-      // ONLY that project gets the snap + hover treatment — every other dot
-      // is purely on drift. This guarantees one-dot-at-a-time interaction
-      // and makes hover detection deterministic (no reliance on the browser
-      // getting mouseover/enter timing right across rapidly-moving buttons).
+      const padX = CLUSTER_PAD_X;
+      const padTop = CLUSTER_PAD_Y;
+      const padBottom = CLUSTER_PAD_Y;
+      const HIT = 44; // px — must match dot button wrapper
+
+      // Single pass: nearest anchor to cursor wins snap/hover for that frame.
+      // With an active domain filter, only dots in that domain compete so
+      // faded projects never steal snap/hover. Everyone else stays on drift only.
       let nearestId: string | null = null;
       let nearestDist = Infinity;
       for (const project of activeProjects) {
+        if (activeFilter && project.domain !== activeFilter) continue;
         const anchor = dotPositions.get(project.id);
         if (!anchor) continue;
         const d = Math.hypot(mx - anchor.x, my - anchor.y);
@@ -436,8 +1348,22 @@ export default function ProjectCluster({ projects, backgroundColor, heading }: P
         const driftY =
           Math.cos(2 * Math.PI * ph.fy * t + ph.py) * DRIFT_AMP * driftMult;
 
-        const offX = driftX + snapX;
-        const offY = driftY + snapY;
+        let offX = driftX + snapX;
+        let offY = driftY + snapY;
+
+        // Clamp translation so the 44×44 hit target never slides into reserved
+        // strips (especially the bottom tag bar) when the cursor leaves the field.
+        const minOffX = padX - anchor.x + HIT / 2;
+        const maxOffX = W - padX - anchor.x - HIT / 2;
+        const minOffY = padTop - anchor.y + HIT / 2;
+        const maxOffY = H - padBottom - anchor.y - HIT / 2;
+        if (minOffX <= maxOffX) {
+          offX = Math.max(minOffX, Math.min(maxOffX, offX));
+        }
+        if (minOffY <= maxOffY) {
+          offY = Math.max(minOffY, Math.min(maxOffY, offY));
+        }
+
         offsetsRef.current.set(project.id, { x: offX, y: offY });
 
         const wrapper = dotWrappersRef.current.get(project.id);
@@ -467,13 +1393,18 @@ export default function ProjectCluster({ projects, backgroundColor, heading }: P
     return () => {
       if (rafId !== null) cancelAnimationFrame(rafId);
     };
-  }, [dotPositions, activeProjects, lines]);
+  }, [dotPositions, activeProjects, lines, activeFilter, viewMode]);
 
   const handleDotClick = useCallback((projectId: string) => {
     setActiveProject((prev) => (prev === projectId ? null : projectId));
   }, []);
   const handleFilterClick = useCallback((domain: Domain) => {
+    setHoveredProject(null);
     setActiveFilter((prev) => (prev === domain ? null : domain));
+  }, []);
+
+  const handleTileHover = useCallback((projectId: string) => {
+    setHoveredProject(projectId);
   }, []);
 
   // Native pointer-event listener for the cursor. React's synthetic
@@ -488,7 +1419,8 @@ export default function ProjectCluster({ projects, backgroundColor, heading }: P
   // to jitter instead of smoothly converging on the cursor. State is only
   // needed for the tooltip's position, so this throttle is invisible.
   useEffect(() => {
-    const el = containerRef.current;
+    if (!NODE_VIEW_ENABLED) return;
+    const el = clusterStageRef.current;
     if (!el) return;
     let rafPending = false;
     const flushState = () => {
@@ -518,7 +1450,7 @@ export default function ProjectCluster({ projects, backgroundColor, heading }: P
       el.removeEventListener("pointerleave", onLeave);
       el.removeEventListener("pointercancel", onLeave);
     };
-  }, []);
+  }, [viewMode]);
 
   const hoveredData = hoveredProject ? activeProjects.find((p) => p.id === hoveredProject) : null;
   const activeData = activeProject ? activeProjects.find((p) => p.id === activeProject) : null;
@@ -529,18 +1461,26 @@ export default function ProjectCluster({ projects, backgroundColor, heading }: P
 
   const galleryUrls = useMemo(() => {
     if (!activeData) return [];
-    const g = activeData.galleryUrls?.filter(Boolean);
-    if (g && g.length > 0) return g;
-    if (activeData.heroImageUrl) return [activeData.heroImageUrl];
-    return [];
+    return getProjectGalleryUrls(activeData);
   }, [activeData]);
 
-  const isMobile = containerSize.w < 768;
+  const showOverlayCard = Boolean(activeData);
+
+  const isMobile = stageSize.w > 0 && stageSize.w < 768;
+  const clusterStageTop = heading ? TILE_GRID_TOP_WITH_HEADING : TILE_GRID_TOP;
+  // Small clearance between the bottom of the cards and the filter buttons —
+  // the cards expand down to (nearly) meet the buttons. Matches the gap used
+  // between cards for a consistent rhythm.
+  const cardToTagGap = `${TILE_GRID_GAP}px`;
+  const tileGridBlockHeight = getTileGridBlockHeight(clusterStageTop, cardToTagGap);
+  const tileRowHeight = getTileRowHeight(clusterStageTop, cardToTagGap);
+  /** Top edge of the filter bar — sits below the card grid with cardToTagGap clearance. */
+  const tagBarTop = `calc(${clusterStageTop} + ${tileGridBlockHeight} + ${cardToTagGap})`;
 
   return (
     <section
       ref={containerRef}
-      className="relative h-full w-full overflow-hidden select-none"
+      className="relative h-full w-full overflow-hidden"
       style={{ background: backgroundColor ?? DEFAULT_BG }}
       onClick={(e) => {
         if (e.target === e.currentTarget) setActiveProject(null);
@@ -548,93 +1488,127 @@ export default function ProjectCluster({ projects, backgroundColor, heading }: P
     >
       {/* Section header */}
       {heading && (
-        <div
+        <SectionPanelHeading
+          snapId="projects"
+          color={FG_DARK}
           style={{
             position: "absolute",
-            // Sits one PANEL_PADDING below the nav (same as other sections).
-            top: "calc(clamp(1rem, 2.5vw, 2.5rem) + 48px + clamp(2rem, 5vw, 5rem))",
-            left: "clamp(2rem, 5vw, 5rem)",
+            top: TILE_SECTION_TOP,
+            left: CLUSTER_STAGE_INSET,
             zIndex: 10,
-            maxWidth: "20ch",
           }}
         >
-          <h2
-            style={{
-              fontFamily: "var(--font-manrope), system-ui, sans-serif",
-              fontWeight: 700,
-              fontSize: "clamp(1.5rem, 3vw, 2.5rem)",
-              color: FG_DARK,
-              margin: 0,
-              lineHeight: 1.1,
-            }}
-          >
-            {heading}
-          </h2>
-        </div>
+          {heading}
+        </SectionPanelHeading>
       )}
 
-      {/* Tag filter pills. Size + typography match BlobNav (48 px tall,
-          Work Sans 0.95 rem, 4 px gap) so the bottom bar reads as the
-          horizontal counterpart to the top nav. Per-domain colour is kept
-          as the visual cue: outlined-in-domain-colour when idle, filled
-          when active. */}
+      {/* Bottom bar: 8 domain filters — one row, prev + cards + next width. */}
       <div
+        className="select-none"
         style={{
           position: "absolute",
-          bottom: "clamp(16px, 3vh, 32px)",
-          left: "50%",
-          transform: "translateX(-50%)",
-          display: "flex",
-          gap: 4,
-          flexWrap: "wrap",
-          justifyContent: "center",
+          top: tagBarTop,
+          left: CLUSTER_STAGE_INSET,
+          width: getTileControlRowWidth(),
+          height: CATEGORY_TAG_BOX_HEIGHT,
           zIndex: 10,
-          padding: "0 16px",
-          maxWidth: "calc(100vw - 32px)",
+          display: "grid",
+          gridTemplateColumns: `repeat(${TILE_GRID_COLUMNS}, minmax(0, 1fr))`,
+          gap: TILE_GRID_GAP,
+          boxSizing: "border-box",
         }}
       >
-        {VISIBLE_DOMAINS.map((domain) => {
-          const isActive = activeFilter === domain;
-          return (
-            <button
-              key={domain}
-              onClick={() => handleFilterClick(domain)}
-              aria-label={`Filter by ${DOMAIN_LABELS[domain]}`}
-              aria-pressed={isActive}
-              style={{
-                // 48 px tall to mirror BlobNav's BOX_HEIGHT. Padding is
-                // also asymmetric (top 4, bottom 0) so the lowercase text
-                // sits slightly below visual centre — the same trick the
-                // nav uses to centre Work Sans's x-height optically.
-                height: 48,
-                padding: "4px 14px 0 14px",
-                border: `1px solid ${DOMAIN_COLORS[domain]}`,
-                borderRadius: 0,
-                fontFamily: "var(--font-work-sans), system-ui, sans-serif",
-                fontSize: "0.95rem",
-                fontWeight: 400,
-                letterSpacing: "0.01em",
-                textTransform: "lowercase",
-                color: isActive ? BG_CREAM : DOMAIN_COLORS[domain],
-                background: isActive ? DOMAIN_COLORS[domain] : "transparent",
-                cursor: "pointer",
-                transition: "background 0.2s ease-out, color 0.2s ease-out",
-                whiteSpace: "nowrap",
-                lineHeight: 1,
-              }}
-            >
-              {DOMAIN_LABELS[domain]}
-            </button>
-          );
-        })}
+          {VISIBLE_DOMAINS.map((domain) => {
+            const isActive = activeFilter === domain;
+            const isHovered = hoveredFilter === domain;
+            const tagBackground =
+              isActive || isHovered ? projectsSectionDomainColor(domain) : "transparent";
+            const tagColor = isActive || isHovered ? BG_CREAM : projectsSectionDomainColor(domain);
+            return (
+              <button
+                key={domain}
+                onClick={() => handleFilterClick(domain)}
+                onMouseEnter={() => setHoveredFilter(domain)}
+                onMouseLeave={() => setHoveredFilter(null)}
+                aria-label={`Filter by ${domainLabels[domain]}`}
+                aria-pressed={isActive}
+                style={{
+                  width: "100%",
+                  boxSizing: "border-box",
+                  height: CATEGORY_TAG_BOX_HEIGHT,
+                  minHeight: CATEGORY_TAG_BOX_HEIGHT,
+                  padding: "0 8px",
+                  border: `1px solid ${projectsSectionDomainColor(domain)}`,
+                  borderRadius: PROJECT_CARD_BORDER_RADIUS,
+                  fontFamily: "var(--font-work-sans), system-ui, sans-serif",
+                  fontSize: TILE_TAG_FONT_SIZE,
+                  fontWeight: 400,
+                  letterSpacing: "0.01em",
+                  textTransform: "lowercase",
+                  color: tagColor,
+                  background: tagBackground,
+                  cursor: "pointer",
+                  transition: "background 0.2s ease-out, color 0.2s ease-out",
+                  lineHeight: 1.15,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+              >
+                <span
+                  style={{
+                    display: "-webkit-box",
+                    WebkitBoxOrient: "vertical",
+                    WebkitLineClamp: 2,
+                    overflow: "hidden",
+                    textAlign: "center",
+                    width: "100%",
+                  }}
+                >
+                  {domainLabels[domain]}
+                </span>
+              </button>
+            );
+          })}
       </div>
+
+      {/* Tile + node field — inset to page margins. */}
+      <div
+        ref={clusterStageRef}
+        style={{
+          position: "absolute",
+          top: clusterStageTop,
+          left: CLUSTER_STAGE_INSET,
+          right: CLUSTER_STAGE_INSET,
+          height: tileGridBlockHeight,
+          overflow: "hidden",
+          zIndex: 21,
+        }}
+      >
+      {/* Tile grid — domain-coloured cards in tag-menu order (LTR, matches bottom bar). */}
+      <TileProjectGrid
+        tileProjects={tileProjects}
+        stageWidth={stageSize.w}
+        stageHeight={stageSize.h}
+        gridBlockHeight={tileGridBlockHeight}
+        tileRowHeight={tileRowHeight}
+        activeProject={activeProject}
+        hoveredProject={hoveredProject}
+        onProjectClick={handleDotClick}
+        onGridLeave={() => setHoveredProject(null)}
+        onTileHover={handleTileHover}
+        pageIndex={tilePageIndex}
+        showNavButtons={showTileNavButtons}
+        onPrev={() => setTilePageIndex((p) => wrapPageIndex(p - 1, tilePageCount))}
+        onNext={() => setTilePageIndex((p) => wrapPageIndex(p + 1, tilePageCount))}
+      />
 
       {/* Constellation lines. Dark-green hairlines on beige; the per-line
           opacity reacts to hover / open card / active filter so the web
           recedes when something else demands attention. With endpoints'
           IDs stored, the filter logic dims lines whose endpoints don't
           touch the active filter. */}
-      {containerSize.w > 0 && (
+      {NODE_VIEW_ENABLED && stageSize.w > 0 && (
         <svg
           style={{ position: "absolute", inset: 0, width: "100%", height: "100%", pointerEvents: "none" }}
           aria-hidden="true"
@@ -684,7 +1658,7 @@ export default function ProjectCluster({ projects, backgroundColor, heading }: P
           none` so it never competes with the wrapper for events. This
           collapses the old two-button structure (visible + invisible-on-
           top) that was creating hit-test ambiguity. */}
-      {containerSize.w > 0 &&
+      {NODE_VIEW_ENABLED && stageSize.w > 0 &&
         activeProjects.map((project) => {
           const pos = dotPositions.get(project.id);
           if (!pos) return null;
@@ -709,7 +1683,8 @@ export default function ProjectCluster({ projects, backgroundColor, heading }: P
             <button
               key={project.id}
               ref={(el) => {
-                dotWrappersRef.current.set(project.id, el);
+                if (el) dotWrappersRef.current.set(project.id, el);
+                else dotWrappersRef.current.delete(project.id);
               }}
               onClick={() => handleDotClick(project.id)}
               aria-label={`${project.name} — ${project.client}`}
@@ -722,9 +1697,15 @@ export default function ProjectCluster({ projects, backgroundColor, heading }: P
                 background: "transparent",
                 border: "none",
                 padding: 0,
-                cursor: "pointer",
+                cursor:
+                  activeFilter && project.domain !== activeFilter ? "default" : "pointer",
                 outline: "none",
                 willChange: "transform",
+                // Sit below domain tags (z-10); clamped motion should keep overlap
+                // rare, but this guarantees pills stay clickable first.
+                zIndex: 5,
+                pointerEvents:
+                  activeFilter && project.domain !== activeFilter ? "none" : "auto",
               }}
             >
               {/* Visible coloured dot — purely visual; pointer-events: none
@@ -738,7 +1719,7 @@ export default function ProjectCluster({ projects, backgroundColor, heading }: P
                   width: size,
                   height: size,
                   borderRadius: "50%",
-                  background: DOMAIN_COLORS[project.domain],
+                  background: projectsSectionDomainColor(project.domain),
                   display: "block",
                   pointerEvents: "none",
                   opacity: dotOpacity,
@@ -771,9 +1752,18 @@ export default function ProjectCluster({ projects, backgroundColor, heading }: P
             </button>
           );
         })}
+      </div>
+
+      {/* Progress dots — col 8; after the stage so clicks hit rows, not the stage. */}
+      <TileProgressDotsColumn
+        projects={tileProjects}
+        pageIndex={safeTilePageIndex}
+        top={clusterStageTop}
+        onSelectPage={(p) => setTilePageIndex(wrapPageIndex(p, tilePageCount))}
+      />
 
       {/* Hover tooltip */}
-      {hoveredData && !activeProject && !isMobile && (
+      {NODE_VIEW_ENABLED && hoveredData && !activeProject && !isMobile && (
         <div
           style={{
             position: "fixed",
@@ -798,7 +1788,7 @@ export default function ProjectCluster({ projects, backgroundColor, heading }: P
       )}
 
       {/* Expanded detail card */}
-      {activeData && (
+      {showOverlayCard && activeData && (
         <ExpandedProjectCard
           project={activeData}
           galleryUrls={galleryUrls}
@@ -823,6 +1813,526 @@ export default function ProjectCluster({ projects, backgroundColor, heading }: P
 }
 
 // ---------------------------------------------------------------------------
+// EmbeddedTileProjectCard
+//
+// Tile-grid project card (2×4). Detail layout only: cropped top image +
+// full text, tags, and contact — no internal scroll or wheel states.
+// ---------------------------------------------------------------------------
+
+const EMBEDDED_DETAIL_IMAGE_FRACTION = 0.38;
+const EMBEDDED_SUMMARY_LINE_CLAMP = 9;
+// Slightly larger than before — the 3-up card layout (vs 4-up) gives each card
+// more width, so the type can breathe.
+// Sized in container-query units (cqi = 1% of the card's own width) so the type
+// scales with the card across every screen size, with rem min/max guards to
+// keep it readable on the smallest cards and from ballooning on the largest.
+// The card sets `container-type: inline-size` to anchor these units.
+const EMBEDDED_FONT = {
+  title: "clamp(0.9rem, 5cqi, 1.5rem)",
+  summary: "clamp(0.65rem, 3.2cqi, 0.8125rem)",
+  meta: "clamp(0.78rem, 3.8cqi, 1.05rem)",
+  small: "clamp(0.72rem, 3.5cqi, 0.95rem)",
+  tag: "clamp(0.72rem, 3.5cqi, 0.95rem)",
+  contact: "clamp(0.78rem, 3.8cqi, 1.05rem)",
+} as const;
+
+/** Category accent blended toward a canvas for type hierarchy on outlined cards. */
+function accentTone(accent: string, weight: number, canvas: string = BG_CREAM): string {
+  return `color-mix(in srgb, ${accent} ${weight}%, ${canvas})`;
+}
+
+function formatProjectYears(year: unknown): string | null {
+  if (year == null || year === "") return null;
+  return String(year);
+}
+
+/** Inset stroke follows border-radius; divider sits below the image band. */
+function EmbeddedCardFrameOverlay({ accent }: { accent: string }) {
+  return (
+    <div
+      aria-hidden
+      style={{
+        position: "absolute",
+        inset: 0,
+        zIndex: 10,
+        pointerEvents: "none",
+        borderRadius: PROJECT_CARD_BORDER_RADIUS,
+        boxShadow: `inset 0 0 0 1px ${accent}`,
+      }}
+    >
+      <div
+        style={{
+          position: "absolute",
+          left: 0,
+          right: 0,
+          top: `${EMBEDDED_DETAIL_IMAGE_FRACTION * 100}%`,
+          height: 1,
+          background: accentTone(accent, 28),
+          transform: "translateY(-1px)",
+          pointerEvents: "none",
+        }}
+      />
+    </div>
+  );
+}
+
+const KNOWN_METHOD_VALUES = new Set(Object.keys(DEFAULT_METHOD_LABELS_EN));
+
+function EmbeddedTileProjectCard({
+  project,
+  slideDirection = 1,
+  slideSlot = 0,
+  reduceMotion = false,
+}: {
+  project: NetProject;
+  slideDirection?: 1 | -1;
+  slideSlot?: number;
+  reduceMotion?: boolean;
+}) {
+  const pathname = usePathname();
+  const locale = localeFromPathname(pathname ?? "/");
+  const [photoIdx, setPhotoIdx] = useState(0);
+  const slideTransition = {
+    duration: reduceMotion ? 0.01 : TILE_CARD_SLIDE_S,
+    delay: reduceMotion ? 0 : slideSlot * TILE_CARD_SLIDE_STAGGER_S,
+    ease: TILE_CARD_SLIDE_EASE,
+  };
+
+  useEffect(() => {
+    setPhotoIdx(0);
+  }, [project.id]);
+
+  const galleryUrls = useMemo(() => getProjectGalleryUrls(project), [project]);
+  const accent = projectsSectionDomainColor(project.domain);
+  const customers =
+    project.customers && project.customers.length > 0
+      ? project.customers
+      : project.client
+        ? [project.client]
+        : [];
+  const subCategories = project.subCategories ?? project.displayTags ?? [];
+  const responsible = project.responsible;
+  const methodLabels = (project.methods ?? [])
+    .filter((m): m is Method => KNOWN_METHOD_VALUES.has(m))
+    .map((m) => getMethodLabel(m, locale));
+  const cardLinks = (project.cardLinks ?? []).filter((l) => l.url);
+  const pad = "10px";
+
+  const renderGallery = () => {
+    if (galleryUrls.length === 0) {
+      return (
+        <div
+          style={{
+            width: "100%",
+            height: "100%",
+            background: "transparent",
+          }}
+        />
+      );
+    }
+    return (
+      <div style={{ position: "relative", width: "100%", height: "100%", overflow: "hidden" }}>
+        <Image
+          key={galleryUrls[photoIdx]}
+          src={galleryUrls[photoIdx]}
+          alt=""
+          fill
+          className="object-cover"
+          style={{ objectPosition: "center top" }}
+          sizes="320px"
+        />
+        {galleryUrls.length > 1 ? (
+          <>
+            <button
+              type="button"
+              aria-label="Previous image"
+              onClick={(e) => {
+                e.stopPropagation();
+                setPhotoIdx((i) => (i - 1 + galleryUrls.length) % galleryUrls.length);
+              }}
+              style={{
+                position: "absolute",
+                left: 6,
+                top: "50%",
+                transform: "translateY(-50%)",
+                width: 28,
+                height: 28,
+                border: `1px solid ${accentTone(accent, 55)}`,
+                background: "transparent",
+                color: accent,
+                cursor: "pointer",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                zIndex: 2,
+              }}
+            >
+              <ChevronLeft size={16} />
+            </button>
+            <button
+              type="button"
+              aria-label="Next image"
+              onClick={(e) => {
+                e.stopPropagation();
+                setPhotoIdx((i) => (i + 1) % galleryUrls.length);
+              }}
+              style={{
+                position: "absolute",
+                right: 6,
+                top: "50%",
+                transform: "translateY(-50%)",
+                width: 28,
+                height: 28,
+                border: `1px solid ${accentTone(accent, 55)}`,
+                background: "transparent",
+                color: accent,
+                cursor: "pointer",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                zIndex: 2,
+              }}
+            >
+              <ChevronRight size={16} />
+            </button>
+          </>
+        ) : null}
+      </div>
+    );
+  };
+
+  const renderTags = () => (
+    <div
+      style={{
+        display: "flex",
+        flexWrap: "wrap",
+        gap: 4,
+        marginTop: 6,
+        alignItems: "center",
+      }}
+    >
+      <span
+        style={{
+          display: "inline-block",
+          padding: "2px 8px",
+          fontSize: EMBEDDED_FONT.tag,
+          fontFamily: "var(--font-manrope), system-ui, sans-serif",
+          letterSpacing: "0.05em",
+          color: accent,
+          background: "transparent",
+          border: `1px solid ${accent}`,
+        }}
+      >
+        {getCategoryLabel(project.domain, locale)}
+      </span>
+      {subCategories.map((cat) => (
+        <span
+          key={cat.id}
+          style={{
+            display: "inline-block",
+            padding: "2px 8px",
+            fontSize: EMBEDDED_FONT.tag,
+            fontFamily: "var(--font-manrope), system-ui, sans-serif",
+            letterSpacing: "0.05em",
+            color: projectsSectionCategoryColor(cat, accent),
+            background: "transparent",
+            border: `1px solid ${projectsSectionCategoryColor(cat, accentTone(accent, 55))}`,
+          }}
+        >
+          {cat.label}
+        </span>
+      ))}
+    </div>
+  );
+
+  const renderContact = () => {
+    if (!responsible) return null;
+    return (
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 6,
+          marginTop: 6,
+          paddingTop: 6,
+          borderTop: `1px solid ${accentTone(accent, 28)}`,
+          minWidth: 0,
+        }}
+      >
+        <div
+          style={{
+            position: "relative",
+            width: 24,
+            height: 24,
+            flexShrink: 0,
+            overflow: "hidden",
+            background: accentTone(accent, 12),
+          }}
+        >
+          {responsible.photoUrl ? (
+            <Image
+              src={responsible.photoUrl}
+              alt={responsible.name}
+              fill
+              sizes="24px"
+              className="object-cover"
+            />
+          ) : null}
+        </div>
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            fontFamily: "var(--font-manrope), system-ui, sans-serif",
+            fontSize: EMBEDDED_FONT.contact,
+            lineHeight: 1.25,
+            minWidth: 0,
+          }}
+        >
+          {responsible.phone ? (
+            <span style={{ color: accent }}>{responsible.phone}</span>
+          ) : (
+            <span style={{ color: accentTone(accent, 72) }}>{responsible.name}</span>
+          )}
+          {responsible.email ? (
+            <span
+              style={{
+                color: accentTone(accent, 58),
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+                whiteSpace: "nowrap",
+              }}
+            >
+              {responsible.email}
+            </span>
+          ) : null}
+        </div>
+      </div>
+    );
+  };
+
+  const renderBody = () => (
+    <div
+      style={{
+        padding: 12,
+        height: "100%",
+        maxHeight: "100%",
+        boxSizing: "border-box",
+        display: "flex",
+        flexDirection: "column",
+        overflow: "hidden",
+        minHeight: 0,
+      }}
+    >
+      <h3
+        style={{
+          margin: 0,
+          fontSize: EMBEDDED_FONT.title,
+          fontWeight: 600,
+          color: accent,
+          fontFamily: "var(--font-manrope), system-ui, sans-serif",
+          lineHeight: 1.25,
+          flexShrink: 0,
+        }}
+      >
+        {project.name}
+      </h3>
+      {customers.length > 0 ? (
+        <p
+          style={{
+            margin: "8px 0 0",
+            fontSize: EMBEDDED_FONT.meta,
+            color: accentTone(accent, 78),
+            fontFamily: "var(--font-manrope), system-ui, sans-serif",
+            flexShrink: 0,
+          }}
+        >
+          {customers.join(" · ")}
+        </p>
+      ) : null}
+      <p
+        style={{
+          margin: customers.length > 0 ? "2px 0 0" : "8px 0 0",
+          fontSize: EMBEDDED_FONT.small,
+          color: accentTone(accent, 58),
+          fontFamily: "var(--font-manrope), system-ui, sans-serif",
+          flexShrink: 0,
+        }}
+      >
+        {project.year}
+      </p>
+      <p
+        style={{
+          margin: "8px 0 0",
+          fontSize: EMBEDDED_FONT.summary,
+          color: accentTone(accent, 82),
+          fontFamily: "var(--font-manrope), system-ui, sans-serif",
+          lineHeight: 1.45,
+          flex: 1,
+          minHeight: 0,
+          overflow: "hidden",
+          display: "-webkit-box",
+          WebkitBoxOrient: "vertical",
+          WebkitLineClamp: EMBEDDED_SUMMARY_LINE_CLAMP,
+          paddingBottom: 8,
+        }}
+      >
+        {project.summary}
+      </p>
+      <div
+        style={{
+          flex: "0 1 auto",
+          minHeight: 0,
+          display: "flex",
+          flexDirection: "column",
+          overflow: "hidden",
+        }}
+      >
+        {methodLabels.length > 0 ? (
+          <div
+            style={{
+              display: "flex",
+              flexWrap: "wrap",
+              gap: 4,
+              marginTop: 6,
+              flexShrink: 0,
+            }}
+          >
+            {methodLabels.map((label) => (
+              <span
+                key={label}
+                style={{
+                  padding: "2px 8px",
+                  fontSize: EMBEDDED_FONT.tag,
+                  fontFamily: "var(--font-manrope), system-ui, sans-serif",
+                  letterSpacing: "0.05em",
+                  color: accent,
+                  background: "transparent",
+                  border: `1px solid ${accentTone(accent, 55)}`,
+                }}
+              >
+                {label}
+              </span>
+            ))}
+          </div>
+        ) : null}
+        {cardLinks.length > 0 ? (
+          <div style={{ display: "flex", flexDirection: "column", gap: 4, marginTop: 6, flexShrink: 0 }}>
+            {cardLinks.map((link) =>
+              link.url ? (
+                <a
+                  key={link.url}
+                  href={link.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{
+                    fontSize: EMBEDDED_FONT.meta,
+                    fontWeight: 500,
+                    color: accent,
+                    fontFamily: "var(--font-manrope), system-ui, sans-serif",
+                    textDecoration: "none",
+                  }}
+                >
+                  {link.label || link.url}
+                </a>
+              ) : null,
+            )}
+          </div>
+        ) : null}
+        {renderTags()}
+        {renderContact()}
+      </div>
+    </div>
+  );
+
+  return (
+    <article
+      aria-label={project.name}
+      data-comte-embedded-card="true"
+      className="select-text"
+      style={{
+        position: "relative",
+        zIndex: 0,
+        width: "100%",
+        height: "100%",
+        background: "transparent",
+        overflow: "hidden",
+        display: "flex",
+        flexDirection: "column",
+        boxSizing: "border-box",
+        borderRadius: PROJECT_CARD_BORDER_RADIUS,
+        // Anchor the card's cqi-based font sizes to its own width so the type
+        // scales with the card on every screen size.
+        containerType: "inline-size",
+      }}
+    >
+      <div
+        style={{
+          flex: `0 0 ${EMBEDDED_DETAIL_IMAGE_FRACTION * 100}%`,
+          minHeight: 0,
+          overflow: "hidden",
+          position: "relative",
+          zIndex: 0,
+          borderTopLeftRadius: PROJECT_CARD_BORDER_RADIUS,
+          borderTopRightRadius: PROJECT_CARD_BORDER_RADIUS,
+        }}
+      >
+        <AnimatePresence initial={false} custom={slideDirection} mode="sync">
+          <motion.div
+            key={`${project.id}-image`}
+            custom={slideDirection}
+            variants={TILE_CARD_IMAGE_VARIANTS}
+            initial="enter"
+            animate="center"
+            exit="exit"
+            transition={{ ...slideTransition, type: "tween" }}
+            style={{
+              position: "absolute",
+              inset: 0,
+              overflow: "hidden",
+              willChange: "transform",
+              backfaceVisibility: "hidden",
+            }}
+          >
+            {renderGallery()}
+          </motion.div>
+        </AnimatePresence>
+      </div>
+      <div
+        style={{
+          flex: 1,
+          minHeight: 0,
+          overflow: "hidden",
+          position: "relative",
+          zIndex: 0,
+        }}
+      >
+        <AnimatePresence initial={false} custom={slideDirection} mode="sync">
+          <motion.div
+            key={`${project.id}-body`}
+            custom={slideDirection}
+            variants={TILE_CARD_BODY_VARIANTS}
+            initial="enter"
+            animate="center"
+            exit="exit"
+            transition={{ ...slideTransition, type: "tween" }}
+            style={{
+              position: "absolute",
+              inset: 0,
+              overflow: "hidden",
+              willChange: "transform",
+              backfaceVisibility: "hidden",
+            }}
+          >
+            {renderBody()}
+          </motion.div>
+        </AnimatePresence>
+      </div>
+    </article>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // ExpandedProjectCard
 //
 // Modal-style card that opens when a project dot is clicked. The card has its
@@ -834,50 +2344,119 @@ export default function ProjectCluster({ projects, backgroundColor, heading }: P
 // Layout, top to bottom:
 //   - Backdrop click target + close button (outside the parallax)
 //   - Carousel (image + chevrons), parallax target
-//   - Main category chip (filled) + sub-categories (outlined chips)
+//   - Main category chip (outlined) + sub-categories (outlined chips)
 //   - Title
 //   - Customers (joined with " · ") + year on its own line
 //   - Description
-//   - Scale + Method chips on one row
+//   - Method chips on one row
 //   - Responsible: small headshot left, phone / email right (two lines)
 //   - Optional auxiliary links
 // ---------------------------------------------------------------------------
 
 type ExpandedProjectCardProps = {
   project: NetProject;
-  galleryUrls: string[];
-  photoIdx: number;
-  setPhotoIdx: (updater: (i: number) => number) => void;
+  galleryUrls?: string[];
+  photoIdx?: number;
+  setPhotoIdx?: (updater: (i: number) => number) => void;
   onClose: () => void;
   isMobile: boolean;
 };
 
-// Parallax factor: how slowly the carousel image moves relative to the
-// card's scroll. 0 = stick to text (no parallax), 1 = scroll at same speed
-// (also no parallax). 0.5 = image moves at half speed, so it lags the text.
+// Parallax factor: scrolled text moves at this fraction of scroll speed (lags the scroll).
 const CARD_PARALLAX_FACTOR = 0.5;
+/** Extra image height inside the clip so parallax has room to travel (overlay mode). */
+const CARD_IMAGE_PARALLAX_HEADROOM = 1.25;
+/** Matches BlobNav OUTER_GAP / ITEM_GAP_PX between navbar elements. */
+const CARD_MODAL_NAV_GAP = "4px";
+/** Centered modal top clears nav bottom by CARD_MODAL_NAV_GAP at max height. */
+const CARD_MAX_HEIGHT = `calc(100vh - 2 * (${NAV_HEIGHT_TOTAL}) - 2 * ${CARD_MODAL_NAV_GAP})`;
 
 function ExpandedProjectCard({
   project,
-  galleryUrls,
-  photoIdx,
-  setPhotoIdx,
+  galleryUrls: galleryUrlsProp,
+  photoIdx: photoIdxProp = 0,
+  setPhotoIdx: setPhotoIdxProp,
   onClose,
   isMobile,
 }: ExpandedProjectCardProps) {
+  const pathname = usePathname();
+  const locale = localeFromPathname(pathname ?? "/");
   const scrollerRef = useRef<HTMLDivElement>(null);
   const parallaxRef = useRef<HTMLDivElement>(null);
+  const contentRef = useRef<HTMLDivElement>(null);
   const rafIdRef = useRef<number | null>(null);
+  const [scrollEnabled, setScrollEnabled] = useState(false);
 
-  // Drive the image parallax off the card's own scrollTop. Uses requestAnimationFrame
-  // to coalesce scroll bursts into one DOM write per frame.
+  const resolvedGallery =
+    galleryUrlsProp && galleryUrlsProp.length > 0
+      ? galleryUrlsProp
+      : getProjectGalleryUrls(project);
+  const photoIdx = photoIdxProp;
+  const setPhotoIdx = setPhotoIdxProp ?? (() => {});
+
+  const accent = projectsSectionDomainColor(project.domain);
+  const customers =
+    project.customers && project.customers.length > 0
+      ? project.customers
+      : project.client
+        ? [project.client]
+        : [];
+  const subCategories = project.subCategories ?? project.displayTags ?? [];
+  const responsible = project.responsible;
+  const methodLabels = (project.methods ?? [])
+    .filter((m): m is Method => KNOWN_METHOD_VALUES.has(m))
+    .map((m) => getMethodLabel(m, locale));
+  const yearsLabel = formatProjectYears(project.year);
+
+  useLayoutEffect(() => {
+    const scroller = scrollerRef.current;
+    const content = contentRef.current;
+    if (!scroller || !content) return;
+
+    const measureMaxHeightPx = () => {
+      const probe = document.createElement("div");
+      probe.style.position = "absolute";
+      probe.style.visibility = "hidden";
+      probe.style.pointerEvents = "none";
+      probe.style.height = CARD_MAX_HEIGHT;
+      probe.style.maxHeight = CARD_MAX_HEIGHT;
+      probe.style.width = "0";
+      document.body.appendChild(probe);
+      const maxPx = probe.offsetHeight;
+      probe.remove();
+      return maxPx;
+    };
+
+    const measure = () => {
+      const maxPx = measureMaxHeightPx();
+      setScrollEnabled(content.scrollHeight > maxPx + 1);
+    };
+
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(content);
+    ro.observe(scroller);
+    window.addEventListener("resize", measure);
+    return () => {
+      ro.disconnect();
+      window.removeEventListener("resize", measure);
+    };
+  }, [project.id, resolvedGallery.length, photoIdx]);
+
   useEffect(() => {
     const scroller = scrollerRef.current;
     const parallax = parallaxRef.current;
-    if (!scroller || !parallax) return;
+    if (!scroller || !parallax || !scrollEnabled) {
+      if (parallax) parallax.style.transform = "translate3d(0, 0, 0)";
+      return;
+    }
 
     const apply = () => {
-      parallax.style.transform = `translate3d(0, ${scroller.scrollTop * CARD_PARALLAX_FACTOR}px, 0)`;
+      const reduceMotion =
+        typeof window !== "undefined" &&
+        window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      const y = reduceMotion ? 0 : scroller.scrollTop * CARD_PARALLAX_FACTOR;
+      parallax.style.transform = `translate3d(0, ${y}px, 0)`;
       rafIdRef.current = null;
     };
     const onScroll = () => {
@@ -885,42 +2464,332 @@ function ExpandedProjectCard({
       rafIdRef.current = requestAnimationFrame(apply);
     };
 
-    // Initial application in case the card opens with scrollTop > 0.
+    scroller.scrollTop = 0;
     apply();
     scroller.addEventListener("scroll", onScroll, { passive: true });
     return () => {
       scroller.removeEventListener("scroll", onScroll);
       if (rafIdRef.current != null) cancelAnimationFrame(rafIdRef.current);
     };
-  }, [project.id]);
+  }, [project.id, resolvedGallery.length, scrollEnabled]);
 
-  const accent = DOMAIN_COLORS[project.domain];
-  const customers = project.customers && project.customers.length > 0
-    ? project.customers
-    : project.client
-      ? [project.client]
-      : [];
-  const subCategories = project.subCategories ?? project.displayTags ?? [];
-  const responsible = project.responsible;
-  const scaleLabel = project.scale && project.scale in SCALE_LABELS
-    ? SCALE_LABELS[project.scale as Scale]
-    : null;
-  const methodLabels = (project.methods ?? [])
-    .filter((m): m is Method => m in METHOD_LABELS)
-    .map((m) => METHOD_LABELS[m]);
+  const renderGallery = () => {
+    if (resolvedGallery.length === 0) return null;
+    return (
+      <div
+        style={{
+          position: "relative",
+          width: "100%",
+          aspectRatio: "16/10",
+          overflow: "hidden",
+          flexShrink: 0,
+        }}
+      >
+        <div
+          ref={parallaxRef}
+          style={{
+            position: "absolute",
+            left: 0,
+            right: 0,
+            top: 0,
+            height: `${CARD_IMAGE_PARALLAX_HEADROOM * 100}%`,
+            willChange: "transform",
+          }}
+        >
+          <div className="relative h-full w-full">
+            <Image
+              key={resolvedGallery[photoIdx]}
+              src={resolvedGallery[photoIdx]}
+              alt=""
+              fill
+              className="object-cover"
+              sizes="480px"
+            />
+          </div>
+        </div>
+        {resolvedGallery.length > 1 ? (
+          <>
+            <button
+              type="button"
+              aria-label="Previous image"
+              onClick={(e) => {
+                e.stopPropagation();
+                setPhotoIdx((i) => (i - 1 + resolvedGallery.length) % resolvedGallery.length);
+              }}
+              style={{
+                position: "absolute",
+                left: 8,
+                top: "50%",
+                transform: "translateY(-50%)",
+                width: 36,
+                height: 36,
+                border: `1px solid ${accentTone(accent, 55)}`,
+                background: "transparent",
+                color: accent,
+                cursor: "pointer",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                zIndex: 2,
+              }}
+            >
+              <ChevronLeft size={22} />
+            </button>
+            <button
+              type="button"
+              aria-label="Next image"
+              onClick={(e) => {
+                e.stopPropagation();
+                setPhotoIdx((i) => (i + 1) % resolvedGallery.length);
+              }}
+              style={{
+                position: "absolute",
+                right: 8,
+                top: "50%",
+                transform: "translateY(-50%)",
+                width: 36,
+                height: 36,
+                border: `1px solid ${accentTone(accent, 55)}`,
+                background: "transparent",
+                color: accent,
+                cursor: "pointer",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                zIndex: 2,
+              }}
+            >
+              <ChevronRight size={22} />
+            </button>
+          </>
+        ) : null}
+        {isMobile && yearsLabel ? (
+          <div
+            aria-hidden
+            style={{
+              position: "absolute",
+              left: 0,
+              right: 0,
+              bottom: 0,
+              zIndex: 3,
+              pointerEvents: "none",
+              padding: "32px 16px 12px",
+              background:
+                "linear-gradient(to top, rgba(0,0,0,0.6) 0%, rgba(0,0,0,0.25) 55%, transparent 100%)",
+            }}
+          >
+            <p
+              style={{
+                margin: 0,
+                fontSize: "0.8rem",
+                fontStyle: "italic",
+                letterSpacing: "0.02em",
+                color: "rgba(255,255,255,0.95)",
+                fontFamily: "var(--font-manrope), system-ui, sans-serif",
+              }}
+            >
+              {yearsLabel}
+            </p>
+          </div>
+        ) : null}
+      </div>
+    );
+  };
+
+  const textPadding = "clamp(16px, 3vw, 24px)";
+
+  const renderScrollableText = () => (
+    <>
+      <h3
+        style={{
+          margin: "0 0 6px 0",
+          fontSize: "1rem",
+          fontWeight: 500,
+          color: "#fff",
+          fontFamily: "var(--font-manrope), system-ui, sans-serif",
+          lineHeight: 1.3,
+          paddingRight: 24,
+        }}
+      >
+        {project.name}
+      </h3>
+      {customers.length > 0 ? (
+        <p
+          style={{
+            margin: "0 0 2px 0",
+            fontSize: "0.85rem",
+            color: "rgba(255,255,255,0.75)",
+            fontFamily: "var(--font-manrope), system-ui, sans-serif",
+          }}
+        >
+          {customers.join(" · ")}
+        </p>
+      ) : null}
+      {!isMobile && yearsLabel ? (
+        <p
+          style={{
+            margin: "0 0 14px 0",
+            fontSize: "0.8rem",
+            color: "rgba(255,255,255,0.55)",
+            fontFamily: "var(--font-manrope), system-ui, sans-serif",
+          }}
+        >
+          {yearsLabel}
+        </p>
+      ) : null}
+      <p
+        style={{
+          margin: "0 0 14px 0",
+          fontSize: "0.8125rem",
+          color: "rgba(255,255,255,0.78)",
+          fontFamily: "var(--font-manrope), system-ui, sans-serif",
+          lineHeight: 1.55,
+        }}
+      >
+        {project.summary}
+      </p>
+      {methodLabels.length > 0 ? (
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 16 }}>
+          {methodLabels.map((label) => (
+            <span
+              key={label}
+              style={{
+                display: "inline-block",
+                padding: "3px 10px",
+                fontSize: "0.65rem",
+                fontFamily: "var(--font-manrope), system-ui, sans-serif",
+                letterSpacing: "0.05em",
+                color: accent,
+                background: "transparent",
+                border: `1px solid ${accentTone(accent, 55, TILE_CARD_BG)}`,
+              }}
+            >
+              {label}
+            </span>
+          ))}
+        </div>
+      ) : null}
+    </>
+  );
+
+  const renderOverlayCategoryRow = () => (
+    <div
+      style={{
+        display: "flex",
+        flexWrap: "wrap",
+        gap: 6,
+        marginBottom: 14,
+        alignItems: "center",
+      }}
+    >
+      <span
+        style={{
+          display: "inline-block",
+          padding: "3px 10px",
+          fontSize: "0.65rem",
+          fontFamily: "var(--font-manrope), system-ui, sans-serif",
+          letterSpacing: "0.05em",
+          color: accent,
+          background: "transparent",
+          border: `1px solid ${accent}`,
+        }}
+      >
+        {getCategoryLabel(project.domain, locale)}
+      </span>
+      {subCategories.map((cat) => (
+        <span
+          key={cat.id}
+          style={{
+            display: "inline-block",
+            padding: "3px 10px",
+            fontSize: "0.65rem",
+            fontFamily: "var(--font-manrope), system-ui, sans-serif",
+            letterSpacing: "0.05em",
+            color: projectsSectionCategoryColor(cat, accent),
+            background: "transparent",
+            border: `1px solid ${projectsSectionCategoryColor(cat, accentTone(accent, 55, TILE_CARD_BG))}`,
+          }}
+        >
+          {cat.label}
+        </span>
+      ))}
+    </div>
+  );
+
+  const renderOverlayResponsible = () =>
+    responsible ? (
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 12,
+          marginTop: 8,
+          paddingTop: 14,
+          borderTop: "1px solid rgba(255,255,255,0.08)",
+        }}
+      >
+        <div
+          style={{
+            position: "relative",
+            width: 40,
+            height: 40,
+            flexShrink: 0,
+            overflow: "hidden",
+            background: "rgba(255,255,255,0.06)",
+          }}
+        >
+          {responsible.photoUrl ? (
+            <Image
+              src={responsible.photoUrl}
+              alt={responsible.name}
+              fill
+              sizes="40px"
+              className="object-cover"
+            />
+          ) : null}
+        </div>
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            fontFamily: "var(--font-manrope), system-ui, sans-serif",
+            fontSize: "0.78rem",
+            lineHeight: 1.3,
+            minWidth: 0,
+          }}
+        >
+          {responsible.phone ? (
+            <span style={{ color: "rgba(255,255,255,0.85)" }}>{responsible.phone}</span>
+          ) : (
+            <span style={{ color: "rgba(255,255,255,0.55)" }}>{responsible.name}</span>
+          )}
+          {responsible.email ? (
+            <span
+              style={{
+                color: "rgba(255,255,255,0.7)",
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+                whiteSpace: "nowrap",
+              }}
+            >
+              {responsible.email}
+            </span>
+          ) : null}
+        </div>
+      </div>
+    ) : null;
 
   return (
     <>
-      {/* Click-outside-to-close backdrop */}
       <div
         onClick={onClose}
         style={{ position: "absolute", inset: 0, zIndex: 25 }}
         aria-hidden="true"
       />
-      {/* Card */}
       <div
         role="dialog"
         aria-label={project.name}
+        className="select-text"
         onClick={(e) => e.stopPropagation()}
         style={{
           position: "absolute",
@@ -929,18 +2798,17 @@ function ExpandedProjectCard({
           transform: "translate(-50%, -50%)",
           width: isMobile ? "calc(100% - 48px)" : 440,
           maxWidth: 480,
-          maxHeight: "86vh",
-          background: "#2a2a2a",
+          maxHeight: CARD_MAX_HEIGHT,
+          background: TILE_CARD_BG,
           border: "1px solid rgba(255,255,255,0.1)",
+          borderRadius: PROJECT_CARD_BORDER_RADIUS,
           padding: 0,
-          overflow: "hidden", // outer keeps the close button stable; inner scrolls
+          overflow: "hidden",
           zIndex: 30,
           animation: "clusterCardIn 0.3s ease-out",
-          display: "flex",
-          flexDirection: "column",
+          boxSizing: "border-box",
         }}
       >
-        {/* Close — stays fixed in the card's upper-right, outside the scroller */}
         <button
           onClick={onClose}
           aria-label="Close project details"
@@ -965,329 +2833,54 @@ function ExpandedProjectCard({
           ✕
         </button>
 
-        {/* Scroll viewport */}
         <div
           ref={scrollerRef}
-          style={{ flex: 1, minHeight: 0, overflowY: "auto", overflowX: "hidden" }}
+          data-comte-modal-scroll="true"
+          style={{
+            maxHeight: CARD_MAX_HEIGHT,
+            overflowY: scrollEnabled ? "auto" : "visible",
+            overflowX: "hidden",
+            WebkitOverflowScrolling: "touch",
+          }}
         >
-          {/* Parallax image at top of scroll content */}
-          <div
-            ref={parallaxRef}
-            style={{
-              willChange: "transform",
-              // Below sits the text; the image carousel itself has aspect 16/10.
-            }}
-          >
-            {galleryUrls.length > 0 ? (
-              <div className="relative w-full" style={{ aspectRatio: "16/10" }}>
-                <Image
-                  key={galleryUrls[photoIdx]}
-                  src={galleryUrls[photoIdx]}
-                  alt=""
-                  fill
-                  className="object-cover"
-                  sizes="480px"
-                />
-                {galleryUrls.length > 1 ? (
-                  <>
-                    <button
-                      type="button"
-                      aria-label="Previous image"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setPhotoIdx((i) => (i - 1 + galleryUrls.length) % galleryUrls.length);
-                      }}
-                      style={{
-                        position: "absolute",
-                        left: 8,
-                        top: "50%",
-                        transform: "translateY(-50%)",
-                        width: 36,
-                        height: 36,
-                        border: "1px solid rgba(255,255,255,0.2)",
-                        background: "rgba(0,0,0,0.45)",
-                        color: "#fff",
-                        cursor: "pointer",
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        zIndex: 2,
-                      }}
-                    >
-                      <ChevronLeft size={22} />
-                    </button>
-                    <button
-                      type="button"
-                      aria-label="Next image"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setPhotoIdx((i) => (i + 1) % galleryUrls.length);
-                      }}
-                      style={{
-                        position: "absolute",
-                        right: 8,
-                        top: "50%",
-                        transform: "translateY(-50%)",
-                        width: 36,
-                        height: 36,
-                        border: "1px solid rgba(255,255,255,0.2)",
-                        background: "rgba(0,0,0,0.45)",
-                        color: "#fff",
-                        cursor: "pointer",
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        zIndex: 2,
-                      }}
-                    >
-                      <ChevronRight size={22} />
-                    </button>
-                  </>
-                ) : null}
-              </div>
-            ) : null}
-          </div>
-
-          {/* Text content — flows normally underneath the parallax image */}
-          <div style={{ padding: "clamp(16px, 3vw, 24px)" }}>
-            {/* Category row: filled main + outlined subs */}
-            <div
-              style={{
-                display: "flex",
-                flexWrap: "wrap",
-                gap: 6,
-                marginBottom: 14,
-                alignItems: "center",
-              }}
-            >
-              <span
-                style={{
-                  display: "inline-block",
-                  padding: "3px 10px",
-                  fontSize: "0.65rem",
-                  fontFamily: "var(--font-manrope), system-ui, sans-serif",
-                  letterSpacing: "0.05em",
-                  color: "#fff",
-                  background: accent,
-                }}
-              >
-                {DOMAIN_LABELS[project.domain]}
-              </span>
-              {subCategories.map((cat) => (
-                <span
-                  key={cat.id}
-                  style={{
-                    display: "inline-block",
-                    padding: "3px 10px",
-                    fontSize: "0.65rem",
-                    fontFamily: "var(--font-manrope), system-ui, sans-serif",
-                    letterSpacing: "0.05em",
-                    color: cat.color ?? "rgba(255,255,255,0.85)",
-                    background: "transparent",
-                    border: `1px solid ${cat.color ?? "rgba(255,255,255,0.4)"}`,
-                  }}
-                >
-                  {cat.label}
-                </span>
-              ))}
-            </div>
-
-            {/* Title */}
-            <h3
-              style={{
-                margin: "0 0 6px 0",
-                fontSize: "clamp(1.1rem, 2vw, 1.3rem)",
-                fontWeight: 500,
-                color: "#fff",
-                fontFamily: "var(--font-manrope), system-ui, sans-serif",
-                lineHeight: 1.3,
-                paddingRight: 24,
-              }}
-            >
-              {project.name}
-            </h3>
-
-            {/* Customers (dot-separated when >1) */}
-            {customers.length > 0 ? (
-              <p
-                style={{
-                  margin: "0 0 2px 0",
-                  fontSize: "0.85rem",
-                  color: "rgba(255,255,255,0.75)",
-                  fontFamily: "var(--font-manrope), system-ui, sans-serif",
-                }}
-              >
-                {customers.join(" · ")}
-              </p>
-            ) : null}
-
-            {/* Year, on its own line under customers */}
-            <p
-              style={{
-                margin: "0 0 14px 0",
-                fontSize: "0.8rem",
-                color: "rgba(255,255,255,0.55)",
-                fontFamily: "var(--font-manrope), system-ui, sans-serif",
-              }}
-            >
-              {project.year}
-            </p>
-
-            {/* Description */}
-            <p
-              style={{
-                margin: "0 0 14px 0",
-                fontSize: "0.9rem",
-                color: "rgba(255,255,255,0.78)",
-                fontFamily: "var(--font-manrope), system-ui, sans-serif",
-                lineHeight: 1.55,
-              }}
-            >
-              {project.summary}
-            </p>
-
-            {/* Scale + Method chips on one row */}
-            {(scaleLabel || methodLabels.length > 0) ? (
-              <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 16 }}>
-                {scaleLabel ? (
-                  <span
-                    style={{
-                      display: "inline-block",
-                      padding: "3px 10px",
-                      fontSize: "0.65rem",
-                      fontFamily: "var(--font-manrope), system-ui, sans-serif",
-                      letterSpacing: "0.05em",
-                      color: "rgba(255,255,255,0.85)",
-                      border: "1px solid rgba(255,255,255,0.35)",
-                    }}
-                  >
-                    {scaleLabel}
-                  </span>
-                ) : null}
-                {methodLabels.map((label) => (
-                  <span
-                    key={label}
-                    style={{
-                      display: "inline-block",
-                      padding: "3px 10px",
-                      fontSize: "0.65rem",
-                      fontFamily: "var(--font-manrope), system-ui, sans-serif",
-                      letterSpacing: "0.05em",
-                      color: "rgba(255,255,255,0.85)",
-                      border: "1px solid rgba(255,255,255,0.35)",
-                    }}
-                  >
-                    {label}
-                  </span>
-                ))}
-              </div>
-            ) : null}
-
-            {/* Responsible block: headshot left, phone + email right */}
-            {responsible ? (
-              <div
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 12,
-                  marginTop: 8,
-                  paddingTop: 14,
-                  borderTop: "1px solid rgba(255,255,255,0.08)",
-                }}
-              >
-                <div
-                  style={{
-                    position: "relative",
-                    width: 40,
-                    height: 40,
-                    flexShrink: 0,
-                    overflow: "hidden",
-                    background: "rgba(255,255,255,0.06)",
-                  }}
-                >
-                  {responsible.photoUrl ? (
-                    <Image
-                      src={responsible.photoUrl}
-                      alt={responsible.name}
-                      fill
-                      sizes="40px"
-                      className="object-cover"
-                    />
-                  ) : null}
-                </div>
+          <div ref={contentRef}>
+            {renderGallery()}
+            <div style={{ padding: textPadding }}>
+              {renderOverlayCategoryRow()}
+              {renderScrollableText()}
+              {renderOverlayResponsible()}
+              {(project.cardLinks ?? []).filter((l) => l.url).length > 0 ? (
                 <div
                   style={{
                     display: "flex",
                     flexDirection: "column",
-                    fontFamily: "var(--font-manrope), system-ui, sans-serif",
-                    fontSize: "0.78rem",
-                    lineHeight: 1.3,
-                    minWidth: 0,
+                    alignItems: "flex-start",
+                    gap: 6,
+                    marginTop: 14,
                   }}
                 >
-                  {responsible.phone ? (
-                    <a
-                      href={`tel:${responsible.phone.replace(/\s+/g, "")}`}
-                      style={{
-                        color: "rgba(255,255,255,0.85)",
-                        textDecoration: "none",
-                      }}
-                    >
-                      {responsible.phone}
-                    </a>
-                  ) : (
-                    <span style={{ color: "rgba(255,255,255,0.55)" }}>{responsible.name}</span>
+                  {(project.cardLinks ?? []).map((link) =>
+                    link.url ? (
+                      <a
+                        key={link.url}
+                        href={link.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        style={{
+                          fontSize: "0.82rem",
+                          fontWeight: 500,
+                          color: accent,
+                          fontFamily: "var(--font-manrope), system-ui, sans-serif",
+                          textDecoration: "none",
+                        }}
+                      >
+                        {link.label || link.url}
+                      </a>
+                    ) : null,
                   )}
-                  {responsible.email ? (
-                    <a
-                      href={`mailto:${responsible.email}`}
-                      style={{
-                        color: "rgba(255,255,255,0.7)",
-                        textDecoration: "none",
-                        overflow: "hidden",
-                        textOverflow: "ellipsis",
-                        whiteSpace: "nowrap",
-                      }}
-                    >
-                      {responsible.email}
-                    </a>
-                  ) : null}
                 </div>
-              </div>
-            ) : null}
-
-            {/* Auxiliary links (external project pages etc.) */}
-            {(project.cardLinks ?? []).filter((l) => l.url).length > 0 ? (
-              <div
-                style={{
-                  display: "flex",
-                  flexDirection: "column",
-                  alignItems: "flex-start",
-                  gap: 6,
-                  marginTop: 14,
-                }}
-              >
-                {(project.cardLinks ?? []).map((link) =>
-                  link.url ? (
-                    <a
-                      key={link.url}
-                      href={link.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      style={{
-                        fontSize: "0.82rem",
-                        fontWeight: 500,
-                        color: accent,
-                        fontFamily: "var(--font-manrope), system-ui, sans-serif",
-                        textDecoration: "none",
-                      }}
-                    >
-                      {link.label || link.url}
-                    </a>
-                  ) : null,
-                )}
-              </div>
-            ) : null}
+              ) : null}
+            </div>
           </div>
         </div>
       </div>

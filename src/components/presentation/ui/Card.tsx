@@ -23,7 +23,7 @@ export function Card({
       <button
         onClick={onClick}
         className={cx(
-          "text-left w-full h-full border bg-white transition appearance-none focus:outline-none hover:cursor-pointer rounded-lg",
+          "text-left w-full h-full border bg-white transition appearance-none focus:outline-none focus-visible:ring-2 focus-visible:ring-[#1F3A32] focus-visible:ring-offset-2 hover:cursor-pointer rounded-lg",
           selected
             ? "bg-[#1F3A32] text-white border-[#1F3A32]"
             : "border-[#E5E5E0]",

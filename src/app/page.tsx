@@ -1,15 +1,18 @@
+import { Suspense } from "react";
 import { client } from "@/sanity/lib/client";
 import {
   HOME_SECTION_QUERY,
   MOTTO_SECTION_QUERY,
   ABOUT_INTRO_QUERY,
-  ABOUT_OFFICE_QUERY,
   WHAT_WE_DO_QUERY,
   PROJECTS_SECTION_QUERY,
   TEAM_SECTION_QUERY,
   PUBLICATIONS_SECTION_QUERY,
   VENTURES_SECTION_QUERY,
+  CONTACT_SECTION_QUERY,
+  ABOUT_OFFICE_QUERY,
   PROJECTS_QUERY,
+  PROJECT_TAXONOMY_QUERY,
   TEAM_QUERY,
   PUBLICATIONS_QUERY,
   VENTURES_QUERY,
@@ -17,14 +20,28 @@ import {
 import {
   firstTagAsDomain,
   generateConnections,
-  DOMAIN_LABELS,
   DOMAIN_COLORS,
   type Domain,
 } from "@/app/components/projectNetworkData";
+import {
+  applyProjectTaxonomy,
+  getCategoryLabel,
+  type ProjectTaxonomyDoc,
+} from "@/lib/projectLabels";
 import type { Project } from "@/app/components/projectNetworkData";
-import HomePageClient, { type HomeData } from "@/app/components/HomePageClient";
+import { type HomeData } from "@/app/components/HomePageClient";
+import ResponsiveHome from "@/app/components/ResponsiveHome";
 import { urlFor } from "@/sanity/lib/image";
+import {
+  resolveDatapoint,
+  resolveLocaleString,
+  resolveLocaleText,
+} from "@/sanity/lib/locale";
 import { FALLBACK_PROJECTS } from "@/lib/fallbacks";
+import type { Locale } from "@/lib/locale";
+import { getServerLocale } from "@/lib/locale-server";
+import { getUi } from "@/lib/uiStrings";
+import type { CardItem } from "@/app/components/sections/SectionCardGrid";
 
 export const revalidate = 60;
 
@@ -33,89 +50,62 @@ function sanityImageUrl(imageField: any, width = 1600): string | undefined {
   return urlFor(imageField).width(width).auto("format").quality(80).url();
 }
 
-/**
- * Resolve an address string to { lng, lat } via OpenStreetMap's free
- * Nominatim service. Server-side only; cached for one day by Next.js so
- * we don't hit Nominatim more than once per address per day.
- */
-async function geocodeAddress(address: string): Promise<{ lng: number; lat: number } | null> {
-  const q = address.trim();
-  if (!q) return null;
-  try {
-    const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(q)}&format=json&limit=1`;
-    const res = await fetch(url, {
-      headers: {
-        // Nominatim's usage policy asks for an identifying User-Agent.
-        "User-Agent": "Comte Bureau (https://comtebureau.com)",
-        Accept: "application/json",
-      },
-      next: { revalidate: 60 * 60 * 24 },
-    });
-    if (!res.ok) return null;
-    const data = (await res.json()) as Array<{ lat?: string; lon?: string }>;
-    const hit = data?.[0];
-    if (!hit?.lat || !hit?.lon) return null;
-    const lat = parseFloat(hit.lat);
-    const lng = parseFloat(hit.lon);
-    if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
-    return { lng, lat };
-  } catch {
-    return null;
-  }
-}
-
-// Last-resort default centre used when an office address can't be resolved.
-const FALLBACK_OFFICE_COORDS = { lng: 10.736, lat: 59.9202 };
-
-async function resolveOfficeLocations(rawLocations: any[]): Promise<
-  Array<{
-    title?: string;
-    description?: string;
-    longitude: number;
-    latitude: number;
-    zoom?: number;
-  }>
-> {
-  const items = Array.isArray(rawLocations) ? rawLocations : [];
-  // Sequential geocoding keeps us under Nominatim's 1 req/sec policy.
-  const out: Array<{
-    title?: string;
-    description?: string;
-    longitude: number;
-    latitude: number;
-    zoom?: number;
-  }> = [];
-  for (const loc of items) {
-    const geo = (loc?.address && (await geocodeAddress(loc.address))) || FALLBACK_OFFICE_COORDS;
-    out.push({
-      title: loc?.title,
-      description: loc?.description,
-      longitude: geo.lng,
-      latitude: geo.lat,
-      zoom: loc?.zoom,
-    });
-  }
-  return out;
-}
-
 function mapInterstitial(raw: any) {
   if (!raw) return undefined;
-  const hasContent = !!(raw.text || raw.image || raw.videoUrl);
+  const text = resolveLocaleText(raw.text);
+  const hasContent = !!(text || raw.image || raw.videoUrl);
   if (!hasContent) return undefined;
   return {
-    text: raw.text ?? undefined,
+    text,
     image: raw.image ?? undefined,
     videoUrl: raw.videoUrl ?? undefined,
     backgroundColor: raw.backgroundColor ?? undefined,
   };
 }
 
-function mapSanityProject(doc: any): Project {
+function mapCardItem(doc: any): CardItem {
+  return {
+    _id: doc._id,
+    slug: doc.slug,
+    title: resolveLocaleString(doc.title),
+    description: resolveLocaleText(doc.description),
+    image: doc.image,
+    // Mobile cards consume imageUrl directly; desktop also resolves from
+    // `image` via its own helper but having both means we never silently
+    // drop a photo if a consumer reads one but not the other.
+    imageUrl: sanityImageUrl(doc.image, 800),
+  };
+}
+
+function mapTeamMember(doc: any) {
+  return {
+    ...doc,
+    role: resolveLocaleString(doc.role) ?? "",
+    bio: resolveLocaleText(doc.bio) ?? "",
+  };
+}
+
+const DOMAIN_VALUES = new Set<string>([
+  "health",
+  "education",
+  "integration",
+  "urban",
+  "climate",
+  "digital",
+  "culture",
+  "policy",
+]);
+
+function isDomain(value: string): value is Domain {
+  return DOMAIN_VALUES.has(value);
+}
+
+function mapSanityProject(doc: any, locale: Locale): Project {
   // Prefer the new `mainCategory` field; fall back to the first legacy tag.
   const mainCategoryRaw: string | undefined = doc.mainCategory;
   const domain: Domain =
-    mainCategoryRaw && mainCategoryRaw in DOMAIN_LABELS
-      ? (mainCategoryRaw as Domain)
+    mainCategoryRaw && isDomain(mainCategoryRaw)
+      ? mainCategoryRaw
       : firstTagAsDomain(doc.tags);
 
   // Sub-categories: prefer `allCategories`, fall back to legacy `tags`. In
@@ -123,9 +113,13 @@ function mapSanityProject(doc: any): Project {
   const sourceCategories: string[] =
     (doc.allCategories?.length ? doc.allCategories : doc.tags) ?? [];
   const subCategories = sourceCategories
-    .filter((t: string): t is Domain => t in DOMAIN_LABELS)
+    .filter((t: string): t is Domain => isDomain(t))
     .filter((t: Domain) => t !== domain)
-    .map((t: Domain) => ({ id: t, label: DOMAIN_LABELS[t], color: DOMAIN_COLORS[t] }));
+    .map((t: Domain) => ({
+      id: t,
+      label: getCategoryLabel(t, locale),
+      color: DOMAIN_COLORS[t],
+    }));
 
   // Customers: prefer the multi-value field; fall back to the legacy single
   // `client` string wrapped in an array.
@@ -137,7 +131,7 @@ function mapSanityProject(doc: any): Project {
 
   const galleryUrls = (doc.galleryUrls ?? []).filter(Boolean) as string[];
   const cardLinks = (doc.links ?? []).map((l: any) => ({
-    label: l?.label ?? "",
+    label: resolveLocaleString(l?.label) ?? "",
     url: l?.url ?? "",
   }));
 
@@ -146,7 +140,7 @@ function mapSanityProject(doc: any): Project {
     ? {
         id: responsibleDoc._id,
         name: responsibleDoc.name ?? "",
-        role: responsibleDoc.role ?? undefined,
+        role: resolveLocaleString(responsibleDoc.role) ?? undefined,
         email: responsibleDoc.email ?? undefined,
         phone: responsibleDoc.phone ?? undefined,
         photoUrl: responsibleDoc.photoUrl ?? undefined,
@@ -156,11 +150,11 @@ function mapSanityProject(doc: any): Project {
   return {
     id: doc._id,
     slug: doc.slug,
-    name: doc.title,
+    name: resolveLocaleString(doc.title) ?? "",
     client: customers[0] ?? "",
     customers,
     domain,
-    summary: doc.summary ?? "",
+    summary: resolveLocaleText(doc.summary) ?? "",
     featured: false,
     year: doc.year ?? new Date().getFullYear(),
     scale: (doc.scale as Project["scale"]) ?? "municipal",
@@ -179,111 +173,179 @@ export default async function Home() {
   let home: any = null;
   let motto: any = null;
   let aboutIntro: any = null;
-  let aboutOffice: any = null;
   let whatWeDo: any = null;
   let projectsSection: any = null;
   let teamSection: any = null;
   let publicationsSection: any = null;
   let venturesSection: any = null;
+  let contactSection: any = null;
+  let aboutOffice: any = null;
   let sanityProjects: any[] | null = null;
   let team: any[] | null = null;
   let publications: any[] | null = null;
   let ventures: any[] | null = null;
+  let projectTaxonomy: ProjectTaxonomyDoc | null = null;
+
+  const locale = await getServerLocale();
+  const params = { locale };
 
   try {
     [
       home,
       motto,
       aboutIntro,
-      aboutOffice,
       whatWeDo,
       projectsSection,
       teamSection,
       publicationsSection,
       venturesSection,
+      contactSection,
+      aboutOffice,
       sanityProjects,
+      projectTaxonomy,
       team,
       publications,
       ventures,
     ] = await Promise.all([
-      client.fetch(HOME_SECTION_QUERY),
-      client.fetch(MOTTO_SECTION_QUERY),
-      client.fetch(ABOUT_INTRO_QUERY),
-      client.fetch(ABOUT_OFFICE_QUERY),
-      client.fetch(WHAT_WE_DO_QUERY),
-      client.fetch(PROJECTS_SECTION_QUERY),
-      client.fetch(TEAM_SECTION_QUERY),
-      client.fetch(PUBLICATIONS_SECTION_QUERY),
-      client.fetch(VENTURES_SECTION_QUERY),
-      client.fetch(PROJECTS_QUERY),
-      client.fetch(TEAM_QUERY),
-      client.fetch(PUBLICATIONS_QUERY),
-      client.fetch(VENTURES_QUERY),
+      client.fetch(HOME_SECTION_QUERY, params),
+      client.fetch(MOTTO_SECTION_QUERY, params),
+      client.fetch(ABOUT_INTRO_QUERY, params),
+      client.fetch(WHAT_WE_DO_QUERY, params),
+      client.fetch(PROJECTS_SECTION_QUERY, params),
+      client.fetch(TEAM_SECTION_QUERY, params),
+      client.fetch(PUBLICATIONS_SECTION_QUERY, params),
+      client.fetch(VENTURES_SECTION_QUERY, params),
+      client.fetch(CONTACT_SECTION_QUERY, params),
+      client.fetch(ABOUT_OFFICE_QUERY, params),
+      client.fetch(PROJECTS_QUERY, params),
+      client.fetch(PROJECT_TAXONOMY_QUERY),
+      client.fetch(TEAM_QUERY, params),
+      client.fetch(PUBLICATIONS_QUERY, params),
+      client.fetch(VENTURES_QUERY, params),
     ]);
-  } catch {}
+  } catch (error) {
+    console.error("[Home] Sanity fetch failed:", error);
+  }
+
+  applyProjectTaxonomy(projectTaxonomy);
 
   const projects: Project[] = sanityProjects?.length
-    ? sanityProjects.map(mapSanityProject)
+    ? sanityProjects.map((doc) => mapSanityProject(doc, locale))
     : FALLBACK_PROJECTS;
   const connections = generateConnections(projects);
 
-  // Resolve each office's address → { longitude, latitude } before render.
-  const aboutOfficeLocations = await resolveOfficeLocations(aboutOffice?.locations ?? []);
-
   const data: HomeData = {
     home: {
-      backgroundColor: home?.backgroundColor,
-      backgroundVideoUrl: home?.backgroundVideoUrl,
+      showInteractiveNetwork: home?.showInteractiveNetwork !== false,
       interstitial: mapInterstitial(home?.interstitial),
     },
     motto: {
-      heroText: motto?.heroText,
+      backgroundColor: motto?.backgroundColor,
       interstitial: mapInterstitial(motto?.interstitial),
     },
     aboutIntro: {
+      heading:
+        resolveLocaleString(aboutIntro?.heading) || getUi(locale).nav["about-intro"],
+      videoUrl: aboutIntro?.videoUrl ?? undefined,
       imageUrl: sanityImageUrl(aboutIntro?.image),
-      imageAlt: aboutIntro?.image?.alt,
-      whoIsComteTitle: aboutIntro?.whoIsComteTitle,
-      whoIsComte: aboutIntro?.whoIsComte,
-      whoAreWeTitle: aboutIntro?.whoAreWeTitle,
-      whoAreWe: aboutIntro?.whoAreWe,
+      imageAlt: resolveLocaleString(aboutIntro?.image?.alt),
+      whoIsComteTitle: resolveLocaleString(aboutIntro?.whoIsComteTitle),
+      whoIsComte: resolveLocaleText(aboutIntro?.whoIsComte),
+      whoAreWeTitle: resolveLocaleString(aboutIntro?.whoAreWeTitle),
+      whoAreWe: resolveLocaleText(aboutIntro?.whoAreWe),
       interstitial: mapInterstitial(aboutIntro?.interstitial),
     },
-    aboutOffice: {
-      locations: aboutOfficeLocations,
-      mediaImageUrl: sanityImageUrl(aboutOffice?.mediaImage),
-      mediaImageAlt: aboutOffice?.mediaImage?.alt,
-      mediaVideoUrl: aboutOffice?.mediaVideoUrl,
-      interstitial: mapInterstitial(aboutOffice?.interstitial),
-    },
     whatWeDo: {
-      textbox: whatWeDo?.textbox,
-      datapoint1: whatWeDo?.datapoint1,
-      datapoint2: whatWeDo?.datapoint2,
-      datapoint3: whatWeDo?.datapoint3,
+      textbox: resolveLocaleText(whatWeDo?.textbox),
+      datapoint1: resolveDatapoint(whatWeDo?.datapoint1),
+      datapoint2: resolveDatapoint(whatWeDo?.datapoint2),
+      datapoint3: resolveDatapoint(whatWeDo?.datapoint3),
       interstitial: mapInterstitial(whatWeDo?.interstitial),
     },
     projects: {
       backgroundColor: projectsSection?.backgroundColor,
-      heading: projectsSection?.heading,
+      heading: resolveLocaleString(projectsSection?.heading),
       interstitial: mapInterstitial(projectsSection?.interstitial),
     },
     team: {
-      heading: teamSection?.heading,
-      members: team ?? [],
+      heading: resolveLocaleString(teamSection?.heading),
+      members: (team ?? []).map(mapTeamMember),
+      carouselVideos: (teamSection?.carouselVideos ?? [])
+        .map(
+          (
+            video: {
+              _key?: string;
+              url?: string | null;
+              mimeType?: string;
+              label?: string;
+            },
+            index: number,
+          ) => ({
+            _key: video._key,
+            url: video.url,
+            mimeType: video.mimeType,
+            label: video.label,
+            cmsOrder: index,
+          }),
+        )
+        .filter((video: { url?: string | null }) => Boolean(video.url)),
       interstitial: mapInterstitial(teamSection?.interstitial),
     },
     publications: {
-      heading: publicationsSection?.heading,
-      items: publications ?? [],
+      heading: resolveLocaleString(publicationsSection?.heading),
+      body: resolveLocaleText(publicationsSection?.body),
+      items: (publications ?? []).map(mapCardItem),
       interstitial: mapInterstitial(publicationsSection?.interstitial),
     },
     ventures: {
-      heading: venturesSection?.heading,
-      items: ventures ?? [],
+      heading: resolveLocaleString(venturesSection?.heading),
+      body: resolveLocaleText(venturesSection?.body),
+      featuredVideoUrl: venturesSection?.featuredVideoUrl,
+      featuredImage: venturesSection?.featuredImage,
+      items: (ventures ?? []).map(mapCardItem),
       interstitial: mapInterstitial(venturesSection?.interstitial),
+    },
+    contact: {
+      block1Title: resolveLocaleString(contactSection?.block1Title),
+      block1Body: resolveLocaleText(contactSection?.block1Body),
+      block2Title: resolveLocaleString(contactSection?.block2Title),
+      block2Body: resolveLocaleText(contactSection?.block2Body),
+      block3Title: resolveLocaleString(contactSection?.block3Title),
+      block3Body: resolveLocaleText(contactSection?.block3Body),
+      interstitial: mapInterstitial(contactSection?.interstitial),
     },
   };
 
-  return <HomePageClient data={data} projects={projects} connections={connections} />;
+  // Mobile-only contact locations come from the aboutOffice singleton.
+  // The desktop ResponsiveHome branch ignores this prop.
+  const mobileContactLocations: MobileContactLocation[] = Array.isArray(
+    aboutOffice?.locations,
+  )
+    ? aboutOffice.locations
+        .map((loc: any) => ({
+          title: resolveLocaleString(loc?.title) ?? "",
+          address: loc?.address ?? "",
+          description: resolveLocaleText(loc?.description) ?? "",
+          zoom: typeof loc?.zoom === "number" ? loc.zoom : undefined,
+        }))
+        .filter((loc: MobileContactLocation) => !!loc.title)
+    : [];
+
+  return (
+    <Suspense fallback={null}>
+      <ResponsiveHome
+        data={data}
+        projects={projects}
+        connections={connections}
+        mobileContactLocations={mobileContactLocations}
+      />
+    </Suspense>
+  );
 }
+
+export type MobileContactLocation = {
+  title: string;
+  address: string;
+  description: string;
+  zoom?: number;
+};

@@ -1,35 +1,32 @@
 import SectionShell from "./SectionShell";
-import TiltedHeading from "../TiltedHeading";
 
-const BG = "#1F3A32";
-const TILT_COLOR = "#FF5252";
-
-// Hardcoded two-line tilted heading for motto. heroText from the CMS is
-// ignored here — split on \n to override if/when the schema gains a multi-
-// line field. Both lines render in the rotated block.
-const LINES = ["Design to", "evolve"];
+const DEFAULT_BG = "#5A7482";
 
 type Props = {
-  // Kept in the props signature so HomePageClient keeps compiling; not used.
-  heroText?: string;
+  backgroundColor?: string;
+  /** When false, disable iframe pointer events while off-screen (animation keeps running). */
+  animationsActive?: boolean;
 };
 
-export default function SectionMotto(_props: Props) {
-  const lines = LINES;
+export default function SectionMotto({
+  backgroundColor,
+  animationsActive = true,
+}: Props) {
+  const bg = backgroundColor ?? DEFAULT_BG;
 
   return (
     <SectionShell
       id="motto"
-      bgColor={BG}
-      // overflow: visible lets the tilted heading bleed LEFT into the home
-      // panel (half of "Design to" sits over home's bg, half over motto's),
-      // and TOP/BOTTOM beyond the viewport (clipped by the horizontal-scroll
-      // wrapper's overflow-y-hidden).
-      style={{ overflow: "visible" }}
+      bgColor={bg}
+      style={{ padding: 0, overflow: "visible", pointerEvents: "none" }}
     >
-      {/* The motto-side dots are drawn by the home section's background
-          network canvas, which spans 150vw (home+motto) into this panel. */}
-      <TiltedHeading lines={lines} color={TILT_COLOR} parallaxFactor={0.18} />
+      <iframe
+        src="/lights.html"
+        title=""
+        aria-hidden="true"
+        className="absolute inset-0 z-[1] h-full w-full border-0"
+        style={{ pointerEvents: animationsActive ? "auto" : "none" }}
+      />
     </SectionShell>
   );
 }

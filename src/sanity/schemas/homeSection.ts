@@ -6,17 +6,12 @@ export const homeSection = defineType({
   type: "document",
   fields: [
     defineField({
-      name: "backgroundVideo",
-      title: "Background Video",
-      type: "file",
-      options: { accept: "video/*" },
-    }),
-    defineField({
-      name: "backgroundColor",
-      title: "Background Color (used if no video)",
-      type: "string",
-      description: "Hex code. Defaults to #1F3A32.",
-      initialValue: "#1F3A32",
+      name: "showInteractiveNetwork",
+      title: "Interactive dot network",
+      type: "boolean",
+      description:
+        "When on, the animated dot network appears on the home panel. The landing section has no background video or fill.",
+      initialValue: true,
     }),
     defineField({
       name: "interstitial",

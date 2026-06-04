@@ -1,58 +1,92 @@
+"use client";
+
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import SectionShell, { PANEL_PADDING } from "./SectionShell";
 import HomeBackgroundNetwork from "../HomeBackgroundNetwork";
+import { LANDING_HOME_BG, LANDING_HERO_ACCENT, LANDING_HERO_TEXT } from "../homeLayout";
+import {
+  HERO_FADE_DURATION_MS,
+  HERO_LINE_BASE_DELAY_MS,
+  HERO_LINE_COUNT,
+  HERO_LINE_STAGGER_MS,
+  heroFadeEasing,
+} from "../heroIntroTiming";
 
-const DEFAULT_BG = "#1F3A32";
+const BG = LANDING_HOME_BG;
+const HERO_ACCENT = LANDING_HERO_ACCENT;
+const HERO_TEXT = LANDING_HERO_TEXT;
 
 type Props = {
-  backgroundColor?: string;
-  backgroundVideoUrl?: string;
+  /** When false, pause the canvas loop to save CPU while off-screen. */
+  active?: boolean;
+  /** When false, skip the canvas network on the home panel. */
+  showInteractiveNetwork?: boolean;
 };
 
-// Hardcoded hero copy. Line breaks come from the array order — one entry =
-// one rendered line.
-const HERO_LINES = ["Comte", "creates change", "that matters"];
+const HERO_LINES = ["comte", "creates", "change", "that", "matters"];
 
-// Entry-animation timing (ms). The dot network starts immediately on mount;
-// these delays trail behind so the dot field reads as "alive" before the
-// wordmark surfaces over it. Tuned alongside HomeBackgroundNetwork's
-// LINES_APPEAR_DELAY so the connection lines arrive after the last text
-// line settles in.
-const HERO_LINE_DELAYS_MS = [900, 1200, 1500];
-const HERO_DOT_DELAY_MS = 1000;
+const HERO_LINE_DELAYS_MS = Array.from(
+  { length: HERO_LINE_COUNT },
+  (_, i) => HERO_LINE_BASE_DELAY_MS + i * HERO_LINE_STAGGER_MS,
+);
+const HERO_DOT_DELAY_MS =
+  HERO_LINE_DELAYS_MS[HERO_LINE_DELAYS_MS.length - 1] + 200;
+const HERO_INTRO_TOTAL_MS = HERO_DOT_DELAY_MS + HERO_FADE_DURATION_MS;
 
-export default function SectionHome({ backgroundColor, backgroundVideoUrl }: Props) {
+export default function SectionHome({
+  active = true,
+  showInteractiveNetwork = true,
+}: Props) {
+  // Intro runs once per page load; navbar returns show the settled state.
+  const [introComplete, setIntroComplete] = useState(false);
+  const headingRef = useRef<HTMLHeadingElement>(null);
+  const dotRef = useRef<HTMLSpanElement>(null);
+  /** Fixed offset from heading — set once from Ventures alignment at load. */
+  const [dotLeftPx, setDotLeftPx] = useState<number | null>(null);
+
+  useLayoutEffect(() => {
+    const measureInitialDotLeft = () => {
+      const dot = dotRef.current;
+      const heading = headingRef.current;
+      const ventures = document.querySelector<HTMLElement>('[data-nav-item="ventures"]');
+      if (!dot || !heading || !ventures) return;
+
+      const venturesRect = ventures.getBoundingClientRect();
+      const paddingRight = parseFloat(getComputedStyle(ventures).paddingRight) || 0;
+      const venturesInnerRight = venturesRect.right - paddingRight;
+      const headingLeft = heading.getBoundingClientRect().left;
+      const dotWidth = dot.getBoundingClientRect().width;
+      setDotLeftPx(venturesInnerRight - headingLeft - dotWidth);
+    };
+
+    measureInitialDotLeft();
+    // Wait for nav + fonts to settle, then lock the offset (not tied to nav later).
+    requestAnimationFrame(() => {
+      requestAnimationFrame(measureInitialDotLeft);
+    });
+
+    // Re-anchor only on viewport resize — not when the navbar opens/closes.
+    window.addEventListener("resize", measureInitialDotLeft);
+    return () => window.removeEventListener("resize", measureInitialDotLeft);
+  }, []);
+
+  useEffect(() => {
+    const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (reduced) {
+      setIntroComplete(true);
+      return;
+    }
+    const timer = window.setTimeout(() => setIntroComplete(true), HERO_INTRO_TOTAL_MS);
+    return () => window.clearTimeout(timer);
+  }, []);
+
   return (
     <SectionShell
       id="home"
-      bgColor={backgroundColor ?? DEFAULT_BG}
-      // overflow: visible lets the background canvas extend right into the
-      // motto panel so the dot network spans both. Motto's section bg paints
-      // at z-auto and the canvas at z-1, so the canvas wins on top of bg but
-      // loses to TiltedHeading + hero text (both z-10).
+      bgColor={BG}
       style={{ padding: 0, overflow: "visible" }}
     >
-      {/* Background video */}
-      {backgroundVideoUrl && (
-        <video
-          src={backgroundVideoUrl}
-          autoPlay
-          loop
-          muted
-          playsInline
-          aria-hidden="true"
-          className="absolute inset-0 z-0 h-full w-full object-cover"
-        />
-      )}
-
-      {/* Dim overlay (improves text legibility over video) */}
-      {backgroundVideoUrl && (
-        <div aria-hidden="true" className="absolute inset-0 z-0 bg-black/30" />
-      )}
-
-      {/* Interactive dot-network background. Sits above the bg colour/video
-          and dim overlay, below the hero text. Lines from the dots converge
-          on the hero's white dot via its `data-hero-anchor` attribute. */}
-      <HomeBackgroundNetwork />
+      {showInteractiveNetwork && <HomeBackgroundNetwork active={active} />}
 
       {/* Bottom-left hero text */}
       <div
@@ -60,38 +94,35 @@ export default function SectionHome({ backgroundColor, backgroundVideoUrl }: Pro
         style={{ left: PANEL_PADDING, bottom: PANEL_PADDING, right: PANEL_PADDING }}
       >
         <h1
-          className="relative font-[family-name:var(--font-manrope)] font-bold text-white max-w-[14ch]"
+          ref={headingRef}
+          className="relative font-[family-name:var(--font-manrope)] font-medium"
           style={{
-            fontSize: "clamp(2.5rem, 7.25vw, 6rem)",
-            lineHeight: 1.4,
+            fontSize: "clamp(2.85rem, 8.75vw, 7.25rem)",
+            lineHeight: 0.92,
             letterSpacing: "-0.02em",
+            color: HERO_TEXT,
           }}
         >
-          {/*
-           * Suspended dot — vertically anchored to the "Comte" line via
-           * top: -0.15em, but horizontally CENTRED on the viewport. The
-           * `left` math takes the dot out of h1's local coord space:
-           *   target-x in viewport = 50vw
-           *   h1.left in viewport  = PANEL_PADDING
-           *   left (from h1's left) = 50vw − PANEL_PADDING − 0.16em
-           *   (the 0.16em is half the dot-size so its CENTRE lands on 50vw)
-           */}
           <span
+            ref={dotRef}
             aria-hidden="true"
             data-hero-anchor=""
             style={{
               position: "absolute",
               top: "-0.15em",
-              left: `calc(50vw - ${PANEL_PADDING} - 0.16em)`,
-              width: "0.32em",
-              height: "0.32em",
+              left: dotLeftPx ?? 0,
+              width: "0.28em",
+              height: "0.28em",
               borderRadius: "9999px",
-              background: "white",
-              opacity: 0,
-              // The dot uses a scale-and-fade keyframe — it stays anchored
-              // in place while the surrounding text slides up.
-              animation: "heroDotIn 700ms cubic-bezier(0.25,1,0.5,1) forwards",
-              animationDelay: `${HERO_DOT_DELAY_MS}ms`,
+              background: HERO_ACCENT,
+              opacity: introComplete ? 1 : 0,
+              pointerEvents: "none",
+              ...(introComplete
+                ? {}
+                : {
+                    animation: `heroDotIn ${HERO_FADE_DURATION_MS}ms ${heroFadeEasing} forwards`,
+                    animationDelay: `${HERO_DOT_DELAY_MS}ms`,
+                  }),
             }}
           />
           {HERO_LINES.map((line, i) => (
@@ -99,10 +130,15 @@ export default function SectionHome({ backgroundColor, backgroundVideoUrl }: Pro
               key={i}
               className="block"
               style={{
-                opacity: 0,
-                animation:
-                  "heroFadeIn 700ms cubic-bezier(0.25,1,0.5,1) forwards",
-                animationDelay: `${HERO_LINE_DELAYS_MS[i] ?? 0}ms`,
+                opacity: introComplete ? 1 : 0,
+                color: i === 0 ? HERO_ACCENT : HERO_TEXT,
+                ...(introComplete
+                  ? {}
+                  : {
+                      animation:
+                        `heroFadeIn ${HERO_FADE_DURATION_MS}ms ${heroFadeEasing} forwards`,
+                      animationDelay: `${HERO_LINE_DELAYS_MS[i] ?? 0}ms`,
+                    }),
               }}
             >
               {line}
@@ -111,9 +147,6 @@ export default function SectionHome({ backgroundColor, backgroundVideoUrl }: Pro
         </h1>
       </div>
 
-      {/* @keyframes for the cascading hero entry. Text lines slide+fade,
-          the white dot only scales+fades (stays put). Inline so the
-          animation ships with this section and isn't a global concern. */}
       <style>{`
         @keyframes heroFadeIn {
           from { opacity: 0; transform: translateY(8px); }

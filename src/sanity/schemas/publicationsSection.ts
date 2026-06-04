@@ -8,7 +8,13 @@ export const publicationsSection = defineType({
     defineField({
       name: "heading",
       title: "Section Heading",
-      type: "string",
+      type: "localeString",
+    }),
+    defineField({
+      name: "body",
+      title: "Body Text",
+      type: "localeText",
+      description: "Intro paragraph rendered to the left of the publications grid.",
     }),
     defineField({
       name: "interstitial",

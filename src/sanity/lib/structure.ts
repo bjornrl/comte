@@ -32,7 +32,6 @@ export const structure = (S: StructureBuilder) =>
             .title("About")
             .items([
               singleton(S, "aboutIntro", "Intro"),
-              singleton(S, "aboutOffice", "Office"),
             ]),
         ),
       singleton(S, "whatWeDo", "What do we do?"),
@@ -44,6 +43,7 @@ export const structure = (S: StructureBuilder) =>
             .title("Projects")
             .items([
               singleton(S, "projectsSection", "Section Settings"),
+              singleton(S, "projectTaxonomy", "Category & method labels"),
               S.divider(),
               S.documentTypeListItem("project").title("All Projects"),
             ]),
@@ -81,6 +81,7 @@ export const structure = (S: StructureBuilder) =>
               S.documentTypeListItem("venture").title("All Ventures"),
             ]),
         ),
+      singleton(S, "contactSection", "Contact"),
       S.divider(),
       singleton(S, "siteSettings", "Site Settings"),
       S.divider(),

@@ -63,7 +63,6 @@ export default function ArrowBlob({ navRef, activeIndex = 0 }: ArrowBlobProps) {
           const isActive = idx === activeIndex;
           return (
             <span
-              // eslint-disable-next-line react/no-array-index-key
               key={idx}
               className={[
                 "size-1.5 rounded-full transition-opacity",

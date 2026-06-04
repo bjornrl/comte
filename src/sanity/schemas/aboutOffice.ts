@@ -1,13 +1,20 @@
 import { defineType, defineField } from "sanity";
 
+/**
+ * Singleton holding the office-location blocks rendered on the mobile
+ * contact section. Two slots, "Norway" + "Portugal" by convention. Titles
+ * and descriptions are localized so the headings translate between
+ * English / Norwegian; addresses themselves stay un-translated since
+ * proper street/place names don't change between languages.
+ */
 export const aboutOffice = defineType({
   name: "aboutOffice",
-  title: "Office",
+  title: "Offices",
   type: "document",
   fields: [
     defineField({
       name: "locations",
-      title: "Office Locations",
+      title: "Locations",
       type: "array",
       of: [
         {
@@ -16,53 +23,32 @@ export const aboutOffice = defineType({
             defineField({
               name: "title",
               title: "Title",
-              type: "string",
+              type: "localeString",
               validation: (Rule) => Rule.required(),
             }),
             defineField({
-              name: "description",
-              title: "Description",
-              type: "text",
-              rows: 4,
+              name: "address",
+              title: "Address (one line)",
+              type: "string",
             }),
             defineField({
-              name: "address",
-              title: "Address",
-              type: "string",
-              description:
-                'Street address used to centre the map, e.g. "Pilestredet 31, Oslo, Norway". Looked up server-side via OpenStreetMap.',
+              name: "description",
+              title: "Description (multi-line)",
+              type: "localeText",
             }),
             defineField({
               name: "zoom",
-              title: "Map Zoom",
+              title: "Map zoom",
               type: "number",
-              initialValue: 14,
             }),
           ],
-          preview: { select: { title: "title" } },
+          preview: {
+            select: { en: "title.en", no: "title.no" },
+            prepare: ({ en, no }) => ({ title: en || no || "Office" }),
+          },
         },
       ],
     }),
-    defineField({
-      name: "mediaImage",
-      title: "Right-side Image",
-      type: "image",
-      options: { hotspot: true },
-      fields: [defineField({ name: "alt", title: "Alt Text", type: "string" })],
-      description: "Image filling the right ~30% of the office panel.",
-    }),
-    defineField({
-      name: "mediaVideo",
-      title: "Right-side Video (overrides image)",
-      type: "file",
-      options: { accept: "video/*" },
-      description: "If provided, replaces the right-side image with a looping muted video.",
-    }),
-    defineField({
-      name: "interstitial",
-      title: "Interstitial (narrow panel to the left)",
-      type: "interstitial",
-    }),
   ],
-  preview: { prepare: () => ({ title: "Office" }) },
+  preview: { prepare: () => ({ title: "Offices" }) },
 });

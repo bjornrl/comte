@@ -15,6 +15,15 @@ export type CardItem = {
   title?: string;
   description?: string;
   image?: any;
+  /** Flat asset URL projected by PUBLICATIONS_QUERY / VENTURES_QUERY.
+   *  Optional so existing desktop consumers that ignore it stay valid. */
+  imageUrl?: string;
+  /** Detail-page slug — present for publications, optional for ventures. */
+  slug?: string;
+  /** "free" | "paid" — only set for publications. */
+  pricing?: "free" | "paid";
+  /** Whole-NOK price for paid publications. */
+  price?: number;
 };
 
 type Props = {

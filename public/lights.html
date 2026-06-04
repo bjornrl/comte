@@ -1,0 +1,591 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Drifting Lights</title>
+<style>
+  html, body {
+    margin: 0;
+    padding: 0;
+    width: 100%;
+    height: 100%;
+    background: #5A7482;
+    overflow: hidden;
+  }
+  canvas {
+    display: block;
+    width: 100%;
+    height: 100%;
+  }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<script>
+(() => {
+  const BG = '#5A7482';
+  const BG_RGB = { r: 90, g: 116, b: 130 };
+  /** Per-frame overlay that pulls streak trails back to brand slate (not black). */
+  const TRAIL_ALPHA = 0.48;
+
+  const canvas = document.getElementById('c');
+  const ctx = canvas.getContext('2d', { alpha: true });
+
+  // Cap DPR at 1.5 — full retina (2x) quadruples pixel work for marginal gain
+  // on a heavily blurred, soft-edged scene.
+  let W = 0, H = 0, DPR = 1;
+  function resize() {
+    DPR = Math.min(window.devicePixelRatio || 1, 1.5);
+    // Size to the iframe/panel, not the top-level window.
+    W = canvas.clientWidth || document.documentElement.clientWidth;
+    H = canvas.clientHeight || document.documentElement.clientHeight;
+    canvas.width = Math.floor(W * DPR);
+    canvas.height = Math.floor(H * DPR);
+    ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.globalAlpha = 1;
+    ctx.fillStyle = BG;
+    ctx.fillRect(0, 0, W, H);
+  }
+  window.addEventListener('resize', resize);
+  resize();
+  const roTarget = canvas.parentElement || document.body;
+  if (typeof ResizeObserver !== 'undefined') {
+    new ResizeObserver(resize).observe(roTarget);
+  }
+
+  // ---- Cursor tracking for water-like distortion ---------------------------
+  // Each foreground streak runs a small 1D damped wave field. Cursor motion
+  // injects vertical impulses at slices near the cursor; the wave propagates
+  // and decays. Streaks with no disturbance use the fast single-drawImage
+  // path so idle CPU is unchanged.
+  const WAVE_SLICES = 24;
+  const WAVE_C2 = 90;            // wave speed^2 along the streak
+  const WAVE_K = 5;              // spring-back to rest
+  const WAVE_DAMP = 1.6;         // energy decay
+  const WAVE_IMPULSE = 1.8;      // cursor velocity → wave velocity factor
+  const WAVE_RADIUS = 110;       // gaussian influence radius (px)
+  const WAVE_REST_EPSILON = 0.06;
+
+  let mouseX = -1e6, mouseY = -1e6;
+  let lastMouseX = mouseX, lastMouseY = mouseY;
+  canvas.addEventListener('pointerenter', (e) => {
+    lastMouseX = mouseX = e.clientX;
+    lastMouseY = mouseY = e.clientY;
+  });
+  canvas.addEventListener('pointermove', (e) => {
+    mouseX = e.clientX;
+    mouseY = e.clientY;
+  });
+  canvas.addEventListener('pointerleave', () => {
+    mouseX = mouseY = -1e6;
+    lastMouseX = lastMouseY = -1e6;
+  });
+
+  function hexToRgb(hex) {
+    const h = hex.replace('#', '');
+    return {
+      r: parseInt(h.slice(0, 2), 16),
+      g: parseInt(h.slice(2, 4), 16),
+      b: parseInt(h.slice(4, 6), 16),
+    };
+  }
+  function rgba(c, a) { return `rgba(${c.r}, ${c.g}, ${c.b}, ${a})`; }
+  function lighten(c, amt) {
+    return {
+      r: Math.min(255, Math.round(c.r + (255 - c.r) * amt)),
+      g: Math.min(255, Math.round(c.g + (255 - c.g) * amt)),
+      b: Math.min(255, Math.round(c.b + (255 - c.b) * amt)),
+    };
+  }
+  function rand(min, max) { return min + Math.random() * (max - min); }
+  function makeOffscreen(w, h) {
+    const c = document.createElement('canvas');
+    c.width = Math.max(1, Math.ceil(w));
+    c.height = Math.max(1, Math.ceil(h));
+    return c;
+  }
+
+  // Streak palette (and accents) — user-specified.
+  const palette = [
+    { hex: '242423', weight: 1 },
+    { hex: '1F3A32', weight: 8 },
+    { hex: 'F27887', weight: 8 },
+    { hex: 'FF5252', weight: 8 },
+    { hex: 'F5F5E9', weight: 10 },
+    { hex: 'CFAF46', weight: 9 },
+    { hex: '4F7C6C', weight: 12 },
+    { hex: '5A7482', weight: 12 },
+    { hex: '4F537A', weight: 12 },
+    { hex: '676160', weight: 6 },
+    { hex: 'C2B7B6', weight: 8 },
+    { hex: 'FBF6EF', weight: 8 },
+    { hex: 'FFFF00', weight: 2 },
+    { hex: 'FFFF5A', weight: 2 },
+    { hex: 'C7CC00', weight: 2 },
+    { hex: 'C50E29', weight: 2 },
+  ].map(c => ({ rgb: hexToRgb(c.hex), weight: c.weight }));
+  const totalWeight = palette.reduce((a, c) => a + c.weight, 0);
+  function pickColor() {
+    let r = Math.random() * totalWeight;
+    for (const c of palette) {
+      r -= c.weight;
+      if (r <= 0) return c;
+    }
+    return palette[0];
+  }
+
+  // ---- Sprite caches keyed by palette entry --------------------------------
+  // Bake the per-color soft circle (hotspots) and soft band (bg streaks) once
+  // at startup. At draw time we just scale + globalAlpha.
+
+  const HOTSPOT_SPRITE_SIZE = 96;   // upscaled at draw time
+  const BG_STREAK_W = 128;          // base width — stretched horizontally
+  const BG_STREAK_H = 32;           // base height — stretched vertically
+
+  function renderHotspotSprite(c) {
+    const size = HOTSPOT_SPRITE_SIZE;
+    const r = size / 2;
+    const can = makeOffscreen(size, size);
+    const cx = can.getContext('2d');
+    const lightCore = lighten(c.rgb, 0.15);
+    const rg = cx.createRadialGradient(r, r, 0, r, r, r);
+    rg.addColorStop(0,    rgba(lightCore, 1));
+    rg.addColorStop(0.25, rgba(c.rgb, 0.45));
+    rg.addColorStop(0.6,  rgba(c.rgb, 0.12));
+    rg.addColorStop(1,    rgba(c.rgb, 0));
+    cx.fillStyle = rg;
+    cx.fillRect(0, 0, size, size);
+    return can;
+  }
+
+  function renderBgBandSprite(c) {
+    const w = BG_STREAK_W, h = BG_STREAK_H;
+    const can = makeOffscreen(w, h);
+    const cx = can.getContext('2d');
+    // vertical taper — solid in middle, fade at top/bottom
+    const vg = cx.createLinearGradient(0, 0, 0, h);
+    vg.addColorStop(0,   rgba(c.rgb, 0));
+    vg.addColorStop(0.5, rgba(c.rgb, 1));
+    vg.addColorStop(1,   rgba(c.rgb, 0));
+    cx.fillStyle = vg;
+    cx.fillRect(0, 0, w, h);
+    // horizontal taper via destination-in
+    cx.globalCompositeOperation = 'destination-in';
+    const hg = cx.createLinearGradient(0, 0, w, 0);
+    hg.addColorStop(0,   'rgba(0,0,0,0)');
+    hg.addColorStop(0.5, 'rgba(0,0,0,1)');
+    hg.addColorStop(1,   'rgba(0,0,0,0)');
+    cx.fillStyle = hg;
+    cx.fillRect(0, 0, w, h);
+    return can;
+  }
+
+  for (const c of palette) {
+    c.hotspotSprite = renderHotspotSprite(c);
+    c.bgSprite = renderBgBandSprite(c);
+  }
+
+  // ---- Foreground streaks --------------------------------------------------
+  // Each streak owns a sprite baked once on creation: the tapered gradient
+  // stroke with shadowBlur and bright core are paid for ONCE rather than per
+  // frame. drawImage of the sprite is ~free at runtime.
+
+  function renderStreakSprite(s) {
+    const c = s.color;
+    const baseGlow = Math.max(1, s.glow * 0.35);
+    const pad = Math.ceil(baseGlow * 1.6 + s.thickness * 0.6 + 4);
+    const spriteW = Math.ceil(s.length);
+    const spriteH = pad * 2;
+    const can = makeOffscreen(spriteW, spriteH);
+    const cx = can.getContext('2d');
+    const y = pad;
+    const a = s.alpha;
+
+    const grad = cx.createLinearGradient(0, 0, spriteW, 0);
+    grad.addColorStop(0,    rgba(c.rgb, 0));
+    grad.addColorStop(0.15, rgba(c.rgb, a * 0.6));
+    grad.addColorStop(0.55, rgba(c.rgb, a));
+    grad.addColorStop(0.85, rgba(c.rgb, a * 0.8));
+    grad.addColorStop(1,    rgba(c.rgb, 0));
+
+    cx.shadowBlur = baseGlow;
+    cx.shadowColor = rgba(c.rgb, a * 0.5);
+    cx.strokeStyle = grad;
+    cx.lineWidth = s.thickness;
+    cx.lineCap = 'round';
+    cx.beginPath();
+    cx.moveTo(0, y);
+    cx.lineTo(spriteW, y);
+    cx.stroke();
+
+    if (s.thickness > 2) {
+      cx.shadowBlur = 0;
+      cx.lineWidth = Math.max(0.4, s.thickness * 0.25);
+      cx.strokeStyle = rgba(lighten(c.rgb, 0.25), a);
+      cx.beginPath();
+      cx.moveTo(spriteW * 0.15, y);
+      cx.lineTo(spriteW * 0.85, y);
+      cx.stroke();
+    }
+    s.sprite = can;
+    s.spriteCenterY = y;
+  }
+
+  function makeStreak(offscreenRight = true) {
+    const color = pickColor();
+    const length = rand(W * 0.25, W * 0.9);
+    const thickness = rand(0.6, 5.5);
+    const baseY = rand(-H * 0.05, H * 1.05);
+    const speed = rand(140, 420);
+    const alpha = rand(0.35, 0.95);
+    const glow = rand(8, 28);
+
+    const hotspotCount = 1 + Math.floor(Math.random() * 2); // 1-2 (down from 1-3)
+    const hotspots = [];
+    for (let i = 0; i < hotspotCount; i++) {
+      hotspots.push({
+        u: Math.random(),
+        drift: rand(-0.05, 0.05),
+        radius: rand(thickness * 6, thickness * 22 + 30),
+        intensity: rand(0.35, 0.95),
+        pulseFreq: rand(0.3, 1.1),
+        pulsePhase: Math.random() * Math.PI * 2,
+        pulseAmp: rand(0.25, 0.7),
+      });
+    }
+
+    const s = {
+      x: offscreenRight ? W + rand(0, W * 0.5) : rand(-length, W),
+      y: baseY,
+      length, thickness, speed, color, alpha, glow, hotspots,
+      wobbleAmp: rand(0, 0.6),
+      wobblePhase: Math.random() * Math.PI * 2,
+      wobbleFreq: rand(0.05, 0.25),
+      flickerAmp: rand(0, 0.25),
+      flickerPhase: Math.random() * Math.PI * 2,
+      flickerFreq: rand(0.3, 1.2),
+      // wave field — zero until cursor disturbs it
+      waveDisp: new Float32Array(WAVE_SLICES),
+      waveVel: new Float32Array(WAVE_SLICES),
+      waveActive: false,
+    };
+    renderStreakSprite(s);
+    return s;
+  }
+
+  // ---- Background blobs ----------------------------------------------------
+  const bgBlobPalette = [
+    { h: 220, s: 70, l: 18 },
+    { h: 235, s: 60, l: 14 },
+    { h: 250, s: 55, l: 16 },
+    { h: 200, s: 70, l: 14 },
+    { h: 260, s: 50, l: 12 },
+  ];
+  function renderBlobSprite(hsl) {
+    const size = 256;
+    const r = size / 2;
+    const can = makeOffscreen(size, size);
+    const cx = can.getContext('2d');
+    const grad = cx.createRadialGradient(r, r, 0, r, r, r);
+    grad.addColorStop(0,    `hsla(${hsl.h}, ${hsl.s}%, ${hsl.l}%, 1)`);
+    grad.addColorStop(0.45, `hsla(${hsl.h}, ${hsl.s}%, ${hsl.l}%, 0.35)`);
+    grad.addColorStop(1,    `hsla(${hsl.h}, ${hsl.s}%, ${hsl.l}%, 0)`);
+    cx.fillStyle = grad;
+    cx.fillRect(0, 0, size, size);
+    return can;
+  }
+  for (const c of bgBlobPalette) c.sprite = renderBlobSprite(c);
+
+  function makeBgBlob(offscreenRight = false) {
+    const color = bgBlobPalette[Math.floor(Math.random() * bgBlobPalette.length)];
+    return {
+      x: offscreenRight ? W + rand(W * 0.15, W * 1.1) : rand(-W * 0.1, W * 1.1),
+      y: rand(-H * 0.1, H * 1.1),
+      r: rand(Math.max(W, H) * 0.35, Math.max(W, H) * 0.85),
+      color,
+      vx: offscreenRight ? rand(-5, -1.5) : rand(-3, 3),
+      vy: rand(-2, 2),
+      pulseFreq: rand(0.03, 0.1),
+      pulsePhase: Math.random() * Math.PI * 2,
+    };
+  }
+  const bgBlobs = [];
+  for (let i = 0; i < 4; i++) bgBlobs.push(makeBgBlob(true));
+
+  // ---- Background streaks (atmospheric layer) ------------------------------
+  const bgAtmosphericIdx = ['1F3A32', '4F7C6C', '5A7482', '4F537A', '676160', 'C2B7B6']
+    .map(hex => palette.find(p => `${p.rgb.r.toString(16).padStart(2,'0')}${p.rgb.g.toString(16).padStart(2,'0')}${p.rgb.b.toString(16).padStart(2,'0')}`.toUpperCase() === hex))
+    .filter(Boolean);
+  function pickBgColor() {
+    return Math.random() < 0.8
+      ? bgAtmosphericIdx[Math.floor(Math.random() * bgAtmosphericIdx.length)]
+      : pickColor();
+  }
+  function makeBgStreak(offscreenRight = true) {
+    const color = pickBgColor();
+    const mega = Math.random() < 0.15;
+    const length = mega ? rand(W * 0.9, W * 1.8) : rand(W * 0.6, W * 1.4);
+    const thickness = mega ? rand(180, 360) : rand(40, 160);
+    const baseY = rand(-H * 0.1, H * 1.1);
+    const speed = mega ? rand(18, 65) : rand(35, 130);
+    const alpha = mega ? rand(0.025, 0.06) : rand(0.04, 0.11);
+    return {
+      x: offscreenRight ? W + rand(0, W * 0.6) : rand(-length, W),
+      y: baseY,
+      length, thickness, speed, color, alpha, mega,
+      wobbleAmp: mega ? rand(0, 16) : rand(0, 8),
+      wobblePhase: Math.random() * Math.PI * 2,
+      wobbleFreq: rand(0.02, 0.12),
+      pulseFreq: rand(0.05, 0.25),
+      pulsePhase: Math.random() * Math.PI * 2,
+      pulseAmp: rand(0.2, 0.5),
+    };
+  }
+  /** Queue streaks off the right edge so the field starts empty and fills leftward. */
+  function queueOffscreenRight(s, index, total, spread = 0.85) {
+    if (total > 1) s.x += (index / (total - 1)) * W * spread;
+    return s;
+  }
+
+  const bgStreaks = [];
+  const bgDensity = Math.max(30, Math.floor((W * H) / 30000));
+  for (let i = 0; i < bgDensity; i++) {
+    bgStreaks.push(queueOffscreenRight(makeBgStreak(true), i, bgDensity));
+  }
+
+  // ---- Foreground streak pool ---------------------------------------------
+  const streaks = [];
+  // Slightly lower density vs before — sprite cache makes each one cheap to
+  // draw but sprite memory is per-streak, so we bound it.
+  const density = Math.max(70, Math.floor((W * H) / 14000));
+  for (let i = 0; i < density; i++) {
+    streaks.push(queueOffscreenRight(makeStreak(true), i, density, 0.7));
+  }
+
+  // ---- Render --------------------------------------------------------------
+  function drawBlobs(t) {
+    const dt60 = 1 / 60;
+    for (const b of bgBlobs) {
+      b.x += b.vx * dt60;
+      b.y += b.vy * dt60;
+      if (b.x < -b.r) b.x = W + b.r;
+      if (b.x > W + b.r) b.x = -b.r;
+      if (b.y < -b.r) b.y = H + b.r;
+      if (b.y > H + b.r) b.y = -b.r;
+      const pulse = 0.5 + 0.5 * Math.sin(t * b.pulseFreq + b.pulsePhase);
+      const peak = 0.05 + pulse * 0.06;
+      ctx.globalAlpha = peak;
+      ctx.drawImage(b.color.sprite, b.x - b.r, b.y - b.r, b.r * 2, b.r * 2);
+    }
+    ctx.globalAlpha = 1;
+  }
+
+  function drawBgStreak(s, t, dt) {
+    s.x -= s.speed * dt;
+    if (s.x + s.length < -100) {
+      Object.assign(s, makeBgStreak(true));
+      return;
+    }
+    const wobble = Math.sin(t * s.wobbleFreq + s.wobblePhase) * s.wobbleAmp;
+    const y = s.y + wobble;
+    const pulse = 1 + Math.sin(t * s.pulseFreq + s.pulsePhase) * s.pulseAmp;
+    const a = s.alpha * pulse;
+    if (a <= 0.002) return;
+    ctx.globalAlpha = Math.min(1, a);
+    ctx.drawImage(s.color.bgSprite, s.x, y - s.thickness / 2, s.length, s.thickness);
+  }
+
+  function drawStreak(s, t, dt) {
+    const wobble = Math.sin(t * s.wobbleFreq + s.wobblePhase) * s.wobbleAmp;
+    const baseY = s.y + wobble;
+    const flicker = 1 + Math.sin(t * s.flickerFreq + s.flickerPhase) * s.flickerAmp;
+    const fa = Math.max(0, Math.min(1, flicker));
+
+    // ---- cursor disturbance: inject impulse where cursor is near ----------
+    const N = WAVE_SLICES;
+    const d = s.waveDisp, v = s.waveVel;
+    const cursorDy = Math.max(-200, Math.min(200, mouseY - lastMouseY));
+    if (mouseX > -1e5 && Math.abs(cursorDy) > 0.3) {
+      const within =
+        mouseX >= s.x - 40 && mouseX <= s.x + s.length + 40 &&
+        Math.abs(mouseY - baseY) < WAVE_RADIUS * 2.2;
+      if (within) {
+        const sigma2 = WAVE_RADIUS * WAVE_RADIUS;
+        const invSig2 = 1 / (2 * sigma2);
+        const sliceW = s.length / N;
+        for (let i = 0; i < N; i++) {
+          const sx = s.x + sliceW * (i + 0.5);
+          const dxC = sx - mouseX;
+          const dyC = baseY - mouseY;
+          const influence = Math.exp(-(dxC * dxC + dyC * dyC) * invSig2);
+          if (influence < 0.01) continue;
+          v[i] += cursorDy * influence * WAVE_IMPULSE;
+        }
+        s.waveActive = true;
+      }
+    }
+
+    // ---- wave step (damped 1D wave equation, free boundaries) -------------
+    if (s.waveActive) {
+      let prevD = d[0];
+      for (let i = 0; i < N; i++) {
+        const dm = (i > 0) ? prevD : d[i];
+        const dp = (i < N - 1) ? d[i + 1] : d[i];
+        const di = d[i];
+        const accel = WAVE_C2 * (dm - 2 * di + dp) - WAVE_K * di - WAVE_DAMP * v[i];
+        v[i] += accel * dt;
+        prevD = di;
+      }
+      let maxMag = 0;
+      for (let i = 0; i < N; i++) {
+        d[i] += v[i] * dt;
+        const m = Math.abs(d[i]) + Math.abs(v[i]) * 0.1;
+        if (m > maxMag) maxMag = m;
+      }
+      if (maxMag < WAVE_REST_EPSILON) {
+        s.waveActive = false;
+        for (let i = 0; i < N; i++) { d[i] = 0; v[i] = 0; }
+      }
+    }
+
+    // ---- draw streak: bent curve when disturbed, single drawImage otherwise
+    ctx.globalAlpha = fa;
+    if (s.waveActive) {
+      const sprite = s.sprite;
+      const sH = sprite.height;
+      const spriteW = sprite.width;
+      const sliceW = spriteW / N;
+      const drawSliceW = s.length / N;
+      const sCenterY = s.spriteCenterY;
+      // Each slice spans from L_i (midpoint with previous slice center) to
+      // R_i (midpoint with next slice center). Adjacent slices share their
+      // endpoint, so the chain forms a continuous bent strip rather than a
+      // staircase. Each slice is rotated to match its local tangent.
+      for (let i = 0; i < N; i++) {
+        const ci_x = s.x + (i + 0.5) * drawSliceW;
+        const ci_y = baseY + d[i];
+        let Lx, Ly, Rx, Ry;
+        if (i === 0) {
+          Lx = s.x;
+          Ly = ci_y;
+        } else {
+          const cp_x = s.x + (i - 0.5) * drawSliceW;
+          const cp_y = baseY + d[i - 1];
+          Lx = (cp_x + ci_x) * 0.5;
+          Ly = (cp_y + ci_y) * 0.5;
+        }
+        if (i === N - 1) {
+          Rx = s.x + s.length;
+          Ry = ci_y;
+        } else {
+          const cn_x = s.x + (i + 1.5) * drawSliceW;
+          const cn_y = baseY + d[i + 1];
+          Rx = (cn_x + ci_x) * 0.5;
+          Ry = (cn_y + ci_y) * 0.5;
+        }
+        const segDx = Rx - Lx;
+        const segDy = Ry - Ly;
+        const segLen = Math.hypot(segDx, segDy);
+        const angle = Math.atan2(segDy, segDx);
+        ctx.save();
+        ctx.translate(Lx, Ly);
+        ctx.rotate(angle);
+        ctx.drawImage(
+          sprite,
+          i * sliceW, 0, sliceW, sH,
+          0, -sCenterY, segLen, sH
+        );
+        ctx.restore();
+      }
+    } else {
+      ctx.drawImage(s.sprite, s.x, baseY - s.spriteCenterY);
+    }
+
+    // ---- hotspots, riding the displaced curve -----------------------------
+    for (const hp of s.hotspots) {
+      hp.u += hp.drift * dt;
+      if (hp.u < 0.05) { hp.u = 0.05; hp.drift = -hp.drift; }
+      else if (hp.u > 0.95) { hp.u = 0.95; hp.drift = -hp.drift; }
+
+      const pulse = 1 + Math.sin(t * hp.pulseFreq + hp.pulsePhase) * hp.pulseAmp;
+      const ii = hp.intensity * pulse;
+      const edgeFalloff = Math.min(1, Math.min(hp.u, 1 - hp.u) * 4);
+      const peakA = ii * 0.18 * edgeFalloff * fa * s.alpha;
+      if (peakA <= 0.002) continue;
+
+      let hpDy = 0;
+      if (s.waveActive) {
+        const fi = hp.u * (N - 1);
+        const i0 = Math.floor(fi);
+        const i1 = Math.min(N - 1, i0 + 1);
+        const frac = fi - i0;
+        hpDy = d[i0] * (1 - frac) + d[i1] * frac;
+      }
+
+      const hx = s.x + s.length * hp.u;
+      const r = hp.radius;
+      ctx.globalAlpha = Math.min(1, peakA);
+      ctx.drawImage(s.color.hotspotSprite, hx - r, (baseY + hpDy) - r, r * 2, r * 2);
+    }
+  }
+
+  let last = performance.now();
+  let t = 0;
+
+  function frame(now) {
+    const dtMs = now - last;
+    last = now;
+    const dt = Math.min(dtMs, 50) / 1000;
+    t += dt;
+
+    // Trail fade — solid brand slate at partial opacity so the field stays
+    // #5A7482 instead of drifting toward black between frames.
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.globalAlpha = 1;
+    ctx.fillStyle = `rgba(${BG_RGB.r}, ${BG_RGB.g}, ${BG_RGB.b}, ${TRAIL_ALPHA})`;
+    ctx.fillRect(0, 0, W, H);
+
+    // Bg blobs — source-over, low alpha, drawImage of cached gradient sprite
+    drawBlobs(t);
+
+    // Bg streaks — lighter blend, drawImage stretched soft band
+    ctx.globalCompositeOperation = 'lighter';
+    for (const bg of bgStreaks) drawBgStreak(bg, t, dt);
+
+    // Foreground streaks — lighter blend, drawImage of pre-baked sprite
+    for (let i = streaks.length - 1; i >= 0; i--) {
+      const s = streaks[i];
+      s.x -= s.speed * dt;
+      drawStreak(s, t, dt);
+      if (s.x + s.length < -50) streaks[i] = makeStreak(true);
+    }
+
+    ctx.globalAlpha = 1;
+
+    // Capture cursor position at end of frame so next frame's delta reflects
+    // motion since this frame, not since the last pointermove event.
+    lastMouseX = mouseX;
+    lastMouseY = mouseY;
+
+    requestAnimationFrame(frame);
+  }
+  requestAnimationFrame((now) => { last = now; frame(now); });
+
+  // Forward wheel/trackpad scroll to the parent page's horizontal scroller so
+  // the site still scrolls while the cursor is over this animation.
+  if (window.parent !== window) {
+    window.addEventListener('wheel', (e) => {
+      e.preventDefault();
+      window.parent.dispatchEvent(
+        new CustomEvent('comte:wheel-scroll', {
+          detail: { deltaX: e.deltaX, deltaY: e.deltaY },
+        }),
+      );
+    }, { passive: false });
+  }
+})();
+</script>
+</body>
+</html>
